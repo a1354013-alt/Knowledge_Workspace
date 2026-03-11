@@ -54,34 +54,27 @@ def process_file(doc_id: str, file_path: str, filename: str, allowed_roles: List
     ext = os.path.splitext(filename)[1].lower()
     if ext == ".pdf":
         loader = PyPDFLoader(file_path)
-    elif ext == ".txt":
-        # 【重要】指定 encoding，避免中文翻車
-        try:
-            loader = TextLoader(file_path, encoding="utf-8")
-        except UnicodeDecodeError:
-            # 備選：嘗試 utf-8-sig 或 cp950
+        docs = loader.load()
+    elif ext in [".txt", ".md"]:
+        # 【重要】TextLoader 在 load() 時才會解碼，所以 fallback 必須在 load() 後
+        # 依序嘗試：utf-8 → utf-8-sig → cp950
+        encodings = ["utf-8", "utf-8-sig", "cp950"]
+        docs = None
+        last_error = None
+        
+        for encoding in encodings:
             try:
-                loader = TextLoader(file_path, encoding="utf-8-sig")
-            except UnicodeDecodeError:
-                loader = TextLoader(file_path, encoding="cp950")
-    elif ext == ".md":
-        # 【重要】指定 encoding，避免中文翻車
-        try:
-            loader = TextLoader(file_path, encoding="utf-8")
-        except UnicodeDecodeError:
-            # 備選：嘗試 utf-8-sig 或 cp950
-            try:
-                loader = TextLoader(file_path, encoding="utf-8-sig")
-            except UnicodeDecodeError:
-                loader = TextLoader(file_path, encoding="cp950")
+                loader = TextLoader(file_path, encoding=encoding)
+                docs = loader.load()
+                break  # 成功就跳出
+            except UnicodeDecodeError as e:
+                last_error = e
+                continue  # 繼續嘗試下一個編碼
+        
+        if docs is None:
+            raise ValueError(f"文件編碼錯誤，已嘗試 {encodings}，請確保文件為支援的編碼: {str(last_error)}")
     else:
         raise ValueError(f"不支援的檔案格式: {ext}")
-    
-    # 載入文件
-    try:
-        docs = loader.load()
-    except UnicodeDecodeError as e:
-        raise ValueError(f"文件編碼錯誤，請確保文件為 UTF-8 編碼: {str(e)}")
     
     # 切分文本
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
@@ -112,7 +105,10 @@ def process_file(doc_id: str, file_path: str, filename: str, allowed_roles: List
     # add_to_vector_db 會自動添加角色旗標（role_employee, role_manager, role_hr, role_admin）
     if not texts:
         raise ValueError(f"文件 {filename} 為空，無法入庫")
-    add_to_vector_db(doc_id, texts, metadatas, allowed_roles)
+    
+    # 【重要】檢查入庫是否成功
+    if not add_to_vector_db(doc_id, texts, metadatas, allowed_roles):
+        raise ValueError(f"文件 {filename} 入庫向量庫失敗")
     
     return doc_id
 
@@ -180,8 +176,18 @@ async def perform_qa(question: str, user_role: str) -> Tuple[str, List[Source]]:
                     lambda: llm.invoke(f"{SYSTEM_PROMPT}\n\n【參考資訊】\n{context}\n\n【使用者問題】\n{question}")
                 )
             answer = response.content if hasattr(response, 'content') else str(response)
+            
+            # 【重要】強制引用校驗：答案必須包含【】記標
+            if "【" not in answer or "】" not in answer:
+                # 答案沒有引用，清除 sources
+                answer = "找不到依據"
+                sources = []
         except Exception as e:
-            answer = f"LLM 呼叫失敗: {str(e)}"
+            # LLM 失敗時，不要回傳錯誤訊息給一般使用者（可在 server log 輸出）
+            import logging
+            logging.error(f"LLM 呼叫失敗: {str(e)}")
+            answer = "找不到依據"
+            sources = []
     else:
         # 無 OpenAI key：Demo mode
         answer = f"根據提供的文件，{question}。\n\n（此為 Demo 模式回答，實際需配置 OpenAI API Key）"

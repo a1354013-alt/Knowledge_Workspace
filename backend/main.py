@@ -5,19 +5,17 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Header, stat
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-import os
 
 # 載入 .env 檔案（必須在最前面）
 load_dotenv()
 
-from models import DocumentResponse, QARequest, QAResponse, GenerateRequest, GenerateResponse
-from database import DocumentDatabase, add_to_vector_db, query_vector_db, delete_from_vector_db
+from models import QARequest, QAResponse, GenerateRequest, GenerateResponse
+from database import DocumentDatabase, delete_from_vector_db
 from services import process_file, perform_qa, generate_form
-from auth import create_token, verify_token, extract_token_from_header, ALLOWED_ROLES
+from auth import create_token, verify_token, extract_token_from_header
 from utils import (
     generate_safe_filename,
     validate_file_extension,
-    parse_roles,
     parse_user_roles,
     parse_doc_roles,
     stream_write_file,
@@ -28,7 +26,7 @@ from utils import (
 
 # 上傳目錄（從環境變數讀取）
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "./uploads"))
-UPLOAD_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # 資料庫（從環境變數讀取）
 db = DocumentDatabase(os.getenv("DATABASE_PATH", "documents.db"))
@@ -219,7 +217,6 @@ async def upload_document(
         return {
             "id": doc_id,
             "filename": file.filename,
-            "saved_filename": safe_filename,
             "file_size": file_size,
             "message": "文件上傳成功（待 admin 審核，審核後才會進入 RAG 檢索庫）"
         }
@@ -260,7 +257,11 @@ async def list_documents(authorization: str = Header(None)):
             else:
                 is_approved = doc.get("approved", 0) == 1
                 is_active = doc.get("is_active", 1) == 1
-                allowed_roles = doc.get("allowed_roles", "")
+                # 【重要】正規化 allowed_roles 為 list（可能是字串或 list）
+                allowed_roles = doc.get("allowed_roles", [])
+                if not isinstance(allowed_roles, list):
+                    allowed_roles = [r.strip() for r in str(allowed_roles).split(",") if r.strip()]
+                
                 uploaded_by = doc.get("uploaded_by", "")
                 is_own_doc = uploaded_by == user_id
                 is_visible = is_approved and is_active and user_role in allowed_roles
@@ -268,19 +269,24 @@ async def list_documents(authorization: str = Header(None)):
                     filtered_docs.append(doc)
         
         # 【重要】回傳必要欄位（包含 uploaded_by 和 approved，但不含 saved_filename 以避免內部檔名洩漏）
-        return [
-            {
+        result = []
+        for doc in filtered_docs:
+            # 【重要】正規化 allowed_roles 為 list，保證前後端一致
+            allowed_roles = doc.get("allowed_roles", [])
+            if not isinstance(allowed_roles, list):
+                allowed_roles = [r.strip() for r in str(allowed_roles).split(",") if r.strip()]
+            
+            result.append({
                 "id": doc["doc_id"],
                 "filename": doc["filename"],
-                "allowed_roles": doc["allowed_roles"],
+                "allowed_roles": allowed_roles,
                 "uploaded_at": doc["uploaded_at"],
                 "file_size": doc.get("file_size", 0),
                 "uploaded_by": doc.get("uploaded_by", ""),
                 "approved": doc.get("approved", 0),
                 "is_active": doc.get("is_active", 1)
-            }
-            for doc in filtered_docs
-        ]
+            })
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -485,6 +491,10 @@ async def admin_update_user(
         token_data = verify_token(token)
         require_admin(token_data)
         
+        # 【重要】驗證 is_active 只能是 0 或 1
+        if is_active is not None and is_active not in [0, 1]:
+            raise HTTPException(status_code=400, detail="is_active 只能是 0 或 1")
+        
         # 驗證角色
         if role:
             try:
@@ -582,6 +592,14 @@ async def admin_update_document(
         if not doc:
             raise HTTPException(status_code=404, detail="文件不存在")
         
+        # 【重要】驗證 approved 只能是 0 或 1
+        if approved is not None and approved not in [0, 1]:
+            raise HTTPException(status_code=400, detail="approved 只能是 0 或 1")
+        
+        # 【重要】驗證 is_active 只能是 0 或 1
+        if is_active is not None and is_active not in [0, 1]:
+            raise HTTPException(status_code=400, detail="is_active 只能是 0 或 1")
+        
         # 驗證角色
         if allowed_roles:
             try:
@@ -623,7 +641,8 @@ async def admin_update_document(
                 # 【重要】第一個參數是 doc_id，不是 file_path！
                 process_file(doc_id, str(file_path), doc["filename"], roles_list, approved=1, is_active=1)
             except Exception as e:
-                # 【重要】完整回滾到舊狀態
+                # 【重要】先清掉可能殘留的 chunk，再回滚 DB 狀態
+                delete_from_vector_db(doc_id)
                 db.update_document(doc_id, approved=old_approved, is_active=old_is_active, allowed_roles=old_allowed_roles)
                 raise HTTPException(status_code=500, detail=f"入庫失敗: {str(e)}")
         
@@ -655,7 +674,8 @@ async def admin_update_document(
                 # 【重要】第一個參數是 doc_id，不是 file_path！
                 process_file(doc_id, str(file_path), doc["filename"], roles_list, approved=1, is_active=1)
             except Exception as e:
-                # 【重要】完整回滾到舊狀態
+                # 【重要】先清掉可能殘留的 chunk，再回滚 DB 狀態
+                delete_from_vector_db(doc_id)
                 db.update_document(doc_id, approved=old_approved, is_active=old_is_active, allowed_roles=old_allowed_roles)
                 raise HTTPException(status_code=500, detail=f"更新角色旗標失敗: {str(e)}")
         

@@ -15,6 +15,9 @@ def get_embedding_function():
     """
     獲取 embedding function（快取版本）
     優先使用 OpenAI，如果沒有 key 則使用 sentence-transformers
+    
+    【重要】快取機制：第一次存取後不會再改變。
+    若要切換 embedding 來源，需要重新啟動服務。
     """
     global _EMBEDDING_FUNCTION
     
@@ -158,6 +161,7 @@ class DocumentDatabase:
             return False
         return bcrypt.checkpw(password.encode(), user["password_hash"].encode())
     
+
     def list_users(self) -> List[Dict]:
         """列出所有使用者（不選擇 password_hash）"""
         with sqlite3.connect(self.db_path) as conn:
@@ -367,14 +371,26 @@ def add_to_vector_db(doc_id: str, chunks: List[str], metadata_list: List[Dict], 
         # 為每個 chunk 生成唯一 ID
         ids = [f"{doc_id}_{i}" for i in range(len(chunks))]
         
-        # 補充角色旗標到每個 metadata
-        if allowed_roles:
+        # 【重要】補充角色旗標到每個 metadata（永遠存在）
+        # 若 allowed_roles 未傳入或為空，從 metadata 中解析
+        if not allowed_roles:
+            # 從 metadata 中解析 allowed_roles
             for metadata in metadata_list:
-                # 初始化所有角色為 False
-                metadata["role_employee"] = "employee" in allowed_roles
-                metadata["role_manager"] = "manager" in allowed_roles
-                metadata["role_hr"] = "hr" in allowed_roles
-                metadata["role_admin"] = "admin" in allowed_roles
+                roles_str = metadata.get("allowed_roles", "")
+                if isinstance(roles_str, str):
+                    allowed_roles = [r.strip() for r in roles_str.split(",") if r.strip()]
+                elif isinstance(roles_str, list):
+                    allowed_roles = roles_str
+                else:
+                    allowed_roles = []
+                break  # 只需讀第一筆
+        
+        for metadata in metadata_list:
+            # 初始化所有角色為 False
+            metadata["role_employee"] = "employee" in allowed_roles
+            metadata["role_manager"] = "manager" in allowed_roles
+            metadata["role_hr"] = "hr" in allowed_roles
+            metadata["role_admin"] = "admin" in allowed_roles
         
         # 新增到向量庫
         collection.add(

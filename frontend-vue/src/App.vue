@@ -99,7 +99,7 @@
                   accept=".pdf,.txt,.md"
                   style="display: none"
                 />
-                <div class="upload-box" @click="$refs.fileInput.click()">
+                <div class="upload-box" @click="openFilePicker">
                   <i class="pi pi-upload"></i>
                   <p>選擇文件 (PDF/TXT/MD)</p>
                   <p v-if="selectedFile" class="file-name">{{ selectedFile.name }}</p>
@@ -606,12 +606,36 @@ export default {
       toast.add({ severity: 'success', summary: '成功', detail: '已複製到剪貼簿', life: 3000 })
     }
 
+    // 【新增】打開檔案選擇器
+    const openFilePicker = () => {
+      fileInput.value?.click()
+    }
+
     // 初始化
-    onMounted(() => {
+    onMounted(async () => {
       const token = localStorage.getItem('authToken')
       if (token) {
         authToken.value = token
-        // 可以在這裡驗證 token 是否仍有效
+        // 【新增】驗證 token 是否仍有效，並恢複登入狀態
+        try {
+          const response = await fetch(`${API_BASE}/api/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          if (response.ok) {
+            const userData = await response.json()
+            currentUser.value = userData
+            isLoggedIn.value = true
+            await loadDocuments()
+          } else {
+            // token 無效，清除
+            localStorage.removeItem('authToken')
+            authToken.value = ''
+          }
+        } catch (error) {
+          console.error('驗證 token 失敗:', error)
+          localStorage.removeItem('authToken')
+          authToken.value = ''
+        }
       }
     })
 
@@ -623,6 +647,7 @@ export default {
       loginLoading,
       currentUser,
       showAdminConsole,
+      openFilePicker,
       documents,
       selectedFile,
       uploadRoles,

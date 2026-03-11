@@ -125,6 +125,9 @@ import { ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import axios from 'axios'
 
+// 【重要】定義 emit（修復 ReferenceError）
+const emit = defineEmits(['close'])
+
 const toast = useToast()
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
@@ -164,18 +167,43 @@ const roleOptions = [
 // API 呼叫
 const getAuthHeader = () => {
   const token = localStorage.getItem('authToken')
+  if (!token) {
+    // 【重要】token 不存在時拋出錯誤
+    throw new Error('Missing token')
+  }
   return { Authorization: `Bearer ${token}` }
+}
+
+// 【重要】包裝 axios 呼叫，自動處理 token 缺失情況
+// 接收一個函式，讓它可以包住 getAuthHeader（避免參數評估階段就拋出）
+const safeAxiosCall = async (fn) => {
+  try {
+    return await fn()
+  } catch (error) {
+    if (error.message === 'Missing token') {
+      toast.add({ severity: 'error', summary: '錯誤', detail: '請重新登入' })
+      emit('close')
+      return null
+    }
+    throw error
+  }
 }
 
 const loadUsers = async () => {
   try {
     loadingUsers.value = true
-    const response = await axios.get(`${API_BASE}/api/admin/users`, {
-      headers: getAuthHeader()
-    })
-    users.value = response.data
+    const response = await safeAxiosCall(() =>
+      axios.get(`${API_BASE}/api/admin/users`, {
+        headers: getAuthHeader()
+      })
+    )
+    if (response) {
+      users.value = response.data
+    }
   } catch (error) {
-    toast.add({ severity: 'error', summary: '錯誤', detail: error.response?.data?.detail || '載入使用者失敗' })
+    if (error.message !== 'Missing token') {
+      toast.add({ severity: 'error', summary: '錯誤', detail: error.response?.data?.detail || '載入使用者失敗' })
+    }
   } finally {
     loadingUsers.value = false
   }
@@ -184,12 +212,18 @@ const loadUsers = async () => {
 const loadDocuments = async () => {
   try {
     loadingDocs.value = true
-    const response = await axios.get(`${API_BASE}/api/admin/docs`, {
-      headers: getAuthHeader()
-    })
-    documents.value = response.data
+    const response = await safeAxiosCall(() =>
+      axios.get(`${API_BASE}/api/admin/docs`, {
+        headers: getAuthHeader()
+      })
+    )
+    if (response) {
+      documents.value = response.data
+    }
   } catch (error) {
-    toast.add({ severity: 'error', summary: '錯誤', detail: error.response?.data?.detail || '載入文件失敗' })
+    if (error.message !== 'Missing token') {
+      toast.add({ severity: 'error', summary: '錯誤', detail: error.response?.data?.detail || '載入文件失敗' })
+    }
   } finally {
     loadingDocs.value = false
   }
@@ -208,9 +242,11 @@ const saveUser = async () => {
     
     if (editingUser.value) {
       // 更新使用者
-      await axios.patch(`${API_BASE}/api/admin/users/${editingUser.value.user_id}`, formData, {
-        headers: getAuthHeader()
-      })
+      await safeAxiosCall(() =>
+        axios.patch(`${API_BASE}/api/admin/users/${editingUser.value.user_id}`, formData, {
+          headers: getAuthHeader()
+        })
+      )
       toast.add({ severity: 'success', summary: '成功', detail: '使用者已更新' })
     } else {
       // 新增使用者
@@ -219,9 +255,11 @@ const saveUser = async () => {
         return
       }
       formData.append('user_id', userForm.value.user_id)
-      await axios.post(`${API_BASE}/api/admin/users`, formData, {
-        headers: getAuthHeader()
-      })
+      await safeAxiosCall(() =>
+        axios.post(`${API_BASE}/api/admin/users`, formData, {
+          headers: getAuthHeader()
+        })
+      )
       toast.add({ severity: 'success', summary: '成功', detail: '使用者已建立' })
     }
     
@@ -239,14 +277,18 @@ const saveDocument = async () => {
     formData.append('approved', docForm.value.approved)
     formData.append('is_active', docForm.value.is_active)
     
-    await axios.patch(`${API_BASE}/api/admin/docs/${docForm.value.doc_id}`, formData, {
-      headers: getAuthHeader()
-    })
+    await safeAxiosCall(() =>
+      axios.patch(`${API_BASE}/api/admin/docs/${docForm.value.doc_id}`, formData, {
+        headers: getAuthHeader()
+      })
+    )
     toast.add({ severity: 'success', summary: '成功', detail: '文件已更新' })
     showDocDialog.value = false
     loadDocuments()
   } catch (error) {
-    toast.add({ severity: 'error', summary: '錯誤', detail: error.response?.data?.detail || '保存失敗' })
+    if (error.message !== 'Missing token') {
+      toast.add({ severity: 'error', summary: '錯誤', detail: error.response?.data?.detail || '保存失敗' })
+    }
   }
 }
 
@@ -264,10 +306,18 @@ const editUser = (user) => {
 
 const editDocument = (doc) => {
   editingDoc.value = doc
+  // 【重要】正規化 allowed_roles：保證是 list 且每個元素都已 trim
+  let normalizedRoles = []
+  if (typeof doc.allowed_roles === 'string') {
+    normalizedRoles = doc.allowed_roles.split(',').map(s => s.trim()).filter(Boolean)
+  } else if (Array.isArray(doc.allowed_roles)) {
+    normalizedRoles = doc.allowed_roles.map(s => String(s).trim()).filter(Boolean)
+  }
+  
   docForm.value = {
-    doc_id: doc.id,  // 改用 doc.id
+    doc_id: doc.id,
     filename: doc.filename,
-    allowed_roles: typeof doc.allowed_roles === 'string' ? doc.allowed_roles.split(',') : doc.allowed_roles,
+    allowed_roles: normalizedRoles,
     approved: doc.approved,
     is_active: doc.is_active
   }
@@ -281,13 +331,17 @@ const deleteUser = async (user) => {
     // 實作：停用使用者而不是刪除
     const formData = new FormData()
     formData.append('is_active', 0)
-    await axios.patch(`${API_BASE}/api/admin/users/${user.user_id}`, formData, {
-      headers: getAuthHeader()
-    })
+    await safeAxiosCall(() =>
+      axios.patch(`${API_BASE}/api/admin/users/${user.user_id}`, formData, {
+        headers: getAuthHeader()
+      })
+    )
     toast.add({ severity: 'success', summary: '成功', detail: '使用者已停用' })
     loadUsers()
   } catch (error) {
-    toast.add({ severity: 'error', summary: '錯誤', detail: error.response?.data?.detail || '刪除失敗' })
+    if (error.message !== 'Missing token') {
+      toast.add({ severity: 'error', summary: '錯誤', detail: error.response?.data?.detail || '刪除失敗' })
+    }
   }
 }
 
@@ -295,13 +349,17 @@ const deleteDocument = async (doc) => {
   if (!confirm(`確定要刪除文件 ${doc.filename} 吗？`)) return
   
   try {
-    await axios.delete(`${API_BASE}/api/admin/docs/${doc.id}`, {
-      headers: getAuthHeader()
-    })
+    await safeAxiosCall(() =>
+      axios.delete(`${API_BASE}/api/admin/docs/${doc.id}`, {
+        headers: getAuthHeader()
+      })
+    )
     toast.add({ severity: 'success', summary: '成功', detail: '文件已刪除' })
     loadDocuments()
   } catch (error) {
-    toast.add({ severity: 'error', summary: '錯誤', detail: error.response?.data?.detail || '刪除失敗' })
+    if (error.message !== 'Missing token') {
+      toast.add({ severity: 'error', summary: '錯誤', detail: error.response?.data?.detail || '刪除失敗' })
+    }
   }
 }
 

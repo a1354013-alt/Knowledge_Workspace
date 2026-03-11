@@ -3,14 +3,9 @@ from typing import List, Optional
 
 # ============ 請求/回應模型 ============
 
-class DocumentResponse(BaseModel):
-    """文件資訊回應"""
-    id: str = Field(description="文件 ID (UUID)")
-    filename: str = Field(description="原始檔名")
-    saved_filename: str = Field(description="保存的檔名")
-    allowed_roles: List[str] = Field(description="允許查看的角色")
-    uploaded_at: str = Field(description="上傳時間")
-    file_size: int = Field(default=0, description="檔案大小 (bytes)")
+# 【注】DocumentResponse 已移除，使用實際 API 回傳的 dict 結構
+# - /api/docs（一般使用者）：id, filename, file_size, uploaded_at, approved, is_active, uploaded_by
+# - /api/admin/docs（admin）：id, filename, saved_filename, file_size, uploaded_at, approved, is_active, uploaded_by, allowed_roles
 
 class QARequest(BaseModel):
     """問答請求"""
