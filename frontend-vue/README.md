@@ -1,319 +1,277 @@
-# 企業 AI 助理 - 前端 (Vue 3 + PrimeVue)
+# 企業 AI 助理 - 完整版本
 
-Vue 3 + PrimeVue 企業級前端應用，提供直觀的文件管理、問答、表單生成介面。
+完整的企業內部 AI 助理系統，包含文件管理、RAG 問答、表單生成、用戶認證、Admin 後台等功能。
 
-## ✨ 功能特性
+**版本**: 3.0.0 Admin Console  
+**更新**: 2026-02-08
 
-### 文件管理
-- 📤 上傳文件 (PDF/TXT/MD)
-- 🔐 設定允許查看的角色 (MultiSelect)
-- 📋 查看已上傳文件列表
-- 🗑️ 刪除文件
+## 🎯 核心功能
 
-### 智能問答
-- 💬 提交問題
-- 🔍 基於 RAG 的智能回答
-- 📚 顯示引用來源
-- 👤 支援多角色查詢
+### 🔐 用戶認證與授權
+- ✅ **密碼驗證** - 使用 bcrypt 加密，防止密碼洩露
+- ✅ **JWT Token** - 後端簽署，前端無法偽造角色
+- ✅ **角色管理** - employee / manager / hr / admin 四層角色
+- ✅ **Admin 後台** - 僅 admin 可進入，管理使用者和文件
 
-### 表單生成
-- 📝 4 種預設模板
-- 📋 動態表單欄位
-- ✅ 必填欄位驗證
-- 📋 複製生成內容
+### 📄 文件管理與審核
+- ✅ **上傳流程** - 上傳時預設 approved=0（未審核）
+- ✅ **文件審核** - Admin 可批准/下架文件
+- ✅ **權限控制** - 只有 approved=1 & is_active=1 的文件才能被 QA 檢索
+- ✅ **刪除權限** - 上傳者或 admin 才能刪除
 
-### 角色管理
-- 👨‍💼 員工 (Employee)
-- 👔 主管 (Manager)
-- 👨‍💼 人資 (HR)
+### 🤖 RAG 問答系統
+- ✅ **向量檢索** - 基於 ChromaDB 的語義搜尋
+- ✅ **權限過濾** - 查詢時在 database 層進行權限檢查
+- ✅ **引用來源** - 每個回答都顯示出處
+- ✅ **Demo Mode** - 無需 OpenAI Key 也能運行
 
-## 📁 專案結構
+### 📋 表單生成
+- ✅ **多種模板** - 請假通知、加班申請、變更申請、會議紀錄
+- ✅ **動態欄位** - 根據模板自動生成欄位
+- ✅ **內容複製** - 一鍵複製生成的內容
 
-```
-frontend-vue/
-├── src/
-│   ├── App.vue              # 主應用元件（完整功能）
-│   ├── main.js              # Vue 應用入口
-│   ├── components/          # 組件目錄（可擴展）
-│   ├── views/               # 頁面目錄（可擴展）
-│   └── assets/              # 靜態資源
-├── index.html               # HTML 模板
-├── vite.config.js           # Vite 配置
-├── package.json             # 依賴配置
-├── .env.example             # 環境變數範例
-├── .env                     # 環境變數配置（本地）
-└── README.md                # 本檔案
-```
+## 🛠️ 技術棧
 
-## 🚀 快速啟動
-
-### 1. 安裝依賴
-```bash
-npm install
-```
-
-### 2. 配置環境變數
-複製 `.env.example` 為 `.env`：
-```bash
-cp .env.example .env
-```
-
-編輯 `.env` 檔案（可選）：
-```env
-# API 基礎 URL
-VITE_API_BASE=http://localhost:8000
-```
-
-### 3. 啟動開發伺服器
-```bash
-npm run dev
-```
-
-✅ 看到 `Local: http://localhost:3000` 表示啟動成功
-
-### 4. 打開瀏覽器
-訪問 `http://localhost:3000`
-
-## 🛠️ 開發命令
-
-```bash
-# 啟動開發伺服器
-npm run dev
-
-# 構建生產版本
-npm run build
-
-# 預覽生產構建
-npm run preview
-
-# 檢查類型
-npm run type-check
-```
-
-## 🎨 UI 組件
-
-使用 **PrimeVue 4.0** 企業級 UI 組件庫：
-
-| 組件 | 用途 |
-|------|------|
-| `Card` | 卡片容器 |
-| `Button` | 按鈕（支援 loading 狀態） |
-| `Dropdown` | 下拉選擇 |
-| `MultiSelect` | 多選（角色選擇） |
-| `InputText` | 文本輸入 |
-| `Textarea` | 文本區域（自動調整高度） |
-| `Toast` | 通知提示 |
-
-## 🔌 API 整合
-
-### 環境變數
-```javascript
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
-```
-
-### API 端點
-
-| 方法 | 端點 | 說明 |
+### 後端
+| 組件 | 版本 | 說明 |
 |------|------|------|
-| POST | `/api/docs/upload` | 上傳文件 |
-| GET | `/api/docs` | 列出文件 |
-| DELETE | `/api/docs/{doc_id}` | 刪除文件 |
-| POST | `/api/qa` | 提交問題 |
-| POST | `/api/generate` | 生成表單 |
+| FastAPI | 0.104+ | REST API 框架 |
+| ChromaDB | 0.4+ | 向量資料庫 |
+| LangChain | 0.1+ | 文本分割 & LLM |
+| SQLite | 3.x | 關聯式資料庫 |
+| PyJWT | 2.8+ | JWT 簽署 |
+| bcrypt | 4.0+ | 密碼加密 |
 
-## 📋 表單驗證
-
-### 必填欄位檢查
-生成表單前會自動檢查所有欄位是否已填寫：
-```javascript
-const missingFields = currentTemplateFields.value.filter(
-  field => !formInputs.value[field]
-)
-if (missingFields.length > 0) {
-  // 顯示錯誤提示
-}
-```
-
-### 模板欄位定義
-```javascript
-const templateFieldsMap = {
-  '請假通知': ['請假類型', '請假日期', '請假天數', '原因'],
-  '加班申請說明': ['加班日期', '加班時數', '加班原因', '預期完成時間'],
-  '變更申請摘要': ['變更項目', '變更內容', '影響範圍', '實施時間'],
-  '會議紀錄': ['會議名稱', '出席人員', '主要議題', '決議事項']
-}
-```
-
-## 🎯 核心功能實現
-
-### 1. 文件上傳
-```javascript
-const uploadFile = async () => {
-  const formData = new FormData()
-  formData.append('file', selectedFile.value)
-  formData.append('allowed_roles', uploadRoles.value.join(','))
-  
-  const response = await axios.post(`${API_BASE}/api/docs/upload`, formData)
-}
-```
-
-### 2. 問答
-```javascript
-const askQuestion = async () => {
-  const response = await axios.post(`${API_BASE}/api/qa`, {
-    question: question.value,
-    user_role: userRole.value
-  })
-  qaResponse.value = response.data
-}
-```
-
-### 3. 表單生成
-```javascript
-const generateForm = async () => {
-  // 驗證必填欄位
-  const missingFields = currentTemplateFields.value.filter(
-    field => !formInputs.value[field]
-  )
-  if (missingFields.length > 0) {
-    // 顯示錯誤
-    return
-  }
-  
-  const response = await axios.post(`${API_BASE}/api/generate`, {
-    template_type: templateType.value,
-    inputs: formInputs.value,
-    user_role: userRole.value
-  })
-  generatedContent.value = response.data.content
-}
-```
-
-## 🔄 狀態管理
-
-### 使用 Vue 3 Composition API
-```javascript
-const userRole = ref('employee')
-const documents = ref([])
-const question = ref('')
-const qaResponse = ref(null)
-const templateType = ref('請假通知')
-const formInputs = ref({})
-const generatedContent = ref('')
-```
-
-### 計算屬性
-```javascript
-const currentTemplateFields = computed(() => {
-  return templateFieldsMap[templateType.value] || []
-})
-```
-
-## 📱 響應式設計
-
-### 三欄布局
-```css
-.main-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 2rem;
-}
-
-@media (max-width: 1024px) {
-  .main-grid {
-    grid-template-columns: 1fr;
-  }
-}
-```
-
-## 🔔 通知系統
-
-使用 PrimeVue Toast 提供實時反饋：
-```javascript
-const toast = useToast()
-
-toast.add({ 
-  severity: 'success', 
-  summary: '成功', 
-  detail: '操作完成', 
-  life: 3000 
-})
-```
-
-## 🎨 樣式主題
-
-使用 **Lara Light Blue** 主題：
-```javascript
-import 'primevue/resources/themes/lara-light-blue/theme.css'
-```
-
-可在 `main.js` 中更換主題。
-
-## 🚨 常見問題
-
-### 1. API 連接失敗
-**原因**: 後端未啟動或 `VITE_API_BASE` 配置錯誤  
-**解決**: 
-- 確認後端運行在 `http://localhost:8000`
-- 檢查 `.env` 中的 `VITE_API_BASE` 設定
-
-### 2. 上傳失敗
-**原因**: 檔案格式不支援或大小超限  
-**解決**: 
-- 僅上傳 `.pdf`, `.txt`, `.md` 檔案
-- 檔案大小不超過 50MB
-
-### 3. 表單欄位未顯示
-**原因**: 模板切換時未重置表單  
-**解決**: 
-- 檢查 `onTemplateChange` 是否正確重置 `formInputs`
-
-### 4. Toast 通知不顯示
-**原因**: `ToastService` 未在 `main.js` 中註冊  
-**解決**: 
-- 確認 `main.js` 中有 `app.use(ToastService)`
-
-## 📚 技術棧
-
-| 技術 | 版本 | 說明 |
+### 前端
+| 組件 | 版本 | 說明 |
 |------|------|------|
 | Vue | 3.4.0 | JavaScript 框架 |
 | PrimeVue | 4.0.0 | UI 組件庫 |
 | Vite | 5.0.0 | 構建工具 |
 | Axios | 1.6.0 | HTTP 客戶端 |
-| PrimeIcons | 6.0.0 | 圖標庫 |
 
-## 🔐 安全性考慮
+## 📦 專案結構
 
-- ✅ 使用 HTTPS 在生產環境
-- ✅ 驗證所有使用者輸入
-- ✅ 不在前端存儲敏感資訊
-- ✅ 使用環境變數管理 API 端點
-
-## 📈 性能最佳實踐
-
-- ✅ 使用 `computed` 避免不必要的重新渲染
-- ✅ 使用 `ref` 管理局部狀態
-- ✅ 非同步操作使用 `async/await`
-- ✅ 使用 Vite 進行快速開發和生產構建
-
-## 🚀 部署
-
-### 構建生產版本
-```bash
-npm run build
+```
+enterprise-ai-assistant/
+├── backend/                     # FastAPI 後端
+│   ├── main.py                 # 應用主程式（含 Admin API）
+│   ├── models.py               # Pydantic 模型
+│   ├── database.py             # SQLite + ChromaDB 操作層
+│   ├── services.py             # 業務邏輯（RAG、表單生成）
+│   ├── auth.py                 # JWT 驗證模組
+│   ├── utils.py                # 工具函數
+│   ├── requirements.txt         # Python 依賴
+│   ├── .env.example            # 環境變數範例
+│   ├── documents.db            # SQLite 資料庫（自動生成）
+│   ├── chroma_db/              # ChromaDB 向量庫（自動生成）
+│   ├── uploads/                # 上傳檔案存儲目錄
+│   ├── sample_docs/            # 範例文件
+│   └── README.md               # 後端文檔
+│
+├── frontend-vue/                # Vue 3 + PrimeVue 前端
+│   ├── src/
+│   │   ├── App.vue             # 主應用元件（含登入、Admin 入口）
+│   │   ├── main.js             # Vue 入口
+│   │   ├── components/
+│   │   │   └── AdminConsole.vue # Admin 後台元件
+│   │   ├── views/              # 頁面目錄
+│   │   └── assets/             # 靜態資源
+│   ├── index.html              # HTML 模板
+│   ├── vite.config.js          # Vite 配置
+│   ├── package.json            # 依賴配置
+│   ├── .env.example            # 環境變數範例
+│   └── README.md               # 前端文檔
+│
+├── README.md                    # 本檔案
+├── QUICK_START.md              # 快速開始指南
+└── PROJECT_STRUCTURE.md        # 專案架構說明
 ```
 
-### 部署靜態檔案
-生成的 `dist/` 目錄包含所有靜態檔案，可部署到任何靜態主機。
+## 🚀 快速開始
 
-## 📞 支援
+### 1️⃣ 解壓縮
+```bash
+tar -xzf enterprise-ai-assistant-admin-fixed.tar.gz
+cd enterprise-ai-assistant
+```
 
-- 📖 查看 PrimeVue 文檔：https://primevue.org/
-- 💡 查看 Vue 3 文檔：https://vuejs.org/
-- 🐛 發現 Bug？檢查瀏覽器控制台查看錯誤信息
+### 2️⃣ 啟動後端（終端 1）
+```bash
+cd backend
+pip install -r requirements.txt
+python main.py
+```
+
+✅ 看到以下輸出表示成功：
+```
+✅ 企業 AI 助理 API 啟動
+📝 允許的來源: ['http://localhost:3000']
+🔐 Allow Credentials: True
+🔑 OpenAI API Key: 未配置（使用 sentence-transformers）
+Uvicorn running on http://0.0.0.0:8000
+```
+
+### 3️⃣ 啟動前端（終端 2）
+```bash
+cd frontend-vue
+npm install
+npm run dev
+```
+
+✅ 看到以下輸出表示成功：
+```
+Local:   http://localhost:3000/
+Network: http://169.254.0.21:3000/
+```
+
+### 4️⃣ 打開瀏覽器
+訪問 **http://localhost:3000**
+
+### 5️⃣ 登入
+```
+帳號：admin
+密碼：admin12345
+```
+
+⚠️ **重要**：生產環境必須修改預設密碼！
+
+## 📖 使用指南
+
+### 普通使用者流程
+1. 登入（輸入 user_id + password）
+2. 上傳文件（預設待審核）
+3. 等待 admin 批准
+4. 提問（只能查詢已批准的文件）
+5. 生成表單
+
+### Admin 流程
+1. 登入（admin 帳號）
+2. 點擊「Admin 後台」進入管理界面
+3. **Users Tab**：
+   - 新增使用者
+   - 編輯使用者角色
+   - 停用/啟用使用者
+4. **Documents Tab**：
+   - 查看所有上傳的文件
+   - 批准/撤審文件
+   - 上架/下架文件
+   - 刪除文件
+
+## 🔐 安全特性
+
+### 認證與授權
+- ✅ 密碼使用 bcrypt 加密
+- ✅ JWT Token 簽署，無法偽造
+- ✅ 每個 API 都驗證 Authorization header
+- ✅ 角色白名單驗證
+
+### 文件安全
+- ✅ 檔名使用 UUID，防止路徑穿越
+- ✅ 副檔名白名單（.pdf .txt .md）
+- ✅ 檔案大小限制（50MB）
+- ✅ 刪除時同時清理向量庫、資料庫、檔案
+
+### 數據安全
+- ✅ SQLite 持久化存儲
+- ✅ ChromaDB 向量庫快取
+- ✅ CORS 環境變數控制
+- ✅ 權限過濾在查詢階段進行
+
+## 🔧 環境變數配置
+
+### 後端 (.env)
+```env
+# OpenAI API Key（可選）
+OPENAI_API_KEY=sk-...
+
+# JWT 密鑰（必填）
+JWT_SECRET=your-secret-key-here
+
+# CORS 允許的來源
+ALLOWED_ORIGINS=http://localhost:3000
+
+# 資料庫路徑
+DATABASE_PATH=documents.db
+
+# 上傳目錄
+UPLOAD_DIR=./uploads
+```
+
+### 前端 (.env)
+```env
+# API 基礎 URL
+VITE_API_BASE=http://localhost:8000
+```
+
+## 📊 API 文檔
+
+### 認證端點
+- `POST /api/login` - 登入
+- `GET /api/me` - 取得當前使用者資訊
+
+### 文件管理
+- `POST /api/docs/upload` - 上傳文件
+- `GET /api/docs` - 列出文件
+- `DELETE /api/docs/{doc_id}` - 刪除文件
+
+### 問答
+- `POST /api/qa` - 提交問題
+
+### 表單生成
+- `POST /api/generate` - 生成表單
+
+### Admin API
+- `GET /api/admin/users` - 列出使用者
+- `POST /api/admin/users` - 新增使用者
+- `PATCH /api/admin/users/{user_id}` - 編輯使用者
+- `GET /api/admin/docs` - 列出所有文件
+- `PATCH /api/admin/docs/{doc_id}` - 編輯文件
+- `DELETE /api/admin/docs/{doc_id}` - 刪除文件
+
+詳見 **http://localhost:8000/docs** (Swagger UI)
+
+## 🐛 常見問題
+
+### Q: 上傳文件後無法查詢
+**A**: 文件需要 admin 批准才能被 QA 檢索。進入 Admin 後台，在 Documents Tab 批准文件。
+
+### Q: 登入失敗
+**A**: 確認帳號密碼正確。預設帳號是 `admin`，密碼是 `admin12345`。
+
+### Q: 提問返回「找不到依據」
+**A**: 可能是：
+1. 文件未被批准（進入 Admin 後台批准）
+2. 文件已下架（進入 Admin 後台上架）
+3. 您的角色無權查看該文件（檢查文件的 allowed_roles）
+
+### Q: 無法進入 Admin 後台
+**A**: 只有 role=admin 的使用者才能進入。檢查您的角色設定。
+
+## 📝 生產環境部署清單
+
+- [ ] 修改 `JWT_SECRET` 為強密鑰
+- [ ] 修改預設 admin 密碼
+- [ ] 配置 `ALLOWED_ORIGINS` 為實際域名
+- [ ] 設定 `OPENAI_API_KEY`（可選）
+- [ ] 啟用 HTTPS
+- [ ] 配置資料庫備份
+- [ ] 添加審計日誌
+- [ ] 設定監控告警
+- [ ] 對接企業認證系統（LDAP/AD）
+
+## 📞 技術支援
+
+- 📖 查閱 **backend/README.md** 獲取後端詳細文檔
+- 📖 查閱 **frontend-vue/README.md** 獲取前端詳細文檔
+- 🔗 訪問 **http://localhost:8000/docs** 查看 Swagger API 文檔
+
+## 📄 授權
+
+MIT License
 
 ---
 
-**版本**: 1.0.0 MVP  
-**最後更新**: 2026-02-05
+**版本**: 3.0.0 Admin Console  
+**最後更新**: 2026-02-08  
+**狀態**: ✅ 完全可部署
