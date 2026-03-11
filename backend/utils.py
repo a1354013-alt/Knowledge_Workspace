@@ -3,7 +3,12 @@ import uuid
 from pathlib import Path
 from typing import List, Tuple
 import aiofiles
+from fastapi import HTTPException, status
 
+
+# ============ 檔案大小限制 ============
+
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 # ============ 檔案工具 ============
 
@@ -36,27 +41,48 @@ def validate_file_extension(filename: str, allowed_extensions: Tuple[str, ...] =
     return ext in allowed_extensions
 
 
-async def stream_write_file(file_content, file_path: str, chunk_size: int = 8192) -> int:
+async def stream_write_file(file, file_path: Path, max_size: int = MAX_FILE_SIZE, chunk_size: int = 8192) -> int:
     """
-    流式寫入檔案（邊讀邊寫，節省記憶體）
+    流式寫入 FastAPI UploadFile 檔案（邊讀邊寫，節省記憶體）
     
     Args:
-        file_content: 檔案內容（bytes 或 async iterator）
+        file: FastAPI UploadFile 物件
         file_path: 檔案路徑
+        max_size: 最大檔案大小（位元組）
         chunk_size: 每次讀取的大小
     
     Returns:
-        寫入的總字節數
+        寫入的總位元組
+    
+    Raises:
+        HTTPException: 檔案超過最大大小
     """
     total_size = 0
-    async with aiofiles.open(file_path, "wb") as f:
-        if isinstance(file_content, bytes):
-            await f.write(file_content)
-            total_size = len(file_content)
-        else:
-            async for chunk in file_content:
-                await f.write(chunk)
+    try:
+        async with aiofiles.open(file_path, "wb") as f:
+            while True:
+                chunk = await file.read(chunk_size)
+                if not chunk:
+                    break
+                
                 total_size += len(chunk)
+                if total_size > max_size:
+                    # 檔案超過最大大小，刪除檔案
+                    file_path.unlink(missing_ok=True)
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=f"檔案大小超過限制 ({max_size / 1024 / 1024:.1f} MB)"
+                    )
+                
+                await f.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as e:
+        file_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"檔案寫入失敗: {str(e)}"
+        )
     
     return total_size
 

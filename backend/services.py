@@ -146,17 +146,22 @@ async def perform_qa(question: str, user_role: str) -> Tuple[str, List[Source]]:
     if not results:
         return "找不到依據", []
     
-    # 準備 sources
+    # 準備 sources 和 context
     sources = []
+    context_chunks = []  # 用於給 LLM 的完整 chunks
+    
     for doc_id, chunk_text, metadata in results:
+        # UI 顯示用的 Source（截斷 200 字）
         sources.append(Source(
             doc_name=metadata.get("filename", "未知"),
             chunk_text=chunk_text[:200],  # 截斷顯示
             page_or_section=metadata.get("page_or_section", "0")
         ))
+        # LLM 用的完整 context
+        context_chunks.append(f"【{metadata.get('filename', '未知')} - {metadata.get('page_or_section', '0')}】\n{chunk_text}")
     
-    # 準備 context
-    context = "\n\n".join([f"【{s.doc_name} - {s.page_or_section}】\n{s.chunk_text}" for s in sources])
+    # 準備 context（給 LLM 用完整 chunks）
+    context = "\n\n".join(context_chunks)
     
     # 調用 LLM
     llm = get_llm()

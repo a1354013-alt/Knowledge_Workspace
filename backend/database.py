@@ -118,14 +118,27 @@ class DocumentDatabase:
         """Seed 預設 admin 使用者（如果 users 表為空）"""
         cursor.execute("SELECT COUNT(*) FROM users")
         if cursor.fetchone()[0] == 0:
-            # 預設密碼：admin12345（README 提醒必改）
-            password_hash = bcrypt.hashpw(b"admin12345", bcrypt.gensalt()).decode()
+            # 從環境變數讀取密碼，或使用預設值
+            default_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin12345")
+            password_hash = bcrypt.hashpw(default_password.encode(), bcrypt.gensalt()).decode()
             now = datetime.utcnow().isoformat()
             cursor.execute("""
                 INSERT INTO users (user_id, password_hash, display_name, role, is_active, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, ("admin", password_hash, "Administrator", "admin", 1, now, now))
-            print("✅ 預設 admin 使用者已建立（密碼：admin12345，請立即修改！）")
+            
+            # 警告：使用預設密碼
+            if default_password == "admin12345":
+                print("\n" + "="*70)
+                print("⚠️  警告：Admin 使用預設密碼！")
+                print("="*70)
+                print("✅ 預設 admin 使用者已建立")
+                print("⚠️  密碼: admin12345 (預設值)")
+                print("⚠️  建議：立即修改密碼！")
+                print("⚠️  方法：使用 DEFAULT_ADMIN_PASSWORD 環境變數來設定自訂密碼")
+                print("="*70 + "\n")
+            else:
+                print("✅ 預設 admin 使用者已建立（使用自訂密碼）")
     
     # ============ Users 操作 ============
     
@@ -150,7 +163,7 @@ class DocumentDatabase:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute("SELECT user_id, display_name, role, is_active, created_at FROM users ORDER BY created_at DESC")
+            cursor.execute("SELECT * FROM users")
             return [dict(row) for row in cursor.fetchall()]
     
     def add_user(self, user_id: str, password: str, display_name: str, role: str = "employee") -> bool:
@@ -158,6 +171,7 @@ class DocumentDatabase:
         try:
             password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
             now = datetime.utcnow().isoformat()
+            
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
@@ -170,53 +184,66 @@ class DocumentDatabase:
             return False
     
     def update_user(self, user_id: str, **kwargs) -> bool:
-        """更新使用者（支援 role, is_active, display_name, password）"""
+        """更新使用者（支援 password, display_name, role, is_active）"""
         try:
-            updates = []
-            params = []
-            now = datetime.utcnow().isoformat()
-            
-            for key, value in kwargs.items():
-                if key == "password":
-                    updates.append("password_hash = ?")
-                    params.append(bcrypt.hashpw(value.encode(), bcrypt.gensalt()).decode())
-                elif key in ("role", "is_active", "display_name"):
-                    updates.append(f"{key} = ?")
-                    params.append(value)
-            
-            if not updates:
-                return False
-            
-            updates.append("updated_at = ?")
-            params.append(now)
-            params.append(user_id)
-            
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                query = f"UPDATE users SET {', '.join(updates)} WHERE user_id = ?"
-                cursor.execute(query, params)
+                
+                # 構建 UPDATE 語句
+                updates = []
+                params = []
+                
+                if "password" in kwargs:
+                    password_hash = bcrypt.hashpw(kwargs["password"].encode(), bcrypt.gensalt()).decode()
+                    updates.append("password_hash = ?")
+                    params.append(password_hash)
+                
+                if "display_name" in kwargs:
+                    updates.append("display_name = ?")
+                    params.append(kwargs["display_name"])
+                
+                if "role" in kwargs:
+                    updates.append("role = ?")
+                    params.append(kwargs["role"])
+                
+                if "is_active" in kwargs:
+                    updates.append("is_active = ?")
+                    params.append(kwargs["is_active"])
+                
+                if not updates:
+                    return False
+                
+                updates.append("updated_at = ?")
+                params.append(datetime.utcnow().isoformat())
+                params.append(user_id)
+                
+                cursor.execute(f"UPDATE users SET {', '.join(updates)} WHERE user_id = ?", params)
                 conn.commit()
-            return True
-        except Exception:
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"❌ 更新使用者失敗: {e}")
             return False
     
     # ============ Documents 操作 ============
     
-    def add_document(self, doc_id: str, filename: str, saved_filename: str,
+    def add_document(self, doc_id: str, filename: str, saved_filename: str, 
                      allowed_roles: List[str], file_size: int = 0, uploaded_by: str = None) -> bool:
-        """添加文件記錄"""
+        """新增文件（預設 approved=0, is_active=1）"""
         try:
+            roles_str = ",".join(allowed_roles)
             now = datetime.utcnow().isoformat()
+            
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO documents 
                     (doc_id, filename, saved_filename, allowed_roles, uploaded_by, uploaded_at, file_size, approved, is_active, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (doc_id, filename, saved_filename, ",".join(allowed_roles), uploaded_by, now, file_size, 0, 1, now))
+                """, (doc_id, filename, saved_filename, roles_str, uploaded_by, now, file_size, 0, 1, now))
                 conn.commit()
             return True
-        except sqlite3.IntegrityError:
+        except Exception as e:
+            print(f"❌ 新增文件失敗: {e}")
             return False
     
     def get_document(self, doc_id: str) -> Optional[Dict]:
@@ -226,113 +253,134 @@ class DocumentDatabase:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM documents WHERE doc_id = ?", (doc_id,))
             row = cursor.fetchone()
-            return dict(row) if row else None
+            if row:
+                doc = dict(row)
+                doc["allowed_roles"] = doc["allowed_roles"].split(",")
+                return doc
+            return None
     
     def list_documents(self) -> List[Dict]:
         """列出所有文件"""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT doc_id, filename, allowed_roles, uploaded_by, uploaded_at, approved, is_active, updated_at
-                FROM documents ORDER BY uploaded_at DESC
-            """)
-            return [dict(row) for row in cursor.fetchall()]
+            cursor.execute("SELECT * FROM documents ORDER BY uploaded_at DESC")
+            docs = []
+            for row in cursor.fetchall():
+                doc = dict(row)
+                doc["allowed_roles"] = doc["allowed_roles"].split(",")
+                docs.append(doc)
+            return docs
     
     def update_document(self, doc_id: str, **kwargs) -> bool:
-        """更新文件（支援 allowed_roles, approved, is_active）"""
+        """更新文件（支援 approved, is_active, allowed_roles）"""
         try:
-            updates = []
-            params = []
-            now = datetime.utcnow().isoformat()
-            
-            for key, value in kwargs.items():
-                if key == "allowed_roles" and isinstance(value, list):
-                    updates.append("allowed_roles = ?")
-                    params.append(",".join(value))
-                elif key in ("approved", "is_active"):
-                    updates.append(f"{key} = ?")
-                    params.append(value)
-            
-            if not updates:
-                return False
-            
-            updates.append("updated_at = ?")
-            params.append(now)
-            params.append(doc_id)
-            
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                query = f"UPDATE documents SET {', '.join(updates)} WHERE doc_id = ?"
-                cursor.execute(query, params)
+                
+                updates = []
+                params = []
+                
+                if "approved" in kwargs:
+                    updates.append("approved = ?")
+                    params.append(kwargs["approved"])
+                
+                if "is_active" in kwargs:
+                    updates.append("is_active = ?")
+                    params.append(kwargs["is_active"])
+                
+                if "allowed_roles" in kwargs:
+                    roles_str = ",".join(kwargs["allowed_roles"])
+                    updates.append("allowed_roles = ?")
+                    params.append(roles_str)
+                
+                if not updates:
+                    return False
+                
+                updates.append("updated_at = ?")
+                params.append(datetime.utcnow().isoformat())
+                params.append(doc_id)
+                
+                cursor.execute(f"UPDATE documents SET {', '.join(updates)} WHERE doc_id = ?", params)
                 conn.commit()
-            return True
-        except Exception:
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"❌ 更新文件失敗: {e}")
             return False
     
     def delete_document(self, doc_id: str) -> bool:
-        """刪除文件記錄"""
+        """刪除文件"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
                 conn.commit()
             return True
-        except Exception:
+        except Exception as e:
+            print(f"❌ 刪除文件失敗: {e}")
             return False
 
 # ============ ChromaDB 向量庫操作 ============
 
 def get_collection():
-    """
-    取得 ChromaDB collection（快取版本）
-    【重要】使用 PersistentClient 確保資料持久化
-    """
+    """獲取 ChromaDB collection（快取版本）"""
     global _COLLECTION
     
     if _COLLECTION is not None:
         return _COLLECTION
     
-    # 【重要】使用 PersistentClient 而非 Client
-    # 這樣重啟後端後，向量庫資料不會消失
-    chroma_db_path = os.getenv("CHROMA_DB_PATH", "./chroma_db")
-    client = chromadb.PersistentClient(path=chroma_db_path)
-    
-    _COLLECTION = client.get_or_create_collection(
-        name="documents",
-        embedding_function=get_embedding_function()
-    )
-    print(f"✅ ChromaDB 已連接到 {chroma_db_path}")
-    return _COLLECTION
+    try:
+        client = chromadb.PersistentClient(path=os.getenv("CHROMA_DB_PATH", "./chroma_db"))
+        _COLLECTION = client.get_or_create_collection(
+            name="documents",
+            embedding_function=get_embedding_function(),
+            metadata={"hnsw:space": "cosine"}
+        )
+        return _COLLECTION
+    except Exception as e:
+        print(f"❌ ChromaDB 初始化失敗: {e}")
+        raise RuntimeError("ChromaDB initialization failed")
 
-def add_to_vector_db(doc_id: str, chunks: List[str], metadatas: List[Dict], allowed_roles: List[str]) -> bool:
+def add_to_vector_db(doc_id: str, chunks: List[str], metadata_list: List[Dict], allowed_roles: List[str] = None) -> bool:
     """
-    添加文件到向量庫
+    新增文件 chunks 到向量庫
     
-    metadatas 應包含：doc_id, page_or_section, approved, is_active
-    並自動添加角色旗標：role_employee, role_manager, role_hr, role_admin
+    參數:
+        doc_id: 文件 ID
+        chunks: 文本 chunks 列表
+        metadata_list: 每個 chunk 的 metadata 列表
+        allowed_roles: 允許查看的角色列表（用於生成角色旗標）
+    
+    【重要】此函數會自動在每個 metadata 中添加角色旗標：
+    - role_employee: True/False
+    - role_manager: True/False
+    - role_hr: True/False
+    - role_admin: True/False
     """
     try:
         collection = get_collection()
         
-        # 為每個 chunk 添加角色旗標
-        for metadata in metadatas:
-            # 【重要】不強制設定 approved/is_active，由流程控制
-            # 添加角色旗標（用於 where_filter）
-            for role in ["employee", "manager", "hr", "admin"]:
-                metadata[f"role_{role}"] = role in allowed_roles
-        
-        # 生成 IDs
+        # 為每個 chunk 生成唯一 ID
         ids = [f"{doc_id}_{i}" for i in range(len(chunks))]
         
+        # 補充角色旗標到每個 metadata
+        if allowed_roles:
+            for metadata in metadata_list:
+                # 初始化所有角色為 False
+                metadata["role_employee"] = "employee" in allowed_roles
+                metadata["role_manager"] = "manager" in allowed_roles
+                metadata["role_hr"] = "hr" in allowed_roles
+                metadata["role_admin"] = "admin" in allowed_roles
+        
+        # 新增到向量庫
         collection.add(
+            ids=ids,
             documents=chunks,
-            metadatas=metadatas,
-            ids=ids
+            metadatas=metadata_list
         )
         return True
     except Exception as e:
-        print(f"❌ 向量庫添加失敗: {e}")
+        print(f"❌ 向量庫新增失敗: {e}")
         return False
 
 def query_vector_db(question: str, user_role: str, n_results: int = 5) -> List[Tuple[str, str, Dict]]:

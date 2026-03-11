@@ -15,6 +15,7 @@ from services import process_file, perform_qa, generate_form
 from auth import create_token, verify_token, extract_token_from_header, ALLOWED_ROLES
 from utils import (
     generate_safe_filename,
+    validate_file_extension,
     parse_roles,
     parse_user_roles,
     parse_doc_roles,
@@ -58,7 +59,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="企業 AI 助理 API",
     description="文件管理、RAG 問答、表單生成、Admin 管理（JWT 驗證版本）",
-    version="3.1.0",
+    version="3.2.0",
     lifespan=lifespan
 )
 
@@ -109,7 +110,7 @@ async def login(user_id: str = Form(...), password: str = Form(...)):
         
         # 建立 JWT token
         token = create_token(
-            sub=user_id,
+            user_id=user_id,
             role=user["role"],
             display_name=user["display_name"]
         )
@@ -180,6 +181,13 @@ async def upload_document(
         if not file.filename:
             raise HTTPException(status_code=400, detail="檔名無效")
         
+        # 驗證副檔名（白名單：.pdf, .txt, .md）
+        if not validate_file_extension(file.filename):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="不支援的檔案格式。允許: .pdf, .txt, .md"
+            )
+        
         # 生成安全的檔名
         try:
             safe_filename = generate_safe_filename(file.filename)
@@ -239,7 +247,18 @@ async def list_documents(authorization: str = Header(None)):
         token_data = verify_token(token)
         
         documents = db.list_documents()
-        return documents
+        # 【重要】統一回傳 id 而非 doc_id，與 DocumentResponse 模型一致
+        return [
+            {
+                "id": doc["doc_id"],  # 映射 doc_id 為 id
+                "filename": doc["filename"],
+                "saved_filename": doc["saved_filename"],
+                "allowed_roles": doc["allowed_roles"],
+                "uploaded_at": doc["uploaded_at"],
+                "file_size": doc.get("file_size", 0)
+            }
+            for doc in documents
+        ]
     except HTTPException:
         raise
     except Exception as e:
@@ -375,7 +394,18 @@ async def admin_list_users(authorization: str = Header(None)):
         require_admin(token_data)
         
         users = db.list_users()
-        return users
+        # 【重要】移除敏感欄位 password_hash
+        return [
+            {
+                "user_id": u["user_id"],
+                "display_name": u["display_name"],
+                "role": u["role"],
+                "is_active": u["is_active"],
+                "created_at": u["created_at"],
+                "updated_at": u["updated_at"]
+            }
+            for u in users
+        ]
     except HTTPException:
         raise
     except Exception as e:

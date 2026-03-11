@@ -8,7 +8,7 @@
 ## 步驟 1：解壓縮（1 分鐘）
 
 ```bash
-tar -xzf enterprise-ai-assistant-v3.1.tar.gz
+tar -xzf enterprise-ai-assistant-v3.2-fixed.tar.gz
 cd enterprise-ai-assistant
 ```
 
@@ -128,6 +128,10 @@ UPLOAD_DIR=./uploads
 
 # ChromaDB 路徑（持久化向量庫）
 CHROMA_DB_PATH=./chroma_db
+
+# Admin 預設密碼（可選，預設值: admin12345）
+# 機密建議：設定一個較強的密碼
+DEFAULT_ADMIN_PASSWORD=your-strong-password-here
 ```
 
 ### 前端 (.env)
@@ -191,5 +195,5 @@ npm ERR! code ERESOLVE
 
 ---
 
-**版本**: 3.1.0 Final  
-**最後更新**: 2026-02-09
+**版本**: 3.2.0 Final  
+**最後更新**: 2026-03-02

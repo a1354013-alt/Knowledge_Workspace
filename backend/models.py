@@ -15,7 +15,7 @@ class DocumentResponse(BaseModel):
 class QARequest(BaseModel):
     """問答請求"""
     question: str = Field(description="問題")
-    user_role: str = Field(default="employee", description="使用者角色")
+    # 注意：使用者角色由 JWT token 決定，不由 request body 提供
 
 class Source(BaseModel):
     """引用來源"""
@@ -32,7 +32,7 @@ class GenerateRequest(BaseModel):
     """表單生成請求"""
     template_type: str = Field(description="模板類型")
     inputs: dict = Field(description="表單輸入")
-    user_role: str = Field(default="employee", description="使用者角色")
+    # 注意：使用者角色由 JWT token 決定，不由 request body 提供
 
 class GenerateResponse(BaseModel):
     """表單生成回應"""
