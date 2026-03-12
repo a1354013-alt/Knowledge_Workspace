@@ -1,10 +1,18 @@
 import os
 import uuid
+import logging
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Header, status
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+
+# 【新增】設置 logging（提升維運可觀渫性）
+logger = logging.getLogger("enterprise-ai-assistant")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 # 載入 .env 檔案（必須在最前面）
 load_dotenv()
@@ -38,7 +46,13 @@ if ALLOWED_ORIGINS_STR == "*":
     ALLOWED_ORIGINS = ["*"]
     ALLOW_CREDENTIALS = False
 else:
-    ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS_STR.split(",")]
+    # 【改進】修正 CORS ORIGINS 解析：避免空字串
+    # 目的：保證每個 origin 都是有效的，不會有空字串
+    ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in ALLOWED_ORIGINS_STR.split(",")
+        if origin.strip()
+    ]
     ALLOW_CREDENTIALS = True
 
 # ============ 應用生命週期 ============
@@ -58,7 +72,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="企業 AI 助理 API",
     description="文件管理、RAG 問答、表單生成、Admin 管理（JWT 驗證版本）",
-    version="3.2.0",
+    version="3.3.0",
     lifespan=lifespan
 )
 
@@ -214,6 +228,11 @@ async def upload_document(
         # 保存到資料庫（uploaded_by 記錄上傳者、approved=0 等待審核、is_active=1）
         db.add_document(doc_id, file.filename, safe_filename, roles_list, file_size, uploaded_by=user_id)
         
+        # 【新增】logging：記錄文件上傳事件
+        logger.info(
+            f"UPLOAD success doc_id={doc_id} user={user_id} file={file.filename}"
+        )
+        
         return {
             "id": doc_id,
             "filename": file.filename,
@@ -366,6 +385,11 @@ async def qa_endpoint(request: QARequest, authorization: str = Header(None)):
         
         # 直接 await（修復：不需要 executor + asyncio.run）
         answer, sources = await perform_qa(request.question, user_role)
+        
+        # 【新增】logging：記錄 QA 查詢事件
+        logger.info(
+            f"QA_QUERY user={token_data['sub']} role={user_role} chunks={len(sources)}"
+        )
         
         return QAResponse(answer=answer, sources=sources)
     
@@ -640,7 +664,16 @@ async def admin_update_document(
                 roles_list = parse_doc_roles(new_allowed_roles) if isinstance(new_allowed_roles, str) else new_allowed_roles
                 # 【重要】第一個參數是 doc_id，不是 file_path！
                 process_file(doc_id, str(file_path), doc["filename"], roles_list, approved=1, is_active=1)
+                
+                # 【新增】logging：記錄文件審核通過事件
+                logger.info(
+                    f"APPROVED doc_id={doc_id} by={token_data['sub']}"
+                )
             except Exception as e:
+                # 【新增】logging：記錄向量庫入庫失敗
+                logger.error(
+                    f"VECTOR_INSERT_FAIL doc_id={doc_id}"
+                )
                 # 【重要】先清掉可能殘留的 chunk，再回滚 DB 狀態
                 delete_from_vector_db(doc_id)
                 db.update_document(doc_id, approved=old_approved, is_active=old_is_active, allowed_roles=old_allowed_roles)
@@ -649,6 +682,11 @@ async def admin_update_document(
         # 情況 2：approved 從 1->0 或 is_active 從 1->0（撤審/下架，移出庫）
         if (old_approved == 1 and approved == 0) or (old_is_active == 1 and is_active == 0):
             delete_from_vector_db(doc_id)
+            
+            # 【新增】logging：記錄向量庫刪除事件
+            logger.info(
+                f"VECTOR_DELETE doc_id={doc_id}"
+            )
         
         # 情況 3：allowed_roles 改變且目前 approved=1 & is_active=1（更新觖色旗標）
         new_approved = approved if approved is not None else old_approved
@@ -673,7 +711,16 @@ async def admin_update_document(
                 roles_list = parse_doc_roles(new_allowed_roles) if isinstance(new_allowed_roles, str) else new_allowed_roles
                 # 【重要】第一個參數是 doc_id，不是 file_path！
                 process_file(doc_id, str(file_path), doc["filename"], roles_list, approved=1, is_active=1)
+                
+                # 【新增】logging：記錄文件審核通過事件
+                logger.info(
+                    f"APPROVED doc_id={doc_id} by={token_data['sub']}"
+                )
             except Exception as e:
+                # 【新增】logging：記錄向量庫入庫失敗
+                logger.error(
+                    f"VECTOR_INSERT_FAIL doc_id={doc_id}"
+                )
                 # 【重要】先清掉可能殘留的 chunk，再回滚 DB 狀態
                 delete_from_vector_db(doc_id)
                 db.update_document(doc_id, approved=old_approved, is_active=old_is_active, allowed_roles=old_allowed_roles)
