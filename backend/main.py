@@ -60,19 +60,20 @@ else:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """應用生命週期管理"""
-    print("✅ 企業 AI 助理 API 啟動")
-    print(f"📝 允許的來源: {ALLOWED_ORIGINS}")
-    print(f"🔐 Allow Credentials: {ALLOW_CREDENTIALS}")
-    print(f"🔑 OpenAI API Key: {'已配置' if os.getenv('OPENAI_API_KEY') else '未配置（使用 sentence-transformers）'}")
-    print(f"🔐 JWT 驗證: 已啟用")
-    print(f"👤 Admin 管理: 已啟用")
+    # 【改進】統一使用 logger，便於日誌聚合和監控
+    logger.info("✅ 企業 AI 助理 API 啟動")
+    logger.info(f"📝 允許的來源: {ALLOWED_ORIGINS}")
+    logger.info(f"🔐 Allow Credentials: {ALLOW_CREDENTIALS}")
+    logger.info(f"🔑 OpenAI API Key: {'已配置' if os.getenv('OPENAI_API_KEY') else '未配置（使用 sentence-transformers）'}")
+    logger.info(f"🔐 JWT 驗證: 已啟用")
+    logger.info(f"👤 Admin 管理: 已啟用")
     yield
-    print("✅ 應用關閉")
+    logger.info("✅ 應用關閉")
 
 app = FastAPI(
     title="企業 AI 助理 API",
     description="文件管理、RAG 問答、表單生成、Admin 管理（JWT 驗證版本）",
-    version="3.3.0",
+    version="3.4.0",
     lifespan=lifespan
 )
 
@@ -565,11 +566,11 @@ async def admin_list_documents(authorization: str = Header(None)):
         
         documents = db.list_documents()
         # 【重要】統一回傳 id 而非 doc_id，與一般使用者的 /api/docs 一致
+        # 【改進】不回傳 saved_filename（內部檔名，不必暴露）
         return [
             {
                 "id": doc["doc_id"],  # 映射 doc_id 為 id
                 "filename": doc["filename"],
-                "saved_filename": doc["saved_filename"],
                 "allowed_roles": doc["allowed_roles"],
                 "uploaded_at": doc["uploaded_at"],
                 "file_size": doc.get("file_size", 0),
@@ -712,9 +713,9 @@ async def admin_update_document(
                 # 【重要】第一個參數是 doc_id，不是 file_path！
                 process_file(doc_id, str(file_path), doc["filename"], roles_list, approved=1, is_active=1)
                 
-                # 【新增】logging：記錄文件審核通過事件
+                # 【改進】logging：記錄角色變更重入庫事件（不是審核通過）
                 logger.info(
-                    f"APPROVED doc_id={doc_id} by={token_data['sub']}"
+                    f"REINDEX doc_id={doc_id} reason=roles_changed by={token_data['sub']}"
                 )
             except Exception as e:
                 # 【新增】logging：記錄向量庫入庫失敗

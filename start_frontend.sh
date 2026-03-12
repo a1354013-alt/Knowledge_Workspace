@@ -7,7 +7,14 @@ DEPS_HASH_FILE=".npm_deps_hash"
 CURRENT_HASH=""
 
 if [ -f "package-lock.json" ]; then
-    CURRENT_HASH=$(md5sum package-lock.json | awk '{print $1}')
+    # 【改進】支援 macOS 和 Linux 的 hash 檢查
+    if command -v md5sum &> /dev/null; then
+        CURRENT_HASH=$(md5sum package-lock.json | awk '{print $1}')
+    elif command -v md5 &> /dev/null; then
+        CURRENT_HASH=$(md5 -q package-lock.json)
+    else
+        CURRENT_HASH=$(shasum -a 256 package-lock.json | awk '{print $1}')
+    fi
 fi
 
 # 比較 hash，只在變更時重裝

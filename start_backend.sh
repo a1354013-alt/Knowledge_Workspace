@@ -58,7 +58,14 @@ echo "📦 檢查依賴..."
 
 # 【重要】只在 requirements.txt 變更或首次安裝時才重新安裝
 REQUIREMENTS_HASH_FILE=".requirements_hash"
-CURRENT_HASH=$(md5sum requirements.txt | awk '{print $1}')
+# 【改進】支援 macOS 和 Linux 的 hash 檢查
+if command -v md5sum &> /dev/null; then
+    CURRENT_HASH=$(md5sum requirements.txt | awk '{print $1}')
+elif command -v md5 &> /dev/null; then
+    CURRENT_HASH=$(md5 -q requirements.txt)
+else
+    CURRENT_HASH=$(shasum -a 256 requirements.txt | awk '{print $1}')
+fi
 
 if [ ! -f "$REQUIREMENTS_HASH_FILE" ] || [ "$(cat $REQUIREMENTS_HASH_FILE)" != "$CURRENT_HASH" ]; then
     echo "📦 依賴有變更，重新安裝..."
