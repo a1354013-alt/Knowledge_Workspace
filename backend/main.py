@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="企業 AI 助理 API",
     description="文件管理、RAG 問答、表單生成、Admin 管理（JWT 驗證版本）",
-    version="3.4.0",
+    version="3.9.0",
     lifespan=lifespan
 )
 

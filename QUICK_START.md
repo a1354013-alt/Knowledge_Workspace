@@ -8,7 +8,7 @@
 ## 步驟 1：解壓縮（1 分鐘）
 
 ```bash
-tar -xzf <package>.tar.gz  # 將 <package> 替換為實際檔名
+tar -xzf enterprise-ai-assistant-v3.9-final.tar.gz
 cd enterprise-ai-assistant
 ```
 
@@ -68,7 +68,7 @@ Local:   http://localhost:3000/
 1. 打開瀏覽器，訪問 **http://localhost:3000**
 2. 輸入登入資訊：
    - **使用者 ID**: `admin`
-   - **密碼**: `admin12345`
+   - **密碼**: 開發環境若未設定 `DEFAULT_ADMIN_PASSWORD`，系統會使用 fallback 密碼
 3. 點擊「登入」
 
 ## 步驟 5：測試功能
@@ -149,8 +149,9 @@ UPLOAD_DIR=./uploads
 # ChromaDB 路徑（持久化向量庫）
 CHROMA_DB_PATH=./chroma_db
 
-# Admin 預設密碼（可選，預設值: admin12345）
-# 機密建議：設定一個較強的密碼
+# Admin 預設密碼（可選）
+# 開發環境若未設定，系統會使用 fallback 密碼
+# 正式環境必須設定強密碼
 DEFAULT_ADMIN_PASSWORD=your-strong-password-here
 ```
 
@@ -162,16 +163,11 @@ VITE_API_BASE=http://localhost:8000
 
 ## 預設帳號
 
-【修正 #2】預設帳號詳述：
-
 - **帳號**: `admin`
-- **密碼**: 由 `DEFAULT_ADMIN_PASSWORD` 環境變數決定
-  - 若未設定，預設為 `admin12345` (仅限本地開發)
+- **密碼**: 開發環境若未設定 `DEFAULT_ADMIN_PASSWORD`，系統會使用 fallback 密碼
 - **角色**: `admin`
 
-⚠️ **重要**：
-- 本地開發時，可使用預設密碼
-- **正式環境必須修改密碼**！詳詳在 `.env` 中設定 `DEFAULT_ADMIN_PASSWORD`
+⚠️ **重要**：正式環境必須自行設定強密碼！在 `.env` 中設定 `DEFAULT_ADMIN_PASSWORD`
 
 ## 故障排除
 
@@ -188,7 +184,7 @@ npm ERR! code ERESOLVE
 → 執行 `npm install --legacy-peer-deps`
 
 ### 登入失敗
-→ 確認帳號密碼正確（admin / admin12345）
+→ 確認帳號密碼正確（admin / 由 DEFAULT_ADMIN_PASSWORD 決定）
 
 ### 提問返回「找不到依據」
 → 確認文件已被 admin 批准
@@ -213,12 +209,10 @@ npm ERR! code ERESOLVE
 
 ## 更多資訊
 
-- 📖 後端文檔：`backend/README.md`
-- 📖 前端文檔：`frontend-vue/README.md`
 - 🔗 API 文檔：http://localhost:8000/docs (Swagger UI)
-- 📊 架構說明：`PROJECT_STRUCTURE.md`
+- 📖 完整說明：`README.md`
 
 ---
 
-**版本**: 3.7.0 Final  
+**版本**: 3.9.0 Final  
 **最後更新**: 2026-03-13

@@ -2,7 +2,7 @@
 
 完整的企業內部 AI 助理系統，包含文件管理、RAG 問答、表單生成、用戶認證、Admin 後台等功能。
 
-**版本**: 3.7.0 Final  
+**版本**: 3.9.0 Final  
 **更新**: 2026-03-13
 
 ## 🎯 核心功能
@@ -20,8 +20,8 @@
 - ✅ **刪除權限** - 上傳者或 admin 才能刪除
 
 ### 🐋 RAG 問答系統
-- ✅ **向量検索** - 基於 ChromaDB 的語義搜尋
-- ✅ **權限過濾** - 查詢時在 database 層進行權限検查
+- ✅ **向量搜尋** - 基於 ChromaDB 的語義搜尋
+- ✅ **權限過濾** - 查詢時在 database 層進行權限檢查
   - **權限詳述**: 非 admin 角色只能查詢文件的 allowed_roles 包含了他們的文件（例如 HR 只能查詢 allowed_roles 包含「hr」的文件）。admin 可以查詢所有已批準的文件。
 - ✅ **引用來源** - 每個回答都顯示出處
 - ✅ **Demo Mode** - 無需 OpenAI Key 也能運行
@@ -51,57 +51,19 @@
 | Vite | 5.0.0 | 構建工具 |
 | Axios | 1.6.0 | HTTP 客戶端 |
 
-## 📦 專案結構
-
-```
-enterprise-ai-assistant/
-├── backend/                     # FastAPI 後端
-│   ├── main.py                 # 應用主程式（含 Admin API）
-│   ├── models.py               # Pydantic 模型
-│   ├── database.py             # SQLite + ChromaDB 操作層
-│   ├── services.py             # 業務邏輯（RAG、表單生成）
-│   ├── auth.py                 # JWT 驗證模組
-│   ├── utils.py                # 工具函數
-│   ├── requirements.txt         # Python 依賴
-│   ├── .env.example            # 環境變數範例
-│   ├── documents.db            # SQLite 資料庫（自動生成）
-│   ├── chroma_db/              # ChromaDB 向量庫（自動生成）
-│   ├── uploads/                # 上傳檔案存儲目錄
-│   ├── sample_docs/            # 範例文件
-│   └── README.md               # 後端文檔
-│
-├── frontend-vue/                # Vue 3 + PrimeVue 前端
-│   ├── src/
-│   │   ├── App.vue             # 主應用元件（含登入、Admin 入口）
-│   │   ├── main.js             # Vue 入口
-│   │   ├── components/
-│   │   │   └── AdminConsole.vue # Admin 後台元件
-│   │   ├── views/              # 頁面目錄
-│   │   └── assets/             # 靜態資源
-│   ├── index.html              # HTML 模板
-│   ├── vite.config.js          # Vite 配置
-│   ├── package.json            # 依賴配置
-│   ├── .env.example            # 環境變數範例
-│   └── README.md               # 前端文檔
-│
-├── README.md                    # 本檔案
-├── QUICK_START.md              # 快速開始指南
-└── PROJECT_STRUCTURE.md        # 專案架構說明
-```
-
 ## 🚀 快速開始
 
 ### 1️⃣ 解壓縮
 ```bash
-tar -xzf enterprise-ai-assistant-admin-fixed.tar.gz
+tar -xzf enterprise-ai-assistant-v3.9-final.tar.gz
 cd enterprise-ai-assistant
 ```
 
 ### 2️⃣ 啟動後端（終端 1）
+
+【推薦】使用啟動腳本（含依賴快取）：
 ```bash
-cd backend
-pip install -r requirements.txt
-python main.py
+./start_backend.sh
 ```
 
 ✅ 看到以下輸出表示成功：
@@ -113,11 +75,18 @@ python main.py
 Uvicorn running on http://0.0.0.0:8000
 ```
 
-### 3️⃣ 啟動前端（終端 2）
+【下一步】如果需要手動啟動：
 ```bash
-cd frontend-vue
-npm install
-npm run dev
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 3️⃣ 啟動前端（終端 2）
+
+【推薦】使用啟動腳本（含依賴快取）：
+```bash
+./start_frontend.sh
 ```
 
 ✅ 看到以下輸出表示成功：
@@ -126,16 +95,22 @@ Local:   http://localhost:3000/
 Network: http://169.254.0.21:3000/
 ```
 
+【下一步】如果需要手動啟動：
+```bash
+cd frontend-vue
+npm install
+npm run dev
+```
+
 ### 4️⃣ 打開瀏覽器
 訪問 **http://localhost:3000**
 
 ### 5️⃣ 登入
-```
-帳號：admin
-密碼：admin12345
-```
 
-⚠️ **重要**：生產環境必須修改預設密碼！
+- **帳號**: `admin`
+- **密碼**: 開發環境若未設定 `DEFAULT_ADMIN_PASSWORD`，系統會使用 fallback 密碼
+
+⚠️ **重要**：正式環境必須自行設定強密碼！在 `.env` 中設定 `DEFAULT_ADMIN_PASSWORD`
 
 ## 📖 使用指南
 
@@ -148,36 +123,10 @@ Network: http://169.254.0.21:3000/
 
 ### Admin 流程
 1. 登入（admin 帳號）
-2. 點擊「Admin 後台」進入管理界面
-3. **Users Tab**：
-   - 新增使用者
-   - 編輯使用者角色
-   - 停用/啟用使用者
-4. **Documents Tab**：
-   - 查看所有上傳的文件
-   - 批准/撤審文件
-   - 上架/下架文件
-   - 刪除文件
-
-## 🔐 安全特性
-
-### 認證與授權
-- ✅ 密碼使用 bcrypt 加密
-- ✅ JWT Token 簽署，無法偽造
-- ✅ 每個 API 都驗證 Authorization header
-- ✅ 角色白名單驗證
-
-### 文件安全
-- ✅ 檔名使用 UUID，防止路徑穿越
-- ✅ 副檔名白名單（.pdf .txt .md）
-- ✅ 檔案大小限制（50MB）
-- ✅ 刪除時同時清理向量庫、資料庫、檔案
-
-### 數據安全
-- ✅ SQLite 持久化存儲
-- ✅ ChromaDB 向量庫快取
-- ✅ CORS 環境變數控制
-- ✅ 權限過濾在查詢階段進行
+2. 進入 Admin 後台
+3. 在 Users Tab 管理使用者
+4. 在 Documents Tab 審核文件
+5. 批准後，一般使用者才能查詢
 
 ## 🔧 環境變數配置
 
@@ -186,7 +135,7 @@ Network: http://169.254.0.21:3000/
 # OpenAI API Key（可選）
 OPENAI_API_KEY=sk-...
 
-# JWT 密鑰（必填）
+# JWT 密鑰（必填，生成強密鑰）
 JWT_SECRET=your-secret-key-here
 
 # CORS 允許的來源
@@ -197,6 +146,14 @@ DATABASE_PATH=documents.db
 
 # 上傳目錄
 UPLOAD_DIR=./uploads
+
+# ChromaDB 路徑（持久化向量庫）
+CHROMA_DB_PATH=./chroma_db
+
+# Admin 預設密碼（可選）
+# 開發環境若未設定，系統會使用 fallback 密碼
+# 正式環境必須設定強密碼
+DEFAULT_ADMIN_PASSWORD=your-strong-password-here
 ```
 
 ### 前端 (.env)
@@ -205,67 +162,96 @@ UPLOAD_DIR=./uploads
 VITE_API_BASE=http://localhost:8000
 ```
 
+## 📁 專案結構
+
+```
+enterprise-ai-assistant/
+├── backend/
+│   ├── main.py                 # FastAPI 主應用
+│   ├── database.py             # SQLite + ChromaDB 管理
+│   ├── services.py             # 業務邏輯（文件處理、RAG、表單生成）
+│   ├── models.py               # Pydantic 模型
+│   ├── requirements.txt         # Python 依賴
+│   └── .env.example            # 環境變數範例
+│
+├── frontend-vue/
+│   ├── src/
+│   │   ├── App.vue             # 主應用元件
+│   │   ├── main.js             # Vue 入口
+│   │   ├── components/         # UI 元件
+│   │   │   └── AdminConsole.vue
+│   │   └── index.css           # 全局樣式
+│   ├── index.html              # HTML 模板
+│   ├── vite.config.js          # Vite 配置
+│   ├── package.json            # 依賴配置
+│   └── .env.example            # 環境變數範例
+│
+├── start_backend.sh            # 後端啟動腳本（推薦）
+├── start_frontend.sh           # 前端啟動腳本（推薦）
+├── README.md                    # 本檔案
+└── QUICK_START.md              # 快速開始指南
+```
+
 ## 📊 API 文檔
 
-### 認證端點
-- `POST /api/login` - 登入
-- `GET /api/me` - 取得當前使用者資訊
+啟動後端後，訪問 **http://localhost:8000/docs** 查看完整 API 文檔（Swagger UI）
 
-### 文件管理
-- `POST /api/docs/upload` - 上傳文件
-- `GET /api/docs` - 列出文件
-- `DELETE /api/docs/{doc_id}` - 刪除文件
+### 主要端點
 
-### 問答
-- `POST /api/qa` - 提交問題
+| 方法 | 端點 | 說明 |
+|------|------|------|
+| POST | /api/login | 登入 |
+| GET | /api/docs | 列出文件（權限過濾） |
+| POST | /api/docs/upload | 上傳文件 |
+| POST | /api/qa | 提問 |
+| POST | /api/generate | 生成表單 |
+| GET | /api/admin/users | 列出使用者（僅 admin） |
+| GET | /api/admin/docs | 列出所有文件（僅 admin） |
+| PATCH | /api/admin/docs/{doc_id} | 更新文件（僅 admin） |
 
-### 表單生成
-- `POST /api/generate` - 生成表單
+## 🔐 安全特性
 
-### Admin API
-- `GET /api/admin/users` - 列出使用者
-- `POST /api/admin/users` - 新增使用者
-- `PATCH /api/admin/users/{user_id}` - 編輯使用者
-- `GET /api/admin/docs` - 列出所有文件
-- `PATCH /api/admin/docs/{doc_id}` - 編輯文件
-- `DELETE /api/admin/docs/{doc_id}` - 刪除文件
+- ✅ **密碼加密** - bcrypt 加鹽雜湊
+- ✅ **JWT 簽署** - 後端簽署，無法偽造
+- ✅ **角色驗證** - 每個 API 都檢查使用者角色
+- ✅ **權限過濾** - 文件查詢時過濾不可見文件
+- ✅ **CORS 保護** - 限制跨域請求來源
 
-詳見 **http://localhost:8000/docs** (Swagger UI)
+## 🐛 故障排除
 
-## 🐛 常見問題
+### 後端無法啟動
+```
+ModuleNotFoundError: No module named 'fastapi'
+```
+→ 執行 `pip install -r requirements.txt`
 
-### Q: 上傳文件後無法查詢
-**A**: 文件需要 admin 批准才能被 QA 檢索。進入 Admin 後台，在 Documents Tab 批准文件。
+### 前端無法啟動
+```
+npm ERR! code ERESOLVE
+```
+→ 執行 `npm install --legacy-peer-deps`
 
-### Q: 登入失敗
-**A**: 確認帳號密碼正確。預設帳號是 `admin`，密碼是 `admin12345`。
+### 登入失敗
+→ 確認帳號密碼正確（admin / 由 DEFAULT_ADMIN_PASSWORD 決定）
 
-### Q: 提問返回「找不到依據」
-**A**: 可能是：
-1. 文件未被批准（進入 Admin 後台批准）
-2. 文件已下架（進入 Admin 後台上架）
-3. 您的角色無權查看該文件（檢查文件的 allowed_roles）
+### 提問返回「找不到依據」
+→ 確認文件已被 admin 批准
 
-### Q: 無法進入 Admin 後台
-**A**: 只有 role=admin 的使用者才能進入。檢查您的角色設定。
+### 無法進入 Admin 後台
+→ 只有 admin 角色才能進入
 
-## 📝 生產環境部署清單
+## 📚 下一步
 
-- [ ] 修改 `JWT_SECRET` 為強密鑰
-- [ ] 修改預設 admin 密碼
-- [ ] 配置 `ALLOWED_ORIGINS` 為實際域名
-- [ ] 設定 `OPENAI_API_KEY`（可選）
-- [ ] 啟用 HTTPS
-- [ ] 配置資料庫備份
-- [ ] 添加審計日誌
-- [ ] 設定監控告警
-- [ ] 對接企業認證系統（LDAP/AD）
+1. 📖 查閱 **QUICK_START.md** 了解詳細步驟
+2. 🔧 配置 **OpenAI API Key** 以使用 GPT-4
+3. 🔐 修改預設密碼和 JWT_SECRET
+4. 📤 上傳您自己的企業文件
+5. 🚀 部署到生產環境
 
-## 📞 技術支援
+## 📝 更多資訊
 
-- 📖 查閱 **backend/README.md** 獲取後端詳細文檔
-- 📖 查閱 **frontend-vue/README.md** 獲取前端詳細文檔
-- 🔗 訪問 **http://localhost:8000/docs** 查看 Swagger API 文檔
+- 🔗 API 文檔：http://localhost:8000/docs (Swagger UI)
+- 🚀 快速開始：`QUICK_START.md`
 
 ## 📄 授權
 
@@ -273,6 +259,6 @@ MIT License
 
 ---
 
-**版本**: 3.2.0 Final  
-**最後更新**: 2026-03-02  
+**版本**: 3.9.0 Final  
+**最後更新**: 2026-03-13  
 **狀態**: ✅ 企業級生產環境就緒
