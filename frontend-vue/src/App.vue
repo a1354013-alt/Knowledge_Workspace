@@ -1,5 +1,8 @@
 <template>
   <div class="app-container">
+    <!-- 【改進】Toast UI 元件 -->
+    <Toast />
+    
     <!-- 登入頁面 -->
     <div v-if="!isLoggedIn" class="login-page">
       <Card class="login-card">

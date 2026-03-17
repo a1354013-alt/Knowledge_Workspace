@@ -1,6 +1,7 @@
 import os
 import uuid
 import logging
+import asyncio
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Header, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -227,7 +228,11 @@ async def upload_document(
         
         # 【重要】只存檔 + 寫 DB，禁止入庫
         # 保存到資料庫（uploaded_by 記錄上傳者、approved=0 等待審核、is_active=1）
-        db.add_document(doc_id, file.filename, safe_filename, roles_list, file_size, uploaded_by=user_id)
+        # 【改進】檢查 db.add_document() 回傳值
+        if not db.add_document(doc_id, file.filename, safe_filename, roles_list, file_size, uploaded_by=user_id):
+            # 若 DB 寫入失敗，刪除已寫入檔案
+            file_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail="資料庫寫入失敗")
         
         # 【新增】logging：記錄文件上傳事件
         logger.info(
@@ -664,7 +669,10 @@ async def admin_update_document(
                 new_allowed_roles = allowed_roles if allowed_roles else old_allowed_roles
                 roles_list = parse_doc_roles(new_allowed_roles) if isinstance(new_allowed_roles, str) else new_allowed_roles
                 # 【重要】第一個參數是 doc_id，不是 file_path！
-                process_file(doc_id, str(file_path), doc["filename"], roles_list, approved=1, is_active=1)
+                # 【改進】使用 asyncio.to_thread 避免阻塞 event loop
+                await asyncio.to_thread(
+                    process_file, doc_id, str(file_path), doc["filename"], roles_list, 1, 1
+                )
                 
                 # 【新增】logging：記錄文件審核通過事件
                 logger.info(
@@ -711,7 +719,10 @@ async def admin_update_document(
                 
                 roles_list = parse_doc_roles(new_allowed_roles) if isinstance(new_allowed_roles, str) else new_allowed_roles
                 # 【重要】第一個參數是 doc_id，不是 file_path！
-                process_file(doc_id, str(file_path), doc["filename"], roles_list, approved=1, is_active=1)
+                # 【改進】使用 asyncio.to_thread 避免阻塞 event loop
+                await asyncio.to_thread(
+                    process_file, doc_id, str(file_path), doc["filename"], roles_list, 1, 1
+                )
                 
                 # 【改進】logging：記錄角色變更重入庫事件（不是審核通過）
                 logger.info(
