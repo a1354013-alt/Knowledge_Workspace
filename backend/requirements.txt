@@ -1,15 +1,43 @@
-fastapi
-uvicorn
-python-multipart
-pydantic
-chromadb
-langchain
-langchain-openai
-langchain-community
-pypdf
-python-dotenv
-sentence-transformers
-openai
-PyJWT
-bcrypt
-aiofiles
+# 【v4.2】後端依賴
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Database & ORM
+sqlalchemy==2.0.23
+alembic==1.12.1
+
+# Vector Database
+chromadb==0.4.17
+
+# LLM & Embeddings
+openai>=1.6.1,<2.0.0
+langchain==0.1.0
+langchain-openai==0.0.2
+langchain-community==0.0.10
+langchain-text-splitters==0.0.1
+
+# Authentication
+pyjwt==2.12.1
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+
+# PDF & Document Processing
+pypdf==3.17.1
+python-docx==0.8.11
+markdown==3.5.1
+
+# Utilities
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+requests==2.31.0
+
+# Logging & Monitoring
+python-json-logger==2.0.7
+
+# Development
+pytest==7.4.3
+pytest-asyncio==0.21.1

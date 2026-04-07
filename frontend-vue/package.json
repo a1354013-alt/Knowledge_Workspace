@@ -1,6 +1,7 @@
 {
   "name": "enterprise-ai-assistant-frontend",
-  "version": "3.2.0",
+  "version": "4.2.0",
+  "description": "Enterprise AI Assistant MVP - Frontend (Vue 3 + PrimeVue)",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,10 +10,11 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
   },
   "dependencies": {
-    "vue": "^3.4.0",
+    "@primeuix/themes": "^2.0.3",
+    "axios": "^1.6.0",
+    "primeicons": "^6.0.0",
     "primevue": "^4.0.0",
-    "primeicons": "^6.0.1",
-    "axios": "^1.6.0"
+    "vue": "^3.4.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",

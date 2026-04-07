@@ -92,10 +92,6 @@ fi
 echo ""
 echo "=========================================="
 echo "✅ 後端啟動中..."
-echo "✅ 後端 URL: http://localhost:8000"
-echo "✅ API 文檔: http://localhost:8000/docs"
-echo "✅ 正在監聽端口 8000..."
-echo ""
 echo "=========================================="
 echo ""
 

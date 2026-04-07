@@ -275,6 +275,7 @@
 <script>
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
+import { apiClient, setToken, clearToken, restoreToken, getToken } from './api'
 import Card from 'primevue/card'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -300,11 +301,22 @@ export default {
   },
   setup() {
     const toast = useToast()
-    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+    
+    onMounted(() => {
+      // 監聽 401 Unauthorized 事件
+      window.addEventListener('auth:unauthorized', handleUnauthorized)
+      
+      // 應用載入時恢復 token
+      restoreToken()
+      if (getToken()) {
+        // 驗證 token 是否仍有效
+        loadUserInfo()
+      }
+    })
 
     // 登入相關
     const isLoggedIn = ref(false)
-    const authToken = ref('')
+    const authToken = ref('')  // 【改進】authToken 現在由 api.js 管理
     const loginUserId = ref('')
     const loginPassword = ref('')
     const loginLoading = ref(false)
@@ -377,11 +389,12 @@ export default {
 
       loginLoading.value = true
       try {
+        // 【改進】登入時不使用 apiClient（因為還沒有 token）
         const formData = new FormData()
         formData.append('user_id', loginUserId.value)
         formData.append('password', loginPassword.value)
 
-        const response = await fetch(`${API_BASE}/api/login`, {
+        const response = await fetch('http://localhost:8000/api/login', {
           method: 'POST',
           body: formData
         })
@@ -392,21 +405,12 @@ export default {
         }
 
         const data = await response.json()
+        // 【改進】使用統一的 setToken 函數
+        setToken(data.access_token)
         authToken.value = data.access_token
-        localStorage.setItem('authToken', data.access_token)
 
-        // 取得使用者資訊
-        const meResponse = await fetch(`${API_BASE}/api/me`, {
-          headers: {
-            'Authorization': `Bearer ${data.access_token}`
-          }
-        })
-
-        if (!meResponse.ok) {
-          throw new Error('無法取得使用者資訊')
-        }
-
-        const userData = await meResponse.json()
+        // 【改進】使用 apiClient 取得使用者資訊（自動帶 token）
+        const userData = await apiClient.get('/api/me')
         currentUser.value = userData
         isLoggedIn.value = true
 
@@ -415,7 +419,8 @@ export default {
         // 載入文件列表
         loadDocuments()
       } catch (error) {
-        toast.add({ severity: 'error', summary: '錯誤', detail: error.message, life: 3000 })
+        const message = error.message || '登入失敗'
+        toast.add({ severity: 'error', summary: '錯誤', detail: message, life: 3000 })
       } finally {
         loginLoading.value = false
       }
@@ -423,6 +428,9 @@ export default {
 
     // 登出函數
     const logout = () => {
+      // 【改進】使用 clearToken() 統一清理 token（memory + sessionStorage）
+      clearToken()
+      
       isLoggedIn.value = false
       authToken.value = ''
       loginUserId.value = ''
@@ -436,8 +444,18 @@ export default {
       formInputs.value = {}
       generatedContent.value = ''
       showAdminConsole.value = false
-      localStorage.removeItem('authToken')
       toast.add({ severity: 'info', summary: '提示', detail: '已登出', life: 3000 })
+    }
+    
+    // 【新增】401 Unauthorized 事件處理
+    const handleUnauthorized = (event) => {
+      toast.add({ 
+        severity: 'warn', 
+        summary: '登入已過期', 
+        detail: event.detail || 'Token 已過期，請重新登入', 
+        life: 5000 
+      })
+      logout()
     }
 
     // 檔案選擇
@@ -463,17 +481,12 @@ export default {
         formData.append('file', selectedFile.value)
         formData.append('allowed_roles', uploadRoles.value.join(','))
 
-        const response = await fetch(`${API_BASE}/api/docs/upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authToken.value}`
-          },
-          body: formData
-        })
-
-        if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.detail || '上傳失敗')
+        // 【改進】使用 apiClient（自動帶 token）
+        try {
+          const response = await apiClient.post('/api/docs/upload', formData)
+          // apiClient 已自動處理錯誤，若成功會直接返回
+        } catch (apiError) {
+          throw new Error(apiError.message || '上傳失敗')
         }
 
         toast.add({ severity: 'success', summary: '成功', detail: '檔案上傳成功（待 admin 審核）', life: 3000 })
@@ -491,17 +504,8 @@ export default {
     // 載入文件列表
     const loadDocuments = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/docs`, {
-          headers: {
-            'Authorization': `Bearer ${authToken.value}`
-          }
-        })
-
-        if (!response.ok) {
-          throw new Error('無法載入文件列表')
-        }
-
-        documents.value = await response.json()
+        // 【改進】使用 apiClient（自動帶 token）
+        documents.value = await apiClient.get('/api/docs')
       } catch (error) {
         toast.add({ severity: 'error', summary: '錯誤', detail: error.message, life: 3000 })
       }
@@ -677,6 +681,7 @@ export default {
       isFormValid,
       login,
       logout,
+      handleUnauthorized,
       onFileSelected,
       uploadFile,
       loadDocuments,

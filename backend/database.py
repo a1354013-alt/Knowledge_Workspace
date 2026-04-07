@@ -38,20 +38,20 @@ def get_embedding_function():
                 api_key=openai_key,
                 model_name="text-embedding-3-small"
             )
-            logger.info("✅ 使用 OpenAI embeddings")
+            print("✅ 使用 OpenAI embeddings")
             return _EMBEDDING_FUNCTION
         except Exception as e:
-            logger.warning(f"⚠️ OpenAI embedding 初始化失敗 ({e})，改用 sentence-transformers")
+            print(f"⚠️ OpenAI embedding 初始化失敗 ({e})，改用 sentence-transformers")
     
     # 備選：使用 sentence-transformers（本地模型）
     try:
         _EMBEDDING_FUNCTION = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name="all-MiniLM-L6-v2"
         )
-        logger.info("✅ 使用 sentence-transformers embeddings")
+        print("✅ 使用 sentence-transformers embeddings")
         return _EMBEDDING_FUNCTION
     except Exception as e:
-        logger.error(f"❌ 無法載入 embedding function: {e}")
+        print(f"❌ 無法載入 embedding function: {e}")
         raise RuntimeError("No embedding function available")
 
 # ============ SQLite 資料庫管理 ============
@@ -136,16 +136,16 @@ class DocumentDatabase:
             
             # 警告：使用預設密碼
             if default_password == "admin12345":
-                logger.warning("\n" + "="*70)
-                logger.warning("⚠️  警告：Admin 使用預設密碼！")
-                logger.warning("="*70)
-                logger.info("✅ 預設 admin 使用者已建立")
-                logger.warning("⚠️  密碼: admin12345 (預設值)")
-                logger.warning("⚠️  建議：立即修改密碼！")
-                logger.warning("⚠️  方法：使用 DEFAULT_ADMIN_PASSWORD 環境變數來設定自訂密碼")
-                logger.warning("="*70 + "\n")
+                print("\n" + "="*70)
+                print("⚠️  警告：Admin 使用預設密碼！")
+                print("="*70)
+                print("✅ 預設 admin 使用者已建立")
+                print("⚠️  密碼: admin12345 (預設值)")
+                print("⚠️  建議：立即修改密碼！")
+                print("⚠️  方法：使用 DEFAULT_ADMIN_PASSWORD 環境變數來設定自訂密碼")
+                print("="*70 + "\n")
             else:
-                logger.info("✅ 預設 admin 使用者已建立（使用自訂密碼）")
+                print("✅ 預設 admin 使用者已建立（使用自訂密碼）")
     
     # ============ Users 操作 ============
     
@@ -233,7 +233,7 @@ class DocumentDatabase:
                 conn.commit()
                 return cursor.rowcount > 0
         except Exception as e:
-            logger.error(f"❌ 更新使用者失敗: {e}")
+            print(f"❌ 更新使用者失敗: {e}")
             return False
     
     # ============ Documents 操作 ============
@@ -255,7 +255,7 @@ class DocumentDatabase:
                 conn.commit()
             return True
         except Exception as e:
-            logger.error(f"❌ 新增文件失敗: {e}")
+            print(f"❌ 新增文件失敗: {e}")
             return False
     
     def get_document(self, doc_id: str) -> Optional[Dict]:
@@ -317,7 +317,7 @@ class DocumentDatabase:
                 conn.commit()
                 return cursor.rowcount > 0
         except Exception as e:
-            logger.error(f"❌ 更新文件失敗: {e}")
+            print(f"❌ 更新文件失敗: {e}")
             return False
     
     def delete_document(self, doc_id: str) -> bool:
@@ -329,7 +329,7 @@ class DocumentDatabase:
                 conn.commit()
             return True
         except Exception as e:
-            logger.error(f"❌ 刪除文件失敗: {e}")
+            print(f"❌ 刪除文件失敗: {e}")
             return False
 
 # ============ ChromaDB 向量庫操作 ============
@@ -350,7 +350,7 @@ def get_collection():
         )
         return _COLLECTION
     except Exception as e:
-        logger.error(f"❌ ChromaDB 初始化失敗: {e}")
+        print(f"❌ ChromaDB 初始化失敗: {e}")
         raise RuntimeError("ChromaDB initialization failed")
 
 def add_to_vector_db(doc_id: str, chunks: List[str], metadata_list: List[Dict], allowed_roles: List[str] = None) -> bool:
@@ -404,7 +404,7 @@ def add_to_vector_db(doc_id: str, chunks: List[str], metadata_list: List[Dict], 
         )
         return True
     except Exception as e:
-        logger.error(f"❌ 向量庫新增失敗: {e}")
+        print(f"❌ 向量庫新增失敗: {e}")
         return False
 
 def query_vector_db(question: str, user_role: str, n_results: int = 5) -> List[Tuple[str, str, Dict]]:
@@ -451,7 +451,7 @@ def query_vector_db(question: str, user_role: str, n_results: int = 5) -> List[T
         
         return output
     except Exception as e:
-        logger.error(f"❌ 向量庫查詢失敗: {e}")
+        print(f"❌ 向量庫查詢失敗: {e}")
         return []
 
 def delete_from_vector_db(doc_id: str) -> bool:
@@ -462,5 +462,5 @@ def delete_from_vector_db(doc_id: str) -> bool:
         collection.delete(where={"doc_id": doc_id})
         return True
     except Exception as e:
-        logger.error(f"❌ 向量庫刪除失敗: {e}")
+        print(f"❌ 向量庫刪除失敗: {e}")
         return False

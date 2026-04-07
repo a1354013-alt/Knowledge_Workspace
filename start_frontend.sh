@@ -69,12 +69,4 @@ else
     echo "✅ 依賴無變更，跳過 npm install"
 fi
 
-echo ""
-echo "========================================"
-echo "✅ 前端啟動成功"
-echo "========================================"
-echo "✅ 前端 URL: http://localhost:3000"
-echo "✅ 後端 API: http://localhost:8000"
-echo "✅ API 文檔: http://localhost:8000/docs"
-echo ""
 npm run dev
