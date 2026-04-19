@@ -23,7 +23,7 @@ from app.auth import create_token
 from app.database import DocumentDatabase, delete_from_kb_vector_db, delete_from_vector_db
 from app.dependencies import get_current_user
 from app.kb_index import index_knowledge_entry, index_logbook_entry, index_photo, index_saved_prompt
-from app.llm import get_llm_provider
+from app.llm import get_llm_provider, validate_env_vars
 from app.models import (
     AutoTestRunListItemResponse,
     AutoTestRunResponse,
@@ -58,6 +58,7 @@ from app.models import (
     UploadDocumentResponse,
     UploadPhotoResponse,
 )
+from app.ocr_service import extract_text_from_image
 from app.services import FORM_TEMPLATES, generate_form, perform_qa, process_file
 from app.utils import generate_safe_filename, get_env_list, stream_write_file, validate_file_extension
 
@@ -525,8 +526,27 @@ async def sync_document_index(document: dict) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Validate environment variables at startup
+    try:
+        validate_env_vars()
+    except RuntimeError as exc:
+        logger.error("Environment validation failed: %s", exc)
+        raise
+    
     logger.info("Local AI Engineer Workspace API starting.")
     logger.info("CORS origins: %s", allowed_origins)
+    
+    # Log LLM provider status
+    try:
+        from app.llm import get_llm_provider
+        provider, status_info = get_llm_provider()
+        logger.info("LLM Provider: %s (model: %s, fallback: %s)", 
+                   status_info["provider"], 
+                   status_info["model"],
+                   status_info["fallback_mode"])
+    except Exception as exc:
+        logger.warning("Failed to initialize LLM provider: %s", exc)
+    
     yield
     logger.info("Local AI Engineer Workspace API stopped.")
 
@@ -1070,6 +1090,9 @@ async def upload_photo(
     file_path = PHOTO_DIR / safe_filename
     file_size = await stream_write_file(file, file_path)
 
+    # Extract text from image using OCR
+    ocr_text = extract_text_from_image(file_path)
+
     photo_id = str(uuid.uuid4())
     if not db.add_photo(
         photo_id=photo_id,
@@ -1077,7 +1100,7 @@ async def upload_photo(
         saved_filename=safe_filename,
         tags=str(tags or ""),
         description=str(description or ""),
-        ocr_text="",
+        ocr_text=ocr_text,
         file_size=file_size,
         uploaded_by=user_id,
         status="reviewed",
