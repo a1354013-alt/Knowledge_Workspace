@@ -129,9 +129,10 @@ async def perform_qa(question: str, user_id: str) -> tuple[str, list[Source]]:
 
     provider, _status = get_llm_provider()
     try:
+        context = "\n\n".join(context_parts)
         response = await provider.generate(
             system=SYSTEM_PROMPT,
-            prompt=f"Context:\n{'\n\n'.join(context_parts)}\n\nQuestion:\n{question}",
+            prompt=f"Context:\n{context}\n\nQuestion:\n{question}",
             temperature=0.2,
         )
         if response.text.strip():

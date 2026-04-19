@@ -88,3 +88,36 @@ def test_document_upload_and_list(monkeypatch, tmp_path):
     assert len(payload) == 1
     assert payload[0]['filename'] == 'manual.txt'
     assert payload[0]['status'] == 'reviewed'
+
+
+def test_global_search_filters(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+    headers = auth_headers(client)
+
+    create = client.post(
+        "/api/knowledge/entries",
+        headers=headers,
+        json={
+            "title": "Search marker",
+            "problem": "Problem ABC123",
+            "root_cause": "",
+            "solution": "Do X then Y",
+            "tags": "alpha,beta",
+            "notes": "",
+            "status": "draft",
+            "source_type": "manual",
+            "source_ref": "",
+            "related_item_ids": [],
+        },
+    )
+    assert create.status_code == 200, create.text
+
+    results = client.get(
+        "/api/search",
+        headers=headers,
+        params={"q": "ABC123", "types": "knowledge", "status_filter": "draft", "tag": "alpha", "limit": 50},
+    )
+    assert results.status_code == 200, results.text
+    items = results.json().get("items") or []
+    assert any(item.get("item_id", "").startswith("knowledge:") for item in items)

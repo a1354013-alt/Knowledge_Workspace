@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import mimetypes
 import os
 import shutil
 import subprocess
@@ -217,7 +218,7 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
         )
 
     if prefix == "autotest_run":
-        run = db.get_autotest_run(raw_id)
+        run = db.get_autotest_run(run_id=raw_id, created_by=user_id)
         if not run:
             return None
         return ItemSummary(
@@ -284,6 +285,21 @@ def maybe_link_source_item(*, from_item_id: str, source_type: str, source_ref: s
     db.add_link(str(from_item_id), ref, link_type="derived_from")
 
 
+def sync_source_ref_link(*, from_item_id: str, old_source_ref: str, new_source_ref: str, source_type: str) -> None:
+    old_ref = str(old_source_ref or "").strip()
+    new_ref = str(new_source_ref or "").strip()
+    if old_ref and ":" in old_ref:
+        try:
+            prefix, _rest = parse_item_id(old_ref)
+        except ValueError:
+            prefix = ""
+        if prefix in {"document", "photo", "autotest_run", "prompt", "logbook", "knowledge"}:
+            db.delete_links(from_item_id=str(from_item_id), to_item_id=old_ref, link_type="derived_from")
+
+    if new_ref != old_ref:
+        maybe_link_source_item(from_item_id=from_item_id, source_type=source_type, source_ref=new_ref)
+
+
 def detect_project_type(zip_path: Path) -> str:
     try:
         with zipfile.ZipFile(zip_path) as archive:
@@ -314,21 +330,50 @@ def detect_fail_step(zip_path: Path) -> str | None:
 def safe_extract_zip(zip_path: Path, dest_dir: Path) -> None:
     dest_dir.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path) as archive:
+        max_files = int(os.getenv("AUTOTEST_MAX_FILES", "5000"))
+        max_unzipped_bytes = int(os.getenv("AUTOTEST_MAX_UNZIPPED_BYTES", str(250 * 1024 * 1024)))
+        total_files = 0
+        total_bytes = 0
         for member in archive.infolist():
+            total_files += 1
+            if total_files > max_files:
+                raise ValueError("Zip contains too many files.")
+
+            if member.is_dir():
+                continue
+
+            total_bytes += int(getattr(member, "file_size", 0) or 0)
+            if total_bytes > max_unzipped_bytes:
+                raise ValueError("Zip expands beyond allowed size.")
+
             member_path = Path(member.filename)
             if member_path.is_absolute() or ".." in member_path.parts:
                 raise ValueError("Zip contains unsafe paths.")
+            # Block Windows drive-letter / UNC style payloads even on Unix hosts.
+            if ":" in member_path.parts[0] or str(member.filename).startswith(("\\\\", "//")):
+                raise ValueError("Zip contains unsafe paths.")
+            # Block symlinks (zipinfo external attributes can mark symlinks on Unix).
+            is_symlink = (member.external_attr >> 16) & 0o170000 == 0o120000
+            if is_symlink:
+                raise ValueError("Zip contains symlinks, which are not allowed.")
         archive.extractall(dest_dir)
 
 
-def _run_command(*, command: str, cwd: Path, timeout_seconds: int) -> tuple[int, str, str]:
+def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[int, str, str]:
+    if not argv:
+        raise ValueError("Missing command argv.")
+    env = os.environ.copy()
+    env.setdefault("CI", "true")
+    env.setdefault("PYTHONUNBUFFERED", "1")
+    env.setdefault("PIP_DISABLE_PIP_VERSION_CHECK", "1")
     completed = subprocess.run(
-        command,
+        argv,
         cwd=str(cwd),
-        shell=True,
+        shell=False,
         capture_output=True,
         text=True,
         timeout=timeout_seconds,
+        env=env,
     )
     stdout = completed.stdout or ""
     stderr = completed.stderr or ""
@@ -423,27 +468,39 @@ async def suggest_fix_from_autotest(*, project_type: str, failed_step: str, comm
     )
 
 
-def autotest_commands(project_type: str) -> dict[str, str]:
+def autotest_commands(project_type: str) -> dict[str, list[str]]:
     if project_type == "node":
         return {
-            "install": "npm ci",
-            "build": "npm run build",
-            "test": "npm test",
-            "lint": "npm run lint",
+            "install": ["npm", "ci", "--no-audit", "--no-fund"],
+            "build": ["npm", "run", "build"],
+            "test": ["npm", "test"],
+            "lint": ["npm", "run", "lint"],
         }
     if project_type == "python":
         return {
-            "install": "python -m pip install -r requirements.txt",
-            "build": "python -m compileall .",
-            "test": "pytest",
-            "lint": "python -m compileall .",
+            "install": ["python", "-m", "pip", "install", "--no-input", "-r", "requirements.txt"],
+            "build": ["python", "-m", "compileall", "."],
+            "test": ["pytest"],
+            "lint": ["python", "-m", "compileall", "."],
         }
     return {
-        "install": "install (simulated)",
-        "build": "build (simulated)",
-        "test": "test (simulated)",
-        "lint": "lint (simulated)",
+        "install": ["echo", "install (simulated)"],
+        "build": ["echo", "build (simulated)"],
+        "test": ["echo", "test (simulated)"],
+        "lint": ["echo", "lint (simulated)"],
     }
+
+
+def _safe_download_filename(value: str) -> str:
+    name = str(value or "").replace("\r", "").replace("\n", "").strip()
+    if not name:
+        return "file"
+    return name.replace('"', "'")
+
+
+def _guess_media_type(filename: str, default: str = "application/octet-stream") -> str:
+    media_type, _encoding = mimetypes.guess_type(str(filename or ""))
+    return media_type or default
 
 
 async def sync_document_index(document: dict) -> None:
@@ -479,6 +536,55 @@ app = FastAPI(
     version=APP_VERSION,
     lifespan=lifespan,
 )
+
+
+@app.get("/api/search", response_model=ResolveItemsResponse)
+async def global_search(
+    q: str = "",
+    types: str = "",
+    status_filter: str = "",
+    tag: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    limit: int = 200,
+    current_user: dict = Depends(get_current_user),
+) -> ResolveItemsResponse:
+    """
+    Global search across workspace entities.
+
+    Query params:
+    - q: keyword substring match
+    - types: comma-separated list: knowledge,logbook,document,photo,prompt,autotest_run
+    - status_filter: exact status match (e.g. draft/reviewed/verified/archived/passed/failed)
+    - tag: tags substring match (where applicable)
+    - date_from/date_to: ISO prefix comparisons (e.g. 2026-04-01)
+    """
+    user_id = current_user["sub"]
+    requested_types = [part.strip() for part in str(types or "").split(",") if part.strip()]
+    rows = db.search_items(
+        user_id=user_id,
+        keyword=q,
+        item_types=requested_types,
+        status=status_filter,
+        tag=tag,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+    )
+    items = [
+        ItemSummary(
+            item_id=f"{row.get('item_type')}:{row.get('item_id')}",
+            item_type=str(row.get("item_type") or ""),
+            title=str(row.get("title") or ""),
+            status=str(row.get("status") or ""),
+            created_at=str(row.get("created_at") or ""),
+            updated_at=str(row.get("updated_at") or ""),
+            source_type=str(row.get("source_type") or ""),
+            source_ref=str(row.get("source_ref") or ""),
+        )
+        for row in rows
+    ]
+    return ResolveItemsResponse(items=items)
 
 app.add_middleware(
     CORSMiddleware,
@@ -605,11 +711,12 @@ async def download_document(doc_id: str, inline: int = 0, current_user: dict = D
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document file missing on disk.")
 
     disposition = "inline" if int(inline) == 1 else "attachment"
+    safe_name = _safe_download_filename(str(document.get("filename") or "document"))
     return FileResponse(
         path=str(file_path),
-        filename=str(document.get("filename") or "document"),
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f'{disposition}; filename="{document.get("filename") or "document"}"'},
+        filename=safe_name,
+        media_type=_guess_media_type(safe_name),
+        headers={"Content-Disposition": f'{disposition}; filename="{safe_name}"'},
     )
 
 
@@ -742,10 +849,11 @@ async def update_knowledge_entry(
     if "source_type" in updates or "source_ref" in updates:
         source_type = updates.get("source_type", existing.get("source_type", "manual"))
         source_ref = updates.get("source_ref", existing.get("source_ref", ""))
-        maybe_link_source_item(
+        sync_source_ref_link(
             from_item_id=item_id_from_parts("knowledge", entry_id),
+            old_source_ref=str(existing.get("source_ref", "")),
+            new_source_ref=str(source_ref),
             source_type=str(source_type),
-            source_ref=str(source_ref),
         )
 
     updated = db.get_knowledge_entry(entry_id) or existing
@@ -835,10 +943,11 @@ async def update_logbook_entry(
     if "source_type" in updates or "source_ref" in updates:
         source_type = updates.get("source_type", existing.get("source_type", "manual"))
         source_ref = updates.get("source_ref", existing.get("source_ref", ""))
-        maybe_link_source_item(
+        sync_source_ref_link(
             from_item_id=item_id_from_parts("logbook", entry_id),
+            old_source_ref=str(existing.get("source_ref", "")),
+            new_source_ref=str(source_ref),
             source_type=str(source_type),
-            source_ref=str(source_ref),
         )
 
     updated = db.get_logbook_entry(entry_id) or existing
@@ -916,7 +1025,19 @@ PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 
 def validate_image_extension(filename: str) -> bool:
     ext = Path(filename).suffix.lower()
-    return ext in {".png", ".jpg", ".jpeg", ".webp"}
+    return ext in {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
+
+def sniff_image_type(header: bytes) -> str | None:
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if header.startswith(b"\xff\xd8\xff"):
+        return "jpeg"
+    if header.startswith(b"GIF87a") or header.startswith(b"GIF89a"):
+        return "gif"
+    if header.startswith(b"RIFF") and len(header) >= 12 and header[8:12] == b"WEBP":
+        return "webp"
+    return None
 
 
 @app.post("/api/photos/upload", response_model=UploadPhotoResponse)
@@ -931,6 +1052,19 @@ async def upload_photo(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing filename.")
     if not validate_image_extension(file.filename):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image type.")
+    if file.content_type and not str(file.content_type).lower().startswith("image/"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid image content type.")
+
+    header = await file.read(32)
+    try:
+        await file.seek(0)
+    except Exception:
+        try:
+            file.file.seek(0)
+        except Exception:
+            pass
+    if sniff_image_type(header) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file does not look like an image.")
 
     safe_filename = generate_safe_filename(file.filename)
     file_path = PHOTO_DIR / safe_filename
@@ -1003,11 +1137,12 @@ async def download_photo(photo_id: str, inline: int = 1, current_user: dict = De
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo file missing on disk.")
 
     disposition = "inline" if int(inline) == 1 else "attachment"
+    safe_name = _safe_download_filename(str(photo.get("filename") or "photo"))
     return FileResponse(
         path=str(file_path),
-        filename=str(photo.get("filename") or "photo"),
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f'{disposition}; filename="{photo.get("filename") or "photo"}"'},
+        filename=safe_name,
+        media_type=_guess_media_type(safe_name),
+        headers={"Content-Disposition": f'{disposition}; filename="{safe_name}"'},
     )
 
 
@@ -1181,26 +1316,27 @@ async def run_autotest(
         summary="",
         suggestion="",
         prompt_output="",
+        created_by=user_id,
     ):
         safe_unlink(zip_path)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create autotest run.")
 
-    steps_def = [
+    steps_def: list[tuple[str, list[str]]] = [
         ("install", commands["install"]),
         ("build", commands["build"]),
         ("test", commands["test"]),
         ("lint", commands["lint"]),
     ]
-    commands_by_step = {name: command for name, command in steps_def}
+    commands_by_step = {name: " ".join(argv) for name, argv in steps_def}
     step_ids: dict[str, str] = {}
-    for name, command in steps_def:
+    for name, argv in steps_def:
         step_id = str(uuid.uuid4())
         step_ids[name] = step_id
         db.add_autotest_step(
             step_id=step_id,
             run_id=run_id,
             name=name,
-            command=command,
+            command=" ".join(argv),
             status="queued",
         )
 
@@ -1236,7 +1372,7 @@ async def run_autotest(
             project_type=project_type_detected,
         )
 
-        for name, command in steps_def:
+        for name, argv in steps_def:
             step_id = step_ids[name]
             started_at = utc_now_iso()
             db.update_autotest_step(step_id, status="running", started_at=started_at)
@@ -1248,6 +1384,7 @@ async def run_autotest(
             stdout = ""
             stderr = ""
 
+            command = " ".join(argv)
             if fail_step and fail_step == name:
                 ok = False
                 exit_code = 1
@@ -1262,7 +1399,7 @@ async def run_autotest(
                 )
             elif execution_mode == "real" and project_type_detected in {"node", "python"}:
                 try:
-                    exit_code, stdout, stderr = _run_command(command=command, cwd=working_dir, timeout_seconds=timeout_seconds)
+                    exit_code, stdout, stderr = _run_command(argv=argv, cwd=working_dir, timeout_seconds=timeout_seconds)
                     ok = exit_code == 0
                 except subprocess.TimeoutExpired:
                     ok = False
@@ -1394,7 +1531,7 @@ async def run_autotest(
         safe_unlink(zip_path)
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)
-    run_row = db.get_autotest_run(run_id)
+    run_row = db.get_autotest_run(run_id=run_id, created_by=user_id)
     if not run_row:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Autotest run missing after creation.")
     step_rows = db.list_autotest_steps(run_id)
@@ -1438,7 +1575,7 @@ async def run_autotest(
 
 @app.get("/api/autotest/runs", response_model=list[AutoTestRunListItemResponse])
 async def list_autotest_runs(current_user: dict = Depends(get_current_user)) -> list[AutoTestRunListItemResponse]:
-    _ = current_user
+    user_id = current_user["sub"]
     return [
         AutoTestRunListItemResponse(
             id=row.get("run_id", ""),
@@ -1447,14 +1584,14 @@ async def list_autotest_runs(current_user: dict = Depends(get_current_user)) -> 
             created_at=row.get("created_at", ""),
             summary=row.get("summary", ""),
         )
-        for row in db.list_autotest_runs(limit=50)
+        for row in db.list_autotest_runs(limit=50, created_by=user_id)
     ]
 
 
 @app.get("/api/autotest/runs/{run_id}", response_model=AutoTestRunResponse)
 async def get_autotest_run(run_id: str, current_user: dict = Depends(get_current_user)) -> AutoTestRunResponse:
-    _ = current_user
-    run_row = db.get_autotest_run(run_id)
+    user_id = current_user["sub"]
+    run_row = db.get_autotest_run(run_id=run_id, created_by=user_id)
     if not run_row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Autotest run not found.")
     step_rows = db.list_autotest_steps(run_id)

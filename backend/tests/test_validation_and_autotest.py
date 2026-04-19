@@ -117,3 +117,34 @@ def test_autotest_run_failure_creates_logbook_entry(monkeypatch, tmp_path):
     assert logbook.status_code == 200
     entries = logbook.json()
     assert any("AutoTest Failed" in entry.get("title", "") and entry.get("run_id") == data["id"] for entry in entries)
+
+
+def test_autotest_run_is_filtered_by_owner(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+
+    # create a second user directly via DB (no public API for this)
+    assert main.db.add_user("alice", "AlicePass123!", "Alice", "owner")
+
+    owner_headers = auth_headers(client, user_id="owner", password="OwnerPass123!")
+    alice_headers = auth_headers(client, user_id="alice", password="AlicePass123!")
+
+    payload = build_zip()
+    response = client.post(
+        "/api/autotest/run",
+        headers=owner_headers,
+        files={"file": ("demo.zip", payload, "application/zip")},
+    )
+    assert response.status_code == 200, response.text
+    run_id = response.json()["id"]
+
+    owner_runs = client.get("/api/autotest/runs", headers=owner_headers)
+    assert owner_runs.status_code == 200
+    assert any(item["id"] == run_id for item in owner_runs.json())
+
+    alice_runs = client.get("/api/autotest/runs", headers=alice_headers)
+    assert alice_runs.status_code == 200
+    assert all(item["id"] != run_id for item in alice_runs.json())
+
+    alice_detail = client.get(f"/api/autotest/runs/{run_id}", headers=alice_headers)
+    assert alice_detail.status_code == 404

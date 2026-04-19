@@ -39,6 +39,9 @@
           <TabPanel header="Activity">
             <ActivityDashboard />
           </TabPanel>
+          <TabPanel header="Search">
+            <GlobalSearchPanel />
+          </TabPanel>
           <TabPanel header="Knowledge Base">
             <KnowledgeBase />
           </TabPanel>
@@ -53,6 +56,9 @@
           </TabPanel>
           <TabPanel header="Prompts">
             <PromptsPanel />
+          </TabPanel>
+          <TabPanel header="Generator">
+            <TemplateGeneratorPanel />
           </TabPanel>
           <TabPanel header="Settings">
             <SettingsPanel :current-user="currentUser" />
@@ -76,10 +82,12 @@ import Toast from 'primevue/toast'
 
 import KnowledgeBase from './components/KnowledgeBase.vue'
 import ActivityDashboard from './components/ActivityDashboard.vue'
+import GlobalSearchPanel from './components/GlobalSearchPanel.vue'
 import LogbookPanel from './components/LogbookPanel.vue'
 import DocsPhotosPanel from './components/DocsPhotosPanel.vue'
 import AutoTestPanel from './components/AutoTestPanel.vue'
 import PromptsPanel from './components/PromptsPanel.vue'
+import TemplateGeneratorPanel from './components/TemplateGeneratorPanel.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 
 import { createInitialUser } from './app-state'

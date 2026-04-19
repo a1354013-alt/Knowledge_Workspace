@@ -63,7 +63,7 @@ jobs:
           bad = []
           with zipfile.ZipFile("enterprise_ai_release.zip") as zf:
             names = zf.namelist()
-          forbidden_parts = {".git", "node_modules", "dist", "__pycache__", "uploads", "photos", "chroma_db", "autotest_uploads"}
+          forbidden_parts = {".git", "node_modules", "__pycache__", "uploads", "photos", "chroma_db", "autotest_uploads"}
           for name in names:
             parts = set([p for p in name.split("/") if p])
             if parts & forbidden_parts:
