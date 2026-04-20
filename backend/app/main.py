@@ -18,6 +18,9 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, sta
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from app.auth import create_token
 from app.database import DocumentDatabase, delete_from_kb_vector_db, delete_from_vector_db
@@ -61,7 +64,13 @@ from app.models import (
 )
 from app.ocr_service import extract_text_from_image, get_ocr_status
 from app.services import FORM_TEMPLATES, generate_form, perform_qa, process_file
-from app.utils import generate_safe_filename, get_env_list, stream_write_file, validate_file_extension
+from app.utils import (
+    generate_safe_filename,
+    get_env_list,
+    stream_write_file,
+    validate_file_extension,
+    validate_file_magic_bytes,
+)
 
 
 load_dotenv()
@@ -576,6 +585,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 @app.get("/api/search", response_model=ResolveItemsResponse)
 async def global_search(
@@ -657,6 +671,7 @@ async def healthcheck() -> HealthResponse:
 
 
 @app.post("/api/login", response_model=LoginResponse)
+@limiter.limit("5/minute")  # Rate limit: 5 requests per minute to prevent brute force
 async def login(request: LoginRequest) -> LoginResponse:
     if not db.verify_password(request.user_id, request.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
@@ -714,6 +729,13 @@ async def upload_document(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing filename.")
     if not validate_file_extension(file.filename):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported file type.")
+
+    # Read file content for magic bytes validation
+    file_content = await file.read()
+    await file.seek(0)  # Reset file pointer for subsequent reading
+    
+    # Validate file content using magic bytes (prevents file spoofing attacks)
+    validate_file_magic_bytes(file_content, file.filename)
 
     safe_filename = generate_safe_filename(file.filename)
     file_path = UPLOAD_DIR / safe_filename
@@ -1038,9 +1060,14 @@ async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depen
     # Archive the original problem draft so it doesn't clutter day-to-day views.
     db.update_logbook_entry(entry_id, status="archived")
 
+    # Delete the old logbook entry from vector index to prevent search pollution
+    # (archived entries should not appear in search results)
+    delete_from_kb_vector_db(f"logbook:{entry_id}")
+
     promoted = db.get_knowledge_entry(knowledge_id)
     if promoted:
         index_knowledge_entry(promoted)
+    # Re-index the archived logbook (with updated status) for completeness
     index_logbook_entry(db.get_logbook_entry(entry_id) or logbook)
 
     # If this logbook was derived from an AutoTest run, mark the run as having a solution.
@@ -1104,7 +1131,8 @@ async def upload_photo(
     if file.content_type and not str(file.content_type).lower().startswith("image/"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid image content type.")
 
-    header = await file.read(32)
+    # Read file content for magic bytes validation
+    file_content = await file.read()
     try:
         await file.seek(0)
     except Exception:
@@ -1112,6 +1140,9 @@ async def upload_photo(
             file.file.seek(0)
         except Exception:
             pass
+    
+    # Validate image using magic bytes (more robust than extension check alone)
+    header = file_content[:32]
     if sniff_image_type(header) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file does not look like an image.")
 
@@ -1259,6 +1290,7 @@ async def resolve_items(request: ResolveItemsRequest, current_user: dict = Depen
 
 
 @app.post("/api/qa", response_model=QAResponse)
+@limiter.limit("10/minute")  # Rate limit: 10 requests per minute to prevent abuse
 async def qa(request: QARequest, current_user: dict = Depends(get_current_user)) -> QAResponse:
     answer, sources = await perform_qa(request.question, current_user["sub"])
     logger.info("QA request by %s returned %s sources", current_user["sub"], len(sources))
@@ -1330,6 +1362,7 @@ async def delete_saved_prompt(prompt_id: str, current_user: dict = Depends(get_c
 
 
 @app.post("/api/autotest/run", response_model=AutoTestRunResponse)
+@limiter.limit("3/minute")  # Rate limit: 3 requests per minute (resource-intensive operation)
 async def run_autotest(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
@@ -1580,9 +1613,11 @@ async def run_autotest(
                 if entry:
                     index_logbook_entry(entry)
 
-        safe_unlink(zip_path)
     finally:
+        # Ensure zip file is always cleaned up, even on exception (security: prevent temp file accumulation)
+        safe_unlink(zip_path)
         shutil.rmtree(work_dir, ignore_errors=True)
+    
     run_row = db.get_autotest_run(run_id=run_id, created_by=user_id)
     if not run_row:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Autotest run missing after creation.")

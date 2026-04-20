@@ -249,9 +249,16 @@ async function submitQA() {
 }
 
 async function saveEntry() {
+  // Validate problem field: must not be empty after trimming (matches backend min_length=1)
+  const trimmedProblem = String(entry.value.problem || '').trim()
+  if (!trimmedProblem) {
+    toast.add({ severity: 'warn', summary: 'Validation Error', detail: 'Problem field cannot be empty.', life: 3500 })
+    return
+  }
+
   const payload = {
     title: String(entry.value.title || '').trim(),
-    problem: String(entry.value.problem || '').trim(),
+    problem: trimmedProblem,
     root_cause: String(entry.value.root_cause || '').trim(),
     solution: String(entry.value.solution || '').trim(),
     tags: String(entry.value.tags || '').trim(),
@@ -261,8 +268,8 @@ async function saveEntry() {
     source_ref: String(entry.value.source_ref || '').trim(),
     related_item_ids: Array.isArray(entry.value.related_item_ids) ? entry.value.related_item_ids : [],
   }
-  if (!payload.problem || !payload.solution) {
-    toast.add({ severity: 'warn', summary: 'Missing fields', detail: 'Problem and solution are required.', life: 3500 })
+  if (!payload.solution) {
+    toast.add({ severity: 'warn', summary: 'Missing fields', detail: 'Solution field is required.', life: 3500 })
     return
   }
 
