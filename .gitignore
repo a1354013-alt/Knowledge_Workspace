@@ -1,31 +1,39 @@
 ```
-# Dependencies
-node_modules/
-
-# Build artifacts
-dist/
-build/
-*.o
-*.obj
-*.out
-
-# Logs and temp files
-*.log
-*.tmp
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editors
-.vscode/
-.idea/
-
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
+env/
+venv/
+.venv/
+.ENV
+.env
+.env.*
+.env.local
+.python-version
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg
+*.egg-info/
+.direnv/
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 ```

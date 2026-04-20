@@ -302,6 +302,6 @@ class ResolveItemsRequest(StrictModel):
 class ResolveItemsResponse(StrictModel):
     items: list[ItemSummary] = Field(default_factory=list)
 
-# --- Ensure all forward references are resolved at import time ---
-from pydantic import BaseModel
-BaseModel.model_rebuild()
+
+# Note: model_rebuild() is no longer needed in Pydantic v2
+# Models are automatically rebuilt when all forward references are resolved
