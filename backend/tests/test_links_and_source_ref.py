@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from tests.test_api_smoke import auth_headers, load_app
+from .test_api_smoke import auth_headers, load_app
 
 
 def test_source_ref_replacement_removes_old_derived_from(monkeypatch, tmp_path):
@@ -65,4 +65,3 @@ def test_source_ref_replacement_removes_old_derived_from(monkeypatch, tmp_path):
         if link["link_type"] == "derived_from" and link["other_item"] and link["other_item"]["item_id"] == f"document:{doc_id}"
     ]
     assert derived == []
-

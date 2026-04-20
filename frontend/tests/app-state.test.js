@@ -1,21 +1,22 @@
-import test from 'node:test'
-import assert from 'node:assert/strict'
+import { describe, expect, it } from 'vitest'
 
-const { createInitialUiState, createInitialUser } = await import('../src/app-state.js')
+import { createInitialUiState, createInitialUser } from '../src/app-state.js'
 
-test('initial user state is empty and safe for boot', () => {
-  assert.deepEqual(createInitialUser(), {
-    user_id: '',
-    role: '',
-    display_name: '',
+describe('app-state', () => {
+  it('initial user state is empty and safe for boot', () => {
+    expect(createInitialUser()).toEqual({
+      user_id: '',
+      role: '',
+      display_name: '',
+    })
   })
-})
 
-test('initial UI state does not crash workspace init', () => {
-  const state = createInitialUiState()
-  assert.deepEqual(state.documents, [])
-  assert.deepEqual(state.photos, [])
-  assert.equal(state.activeSection, 'knowledge')
-  assert.deepEqual(state.knowledge.sources, [])
-  assert.deepEqual(state.logbook.entries, [])
+  it('initial UI state does not crash workspace init', () => {
+    const state = createInitialUiState()
+    expect(state.documents).toEqual([])
+    expect(state.photos).toEqual([])
+    expect(state.activeSection).toBe('knowledge')
+    expect(state.knowledge.sources).toEqual([])
+    expect(state.logbook.entries).toEqual([])
+  })
 })

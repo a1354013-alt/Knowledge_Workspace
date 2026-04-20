@@ -13,6 +13,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 
+from app.core.config import get_settings
+
 try:
     import chromadb
     from chromadb.utils import embedding_functions
@@ -407,7 +409,12 @@ class DocumentDatabase:
         if cursor.fetchone()[0] > 0:
             return
 
-        default_password = os.getenv("DEFAULT_OWNER_PASSWORD", os.getenv("DEFAULT_ADMIN_PASSWORD", "owner12345"))
+        default_password = os.getenv("DEFAULT_OWNER_PASSWORD") or os.getenv("DEFAULT_ADMIN_PASSWORD")
+        if not default_password:
+            raise RuntimeError(
+                "DEFAULT_OWNER_PASSWORD must be set to seed the initial 'owner' account "
+                "(or create users in the database before starting the app)."
+            )
         now = utc_now_iso()
         password_hash = hash_password(default_password)
         cursor.execute(
@@ -417,7 +424,7 @@ class DocumentDatabase:
             """,
             ("owner", password_hash, "Owner", "owner", 1, now, now),
         )
-        logger.warning("Seeded default owner account 'owner'. Change DEFAULT_OWNER_PASSWORD for production.")
+        logger.warning("Seeded initial owner account 'owner'. Change DEFAULT_OWNER_PASSWORD for production.")
 
     def get_user(self, user_id: str) -> dict[str, Any] | None:
         with self._connection() as conn:
@@ -1482,7 +1489,8 @@ def get_collection():
     if chromadb is None:
         raise RuntimeError('chromadb is not installed.')
 
-    client = chromadb.PersistentClient(path=os.getenv("CHROMA_DB_PATH", "./chroma_db"))
+    settings = get_settings()
+    client = chromadb.PersistentClient(path=str(settings.CHROMA_DB_PATH))
     _COLLECTION = client.get_or_create_collection(
         name="documents",
         embedding_function=get_embedding_function(),
@@ -1498,7 +1506,8 @@ def get_kb_collection():
     if chromadb is None:
         raise RuntimeError('chromadb is not installed.')
 
-    client = chromadb.PersistentClient(path=os.getenv("CHROMA_DB_PATH", "./chroma_db"))
+    settings = get_settings()
+    client = chromadb.PersistentClient(path=str(settings.CHROMA_DB_PATH))
     _KB_COLLECTION = client.get_or_create_collection(
         name="knowledge",
         embedding_function=get_embedding_function(),

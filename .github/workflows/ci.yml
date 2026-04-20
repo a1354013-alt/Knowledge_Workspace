@@ -43,6 +43,11 @@ jobs:
           cd frontend
           npm test
 
+      - name: Frontend typecheck
+        run: |
+          cd frontend
+          npm run typecheck
+
       - name: Frontend build
         run: |
           cd frontend
@@ -54,7 +59,7 @@ jobs:
 
       - name: Package release zip
         run: |
-          bash scripts/package_release.sh ./knowledge_workspace_release.zip
+          python scripts/package_release.py ./knowledge_workspace_release.zip
 
       - name: Verify release zip exclusions
         run: |
@@ -77,7 +82,7 @@ jobs:
 
       - name: Start backend (for smoke)
         run: |
-          export JWT_SECRET="ci-secret"
+          export JWT_SECRET="ci-secret-ci-secret-ci-secret-ci-secret-1234"
           export DEFAULT_OWNER_PASSWORD="OwnerPass123!"
           export DATABASE_PATH="./ci_documents.db"
           export UPLOAD_DIR="./ci_uploads"

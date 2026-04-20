@@ -1,11 +1,14 @@
 # Backend API
 
+Prereqs: Python 3.11 (matches CI).
+
 ## Start
 
 ```bash
 cd backend
 python -m pip install -r requirements.txt
 cp .env.example .env
+# Set at least: JWT_SECRET (min 32 chars) and DEFAULT_OWNER_PASSWORD
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -48,6 +51,6 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ```bash
 cd backend
+python -m pytest
 python tests/run_smoke.py
 ```
-

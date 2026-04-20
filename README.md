@@ -139,7 +139,7 @@ This is a **personal AI-powered knowledge workspace** designed specifically for 
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.11 (recommended; matches CI)
 - Node.js 20+
 - Ollama (optional, for AI features)
 
@@ -154,7 +154,7 @@ cp .env.example .env
 Edit `backend/.env`:
 
 ```bash
-JWT_SECRET=your-super-secret-key-here
+JWT_SECRET=replace-this-with-a-long-random-secret-min-32-chars
 DEFAULT_OWNER_PASSWORD=YourSecurePassword123!
 ALLOWED_ORIGINS=http://localhost:5173
 DATABASE_PATH=documents.db
@@ -181,7 +181,7 @@ Or use the helper script from root:
 
 ```bash
 cd frontend
-npm install
+npm ci
 ```
 
 ### 4️⃣ Start Frontend
@@ -344,7 +344,7 @@ Knowledge_Workspace/
 │   ├── src/
 │   │   ├── App.vue
 │   │   ├── main.js
-│   │   ├── api.js            # Axios client
+│   │   ├── api.ts            # Axios client (single source)      
 │   │   ├── auth.js           # Token management
 │   │   ├── app-state.js      # State factories
 │   │   └── components/       # Vue components
@@ -354,7 +354,7 @@ Knowledge_Workspace/
 ├── scripts/
 │   ├── smoke_check.py        # End-to-end smoke test
 │   ├── check_version_consistency.py
-│   └── package_release.sh    # Release packaging
+│   └── package_release.py    # Release packaging (cross-platform)
 ├── .github/workflows/ci.yml
 ├── VERSION
 ├── README.md
@@ -372,10 +372,10 @@ Knowledge_Workspace/
 | `DEFAULT_OWNER_PASSWORD` | ✅ | - | Initial owner password |
 | `ALLOWED_ORIGINS` | ✅ | `http://localhost:5173` | CORS origins |
 | `DATABASE_PATH` | ❌ | `documents.db` | SQLite database path |
-| `UPLOAD_DIR` | ❌ | `./uploads` | Document upload directory |
-| `PHOTO_DIR` | ❌ | `./photos` | Photo upload directory |
-| `CHROMA_DB_PATH` | ❌ | `./chroma_db` | ChromaDB persistence path |
-| `AUTOTEST_DIR` | ❌ | `./autotest_uploads` | AutoTest extraction dir |
+| `UPLOAD_DIR` | ❌ | `uploads` | Document upload directory (relative paths resolve under `backend/`) |
+| `PHOTO_DIR` | ❌ | `photos` | Photo upload directory (relative paths resolve under `backend/`) |
+| `CHROMA_DB_PATH` | ❌ | `chroma_db` | ChromaDB persistence path (relative paths resolve under `backend/`) |
+| `AUTOTEST_DIR` | ❌ | `autotest_uploads` | AutoTest extraction dir (relative paths resolve under `backend/`) |
 | `AUTOTEST_MODE` | ❌ | `simulated` | `real` or `simulated` |
 | `OLLAMA_BASE_URL` | ❌ | `http://localhost:11434` | Ollama API endpoint |
 | `OLLAMA_MODEL` | ❌ | `llama3.1` | Ollama model name |
@@ -411,6 +411,13 @@ cd frontend
 npm test
 ```
 
+Type check (TypeScript is wired and enforced in CI):
+
+```bash
+cd frontend
+npm run typecheck
+```
+
 Watch mode:
 
 ```bash
@@ -437,7 +444,7 @@ This validates:
 
 The GitHub Actions workflow runs:
 1. Backend pytest
-2. Frontend tests + build
+2. Frontend tests + typecheck + build
 3. Version consistency check
 4. Release package creation
 5. Smoke test against live server
@@ -468,7 +475,7 @@ pip install -r requirements.txt
 ### Release Packaging
 
 ```bash
-bash scripts/package_release.sh ./knowledge_workspace_release.zip
+python scripts/package_release.py ./knowledge_workspace_release.zip
 ```
 
 This creates a zip containing:
@@ -490,10 +497,10 @@ Docker support is planned for future releases.
 #### 1. JWT_SECRET Error
 
 ```
-RuntimeError: JWT_SECRET is required.
+ValueError: JWT_SECRET must be set to a secure value (min 32 characters)
 ```
 
-**Solution:** Set `JWT_SECRET` in `backend/.env` with a random secure string.
+**Solution:** Set `JWT_SECRET` in `backend/.env` with a random secure string (min 32 characters).
 
 #### 2. Port Already in Use
 

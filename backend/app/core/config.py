@@ -16,17 +16,27 @@ class Settings(BaseModel):
     APP_NAME: str = "Knowledge Workspace API"
     
     # JWT Settings
-    JWT_SECRET: str = Field(..., min_length=32)
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # Database
-    DATABASE_PATH: str = "./documents.db"
+    DATABASE_PATH: Path = Field(default=Path("documents.db"))
     
     # Upload Settings
-    UPLOAD_DIR: Path = Field(default="./uploads")
+    UPLOAD_DIR: Path = Field(default=Path("uploads"))
     MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB default
+
+    # Photo uploads
+    PHOTO_DIR: Path = Field(default=Path("photos"))
+
+    # Vector DB
+    CHROMA_DB_PATH: Path = Field(default=Path("chroma_db"))
+
+    # AutoTest working area
+    AUTOTEST_DIR: Path = Field(default=Path("autotest_uploads"))
+    AUTOTEST_MODE: str = "real"
     
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
@@ -49,6 +59,15 @@ class Settings(BaseModel):
     @classmethod
     def load_from_env(cls) -> "Settings":
         """Load settings from environment variables with validation."""
+        backend_dir = Path(__file__).resolve().parents[2]
+
+        def resolve_path(raw: str, *, default: Path) -> Path:
+            value = (raw or "").strip()
+            path = default if not value else Path(value)
+            if not path.is_absolute():
+                path = backend_dir / path
+            return path
+
         # Read version file
         try:
             repo_root = Path(__file__).resolve().parents[3]
@@ -65,17 +84,25 @@ class Settings(BaseModel):
         
         settings = cls(
             APP_VERSION=app_version,
-            JWT_SECRET=os.getenv("JWT_SECRET", ""),
+            JWT_SECRET=os.getenv("JWT_SECRET", "").strip(),
             JWT_ALGORITHM=os.getenv("JWT_ALGORITHM", "HS256"),
             ACCESS_TOKEN_EXPIRE_MINUTES=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")),
             REFRESH_TOKEN_EXPIRE_DAYS=int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7")),
-            DATABASE_PATH=os.getenv("DATABASE_PATH", "./documents.db"),
-            UPLOAD_DIR=Path(os.getenv("UPLOAD_DIR", "./uploads")),
+            DATABASE_PATH=resolve_path(os.getenv("DATABASE_PATH", ""), default=Path("documents.db")),
+            UPLOAD_DIR=resolve_path(os.getenv("UPLOAD_DIR", ""), default=Path("uploads")),
             MAX_FILE_SIZE=int(os.getenv("MAX_FILE_SIZE", str(50 * 1024 * 1024))),
+            PHOTO_DIR=resolve_path(os.getenv("PHOTO_DIR", ""), default=Path("photos")),
+            CHROMA_DB_PATH=resolve_path(os.getenv("CHROMA_DB_PATH", ""), default=Path("chroma_db")),
+            AUTOTEST_DIR=resolve_path(os.getenv("AUTOTEST_DIR", ""), default=Path("autotest_uploads")),
+            AUTOTEST_MODE=os.getenv("AUTOTEST_MODE", "real").strip().lower() or "real",
             ALLOWED_ORIGINS=allowed_origins,
             AUTOTEST_MAX_FILES=int(os.getenv("AUTOTEST_MAX_FILES", "5000")),
             AUTOTEST_MAX_UNZIPPED_BYTES=int(os.getenv("AUTOTEST_MAX_UNZIPPED_BYTES", str(250 * 1024 * 1024))),
-            AUTOTEST_TIMEOUT_SECONDS=int(os.getenv("AUTOTEST_TIMEOUT_SECONDS", "300")),
+            AUTOTEST_TIMEOUT_SECONDS=int(
+                os.getenv("AUTOTEST_TIMEOUT_SECONDS")
+                or os.getenv("AUTOTEST_STEP_TIMEOUT_SECONDS")
+                or "300"
+            ),
             AUTOTEST_RLIMIT_CPU_SECONDS=int(os.getenv("AUTOTEST_RLIMIT_CPU_SECONDS", "310")),
             AUTOTEST_RLIMIT_AS_MB=int(os.getenv("AUTOTEST_RLIMIT_AS_MB", "2048")),
             AUTOTEST_RLIMIT_FSIZE_MB=int(os.getenv("AUTOTEST_RLIMIT_FSIZE_MB", "200")),
@@ -86,7 +113,7 @@ class Settings(BaseModel):
         
         # Validate critical settings
         errors = []
-        if not settings.JWT_SECRET or settings.JWT_SECRET == "replace-with-a-long-random-secret":
+        if not settings.JWT_SECRET or settings.JWT_SECRET.startswith("replace-with-a-long-random-secret"):
             errors.append("JWT_SECRET must be set to a secure value (min 32 characters)")
         elif len(settings.JWT_SECRET) < 32:
             errors.append("JWT_SECRET must be at least 32 characters long")

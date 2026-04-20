@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import logging
 import mimetypes
@@ -14,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -23,6 +21,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.auth import create_token
+from app.core.config import get_settings
 from app.database import DocumentDatabase, delete_from_kb_vector_db, delete_from_vector_db
 from app.dependencies import get_current_user
 from app.kb_index import index_knowledge_entry, index_logbook_entry, index_photo, index_saved_prompt
@@ -66,7 +65,6 @@ from app.ocr_service import extract_text_from_image, get_ocr_status
 from app.services import FORM_TEMPLATES, generate_form, perform_qa, process_file
 from app.utils import (
     generate_safe_filename,
-    get_env_list,
     stream_write_file,
     validate_file_extension,
     validate_file_magic_bytes,
@@ -74,28 +72,17 @@ from app.utils import (
 
 
 load_dotenv()
-
-
-def read_app_version() -> str:
-    try:
-        repo_root = Path(__file__).resolve().parents[2]
-        version_path = repo_root / "VERSION"
-        value = version_path.read_text(encoding="utf-8").strip()
-        return value or "0.0.0"
-    except Exception:
-        return "0.0.0"
-
-
-APP_VERSION = read_app_version()
+settings = get_settings()
+APP_VERSION = settings.APP_VERSION
 logger = logging.getLogger("knowledge_workspace")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "./uploads"))
+UPLOAD_DIR = settings.UPLOAD_DIR
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-db = DocumentDatabase(os.getenv("DATABASE_PATH", "documents.db"))
+db = DocumentDatabase(str(settings.DATABASE_PATH))
 
-allowed_origins = get_env_list("ALLOWED_ORIGINS", ["http://localhost:5173"])
+allowed_origins = settings.ALLOWED_ORIGINS
 allow_credentials = "*" not in allowed_origins
 
 
@@ -341,8 +328,8 @@ def detect_fail_step(zip_path: Path) -> str | None:
 def safe_extract_zip(zip_path: Path, dest_dir: Path) -> None:
     dest_dir.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path) as archive:
-        max_files = int(os.getenv("AUTOTEST_MAX_FILES", "5000"))
-        max_unzipped_bytes = int(os.getenv("AUTOTEST_MAX_UNZIPPED_BYTES", str(250 * 1024 * 1024)))
+        max_files = int(settings.AUTOTEST_MAX_FILES)
+        max_unzipped_bytes = int(settings.AUTOTEST_MAX_UNZIPPED_BYTES)
         total_files = 0
         total_bytes = 0
         for member in archive.infolist():
@@ -382,9 +369,9 @@ def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[i
         try:
             import resource  # POSIX only
 
-            cpu_limit = int(os.getenv("AUTOTEST_RLIMIT_CPU_SECONDS", str(timeout_seconds + 10)))
-            as_limit_mb = int(os.getenv("AUTOTEST_RLIMIT_AS_MB", "2048"))
-            fsize_mb = int(os.getenv("AUTOTEST_RLIMIT_FSIZE_MB", "200"))
+            cpu_limit = int(settings.AUTOTEST_RLIMIT_CPU_SECONDS)
+            as_limit_mb = int(settings.AUTOTEST_RLIMIT_AS_MB)
+            fsize_mb = int(settings.AUTOTEST_RLIMIT_FSIZE_MB)
 
             def _apply_limits():
                 resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit, cpu_limit))
@@ -672,17 +659,18 @@ async def healthcheck() -> HealthResponse:
 
 @app.post("/api/login", response_model=LoginResponse)
 @limiter.limit("5/minute")  # Rate limit: 5 requests per minute to prevent brute force
-async def login(request: LoginRequest) -> LoginResponse:
-    if not db.verify_password(request.user_id, request.password):
+async def login(request: Request, payload: LoginRequest) -> LoginResponse:
+    _ = request
+    if not db.verify_password(payload.user_id, payload.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
 
-    user = db.get_user(request.user_id)
+    user = db.get_user(payload.user_id)
     if not user or int(user["is_active"]) != 1:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive.")
 
     return LoginResponse(
         access_token=create_token(
-            user_id=request.user_id,
+            user_id=payload.user_id,
             role=user["role"],
             display_name=user["display_name"],
         )
@@ -1095,8 +1083,7 @@ async def delete_logbook_entry(entry_id: str, current_user: dict = Depends(get_c
     return MessageResponse(message="Logbook entry deleted.")
 
 
-PHOTO_DIR = Path(os.getenv("PHOTO_DIR", "./photos"))
-PHOTO_DIR.mkdir(parents=True, exist_ok=True)
+PHOTO_DIR = settings.PHOTO_DIR
 
 
 def validate_image_extension(filename: str) -> bool:
@@ -1124,6 +1111,7 @@ async def upload_photo(
     current_user: dict = Depends(get_current_user),
 ) -> UploadPhotoResponse:
     user_id = current_user["sub"]
+    PHOTO_DIR.mkdir(parents=True, exist_ok=True)
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing filename.")
     if not validate_image_extension(file.filename):
@@ -1291,8 +1279,9 @@ async def resolve_items(request: ResolveItemsRequest, current_user: dict = Depen
 
 @app.post("/api/qa", response_model=QAResponse)
 @limiter.limit("10/minute")  # Rate limit: 10 requests per minute to prevent abuse
-async def qa(request: QARequest, current_user: dict = Depends(get_current_user)) -> QAResponse:
-    answer, sources = await perform_qa(request.question, current_user["sub"])
+async def qa(request: Request, payload: QARequest, current_user: dict = Depends(get_current_user)) -> QAResponse:
+    _ = request
+    answer, sources = await perform_qa(payload.question, current_user["sub"])
     logger.info("QA request by %s returned %s sources", current_user["sub"], len(sources))
     return QAResponse(answer=answer, sources=sources)
 
@@ -1364,16 +1353,18 @@ async def delete_saved_prompt(prompt_id: str, current_user: dict = Depends(get_c
 @app.post("/api/autotest/run", response_model=AutoTestRunResponse)
 @limiter.limit("3/minute")  # Rate limit: 3 requests per minute (resource-intensive operation)
 async def run_autotest(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
 ) -> AutoTestRunResponse:
+    _ = request
     user_id = current_user["sub"]
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing filename.")
     if not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only .zip uploads are supported.")
 
-    autotest_dir = Path(os.getenv("AUTOTEST_DIR", "./autotest_uploads"))
+    autotest_dir = settings.AUTOTEST_DIR
     autotest_dir.mkdir(parents=True, exist_ok=True)
 
     run_id = str(uuid.uuid4())
@@ -1385,8 +1376,8 @@ async def run_autotest(
     project_type = detect_project_type(zip_path)
     fail_step = detect_fail_step(zip_path)
     commands = autotest_commands(project_type)
-    requested_mode = os.getenv("AUTOTEST_MODE", "real").strip().lower()
-    timeout_seconds = int(os.getenv("AUTOTEST_STEP_TIMEOUT_SECONDS", "300"))
+    requested_mode = settings.AUTOTEST_MODE
+    timeout_seconds = int(settings.AUTOTEST_TIMEOUT_SECONDS)
 
     if not db.add_autotest_run(
         run_id=run_id,

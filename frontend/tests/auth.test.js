@@ -1,55 +1,59 @@
-import test from 'node:test'
-import assert from 'node:assert/strict'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const storage = {
-  data: new Map(),
-  getItem(key) {
-    return this.data.has(key) ? this.data.get(key) : null
-  },
-  setItem(key, value) {
-    this.data.set(key, value)
-  },
-  removeItem(key) {
-    this.data.delete(key)
-  },
-}
-
-globalThis.localStorage = storage
-class SimpleCustomEvent extends Event {
-  constructor(type, options = {}) {
-    super(type)
-    this.detail = options.detail
+function installLocalStorageStub() {
+  const storage = {
+    data: new Map(),
+    getItem(key) {
+      return this.data.has(key) ? this.data.get(key) : null
+    },
+    setItem(key, value) {
+      this.data.set(key, value)
+    },
+    removeItem(key) {
+      this.data.delete(key)
+    },
   }
+  globalThis.localStorage = storage
+  return storage
 }
 
-globalThis.CustomEvent = SimpleCustomEvent
-if (!globalThis.addEventListener) {
-  const target = new EventTarget()
-  globalThis.addEventListener = target.addEventListener.bind(target)
-  globalThis.removeEventListener = target.removeEventListener.bind(target)
-  globalThis.dispatchEvent = target.dispatchEvent.bind(target)
-}
-
-const auth = await import('../src/auth.js')
-
-test('token storage uses one persistent source', () => {
-  auth.clearToken()
-  auth.setToken('abc123')
-  assert.equal(auth.getToken(), 'abc123')
-  assert.equal(storage.getItem(auth.AUTH_STORAGE_KEY), 'abc123')
-  auth.clearToken()
-  assert.equal(auth.restoreToken(), null)
+beforeEach(() => {
+  vi.resetModules()
+  installLocalStorageStub()
+  if (!globalThis.CustomEvent) {
+    class SimpleCustomEvent extends Event {
+      constructor(type, options = {}) {
+        super(type)
+        this.detail = options.detail
+      }
+    }
+    globalThis.CustomEvent = SimpleCustomEvent
+  }
 })
 
-test('unauthorized event notifies listeners once and can be removed', () => {
-  let detail = ''
-  const cleanup = auth.onUnauthorized((event) => {
-    detail = event.detail
+describe('auth token storage', () => {
+  it('uses one persistent source', async () => {
+    const storage = installLocalStorageStub()
+    const auth = await import('../src/auth.js')
+    auth.clearToken()
+    auth.setToken('abc123')
+    expect(auth.getToken()).toBe('abc123')
+    expect(storage.getItem(auth.AUTH_STORAGE_KEY)).toBe('abc123')
+    auth.clearToken()
+    expect(auth.restoreToken()).toBe(null)
   })
-  auth.notifyUnauthorized('expired')
-  assert.equal(detail, 'expired')
-  cleanup()
-  detail = ''
-  auth.notifyUnauthorized('ignored')
-  assert.equal(detail, '')
+
+  it('unauthorized event notifies listeners once and can be removed', async () => {
+    const auth = await import('../src/auth.js')
+    let detail = ''
+    const cleanup = auth.onUnauthorized((event) => {
+      detail = event.detail
+    })
+    auth.notifyUnauthorized('expired')
+    expect(detail).toBe('expired')
+    cleanup()
+    detail = ''
+    auth.notifyUnauthorized('ignored')
+    expect(detail).toBe('')
+  })
 })

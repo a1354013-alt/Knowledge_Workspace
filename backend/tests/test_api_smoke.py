@@ -13,7 +13,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 
 def load_app(monkeypatch, tmp_path):
-    monkeypatch.setenv('JWT_SECRET', 'test-secret')
+    monkeypatch.setenv('JWT_SECRET', 'test-secret-test-secret-test-secret-1234')
     monkeypatch.setenv('DEFAULT_OWNER_PASSWORD', 'OwnerPass123!')
     monkeypatch.setenv('DATABASE_PATH', str(tmp_path / 'test.db'))
     monkeypatch.setenv('UPLOAD_DIR', str(tmp_path / 'uploads'))

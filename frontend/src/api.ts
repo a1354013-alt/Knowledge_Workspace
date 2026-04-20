@@ -17,7 +17,7 @@ export const apiClient: AxiosInstance = axios.create({
 
 // Request interceptor: attach auth token
 apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  (config: InternalAxiosRequestConfig & { skipAuth?: boolean }) => {
     const token = getToken()
     if (!config.skipAuth && token) {
       config.headers = config.headers || {}
@@ -85,21 +85,21 @@ apiClient.interceptors.response.use(
 
 // Export typed helper functions
 export async function get<T>(url: string): Promise<T> {
-  return apiClient.get<T>(url)
+  return apiClient.get(url) as unknown as Promise<T>
 }
 
 export async function post<T, D = unknown>(url: string, data?: D): Promise<T> {
-  return apiClient.post<T>(url, data)
+  return apiClient.post(url, data) as unknown as Promise<T>
 }
 
 export async function patch<T, D = unknown>(url: string, data?: D): Promise<T> {
-  return apiClient.patch<T>(url, data)
+  return apiClient.patch(url, data) as unknown as Promise<T>
 }
 
 export async function put<T, D = unknown>(url: string, data?: D): Promise<T> {
-  return apiClient.put<T>(url, data)
+  return apiClient.put(url, data) as unknown as Promise<T>
 }
 
 export async function del<T>(url: string): Promise<T> {
-  return apiClient.delete<T>(url)
+  return apiClient.delete(url) as unknown as Promise<T>
 }

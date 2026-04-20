@@ -12,8 +12,7 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     setupFiles: ['./tests/vitest.setup.js'],
-    include: ['tests/**/*.test.js'],
-    exclude: ['tests/run-tests.js', 'tests/app-state.test.js', 'tests/auth.test.js'],
+    include: ['tests/**/*.test.{js,ts}'],
     restoreMocks: true,
   },
   server: {

@@ -14,7 +14,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 def load_app():
     run_id = uuid.uuid4().hex
-    os.environ['JWT_SECRET'] = 'smoke-secret'
+    os.environ['JWT_SECRET'] = 'smoke-secret-smoke-secret-smoke-secret-1234'
     os.environ['DEFAULT_OWNER_PASSWORD'] = 'OwnerPass123!'
     os.environ['DATABASE_PATH'] = ':memory:'
     os.environ['UPLOAD_DIR'] = f'uploads_smoke_{run_id}'
@@ -81,4 +81,3 @@ def main() -> int:
 
 if __name__ == '__main__':
     raise SystemExit(main())
-

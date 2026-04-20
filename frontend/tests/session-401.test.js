@@ -12,7 +12,7 @@ describe('apiClient 401 handling', () => {
       notifyUnauthorized,
     }))
 
-    const { apiClient } = await import('../src/api.js')
+    const { apiClient } = await import('../src/api')
     const handler = apiClient.interceptors.response.handlers.find((item) => typeof item?.rejected === 'function')?.rejected
     expect(typeof handler).toBe('function')
 
@@ -37,7 +37,7 @@ describe('apiClient 401 handling', () => {
       notifyUnauthorized,
     }))
 
-    const { apiClient } = await import('../src/api.js')
+    const { apiClient } = await import('../src/api')
     const handler = apiClient.interceptors.response.handlers.find((item) => typeof item?.rejected === 'function')?.rejected
 
     await handler({
@@ -50,4 +50,3 @@ describe('apiClient 401 handling', () => {
     expect(notifyUnauthorized).toHaveBeenCalledTimes(0)
   })
 })
-

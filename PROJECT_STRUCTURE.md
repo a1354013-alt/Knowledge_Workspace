@@ -22,7 +22,7 @@ Knowledge_Workspace/
     index.html
     src/
       App.vue
-      api.js
+      api.ts
       auth.js
       app-state.js
       components/
@@ -32,6 +32,7 @@ Knowledge_Workspace/
     vite.config.js
   scripts/
     smoke_check.py
+    package_release.py
     package_release.sh
   README.md
   QUICK_START.md
@@ -40,4 +41,3 @@ Knowledge_Workspace/
   start_frontend.sh
   VERSION
 ```
-
