@@ -18,6 +18,9 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, sta
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from app.auth import create_token
 from app.database import DocumentDatabase, delete_from_kb_vector_db, delete_from_vector_db
@@ -582,6 +585,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 @app.get("/api/search", response_model=ResolveItemsResponse)
 async def global_search(
@@ -663,6 +671,7 @@ async def healthcheck() -> HealthResponse:
 
 
 @app.post("/api/login", response_model=LoginResponse)
+@limiter.limit("5/minute")  # Rate limit: 5 requests per minute to prevent brute force
 async def login(request: LoginRequest) -> LoginResponse:
     if not db.verify_password(request.user_id, request.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
@@ -1281,6 +1290,7 @@ async def resolve_items(request: ResolveItemsRequest, current_user: dict = Depen
 
 
 @app.post("/api/qa", response_model=QAResponse)
+@limiter.limit("10/minute")  # Rate limit: 10 requests per minute to prevent abuse
 async def qa(request: QARequest, current_user: dict = Depends(get_current_user)) -> QAResponse:
     answer, sources = await perform_qa(request.question, current_user["sub"])
     logger.info("QA request by %s returned %s sources", current_user["sub"], len(sources))
@@ -1352,6 +1362,7 @@ async def delete_saved_prompt(prompt_id: str, current_user: dict = Depends(get_c
 
 
 @app.post("/api/autotest/run", response_model=AutoTestRunResponse)
+@limiter.limit("3/minute")  # Rate limit: 3 requests per minute (resource-intensive operation)
 async def run_autotest(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
