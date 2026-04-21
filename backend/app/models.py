@@ -1,11 +1,10 @@
-from __future__ import annotations
-
 """Pydantic models for API contracts and typed payloads."""
+
+from __future__ import annotations
 
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 ROLE_VALUES = ("owner",)
 WORKFLOW_STATUS_VALUES = ("draft", "reviewed", "verified", "archived")

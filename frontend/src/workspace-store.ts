@@ -1,4 +1,4 @@
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive } from 'vue'
 import { get } from './api'
 import type {
   AutoTestRunListItemResponse,
@@ -219,4 +219,3 @@ export function useWorkspaceStore(): WorkspaceStore {
 
   return singleton
 }
-

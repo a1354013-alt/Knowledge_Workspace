@@ -28,7 +28,7 @@ Notes:
 ## Quick Start (Demo)
 
 Prereqs:
-- Python **3.11+**
+- Python **3.11**
 - Node.js **20+**
 
 ### 1) Backend
@@ -107,6 +107,8 @@ Backend:
 
 ```bash
 cd backend
+python -m pip install -r requirements-dev.txt
+python -m ruff check .
 python -m pytest
 ```
 
@@ -114,6 +116,7 @@ Frontend:
 
 ```bash
 cd frontend
+npm run lint
 npm test
 npm run typecheck
 npm run build
@@ -140,3 +143,7 @@ The release zip is built from a clean staging directory and excludes:
 - The initial `owner` account is seeded only when the database is empty and requires `DEFAULT_OWNER_PASSWORD`.
 - AutoTest is a **guarded / constrained project runner** for supported stacks (smoke/build/test). It is **not** a fully isolated sandbox.
 - AutoTest execution can be forced into `simulated` mode (recommended for CI/demo and reproducible runs).
+
+## Further reading
+
+- `ARCHITECTURE_DECISIONS.md`

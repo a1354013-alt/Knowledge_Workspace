@@ -123,7 +123,7 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
-import { get, patch, post } from '../api'
+import { patch, post } from '../api'
 import { useWorkspaceStore } from '../workspace-store'
 import type {
   AutoTestRunListItemResponse,

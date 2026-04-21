@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable
 
-
 TEXT_FILE_ENCODINGS: tuple[str, ...] = ("utf-8", "utf-8-sig", "cp950")
 
 

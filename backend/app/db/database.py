@@ -1,9 +1,12 @@
-"""Backwards-compatible import path for the database layer.
+"""Database facade.
 
-New code should prefer: `from app.db import DocumentDatabase`
+The implementation lives in `legacy_database.py` while we progressively extract
+schema/migrations/repositories into dedicated modules.
 """
 
-from app.db.database import (  # noqa: F401
+from __future__ import annotations
+
+from app.db.legacy_database import (  # noqa: F401
     AUTOTEST_RUN_STATUS_VALUES,
     AUTOTEST_STATUS_VALUES,
     AUTOTEST_STEP_STATUS_VALUES,
@@ -16,23 +19,9 @@ from app.db.database import (  # noqa: F401
     DocumentDatabase,
     utc_now_iso,
 )
-from app.vector_db import (  # noqa: F401
-    add_to_kb_vector_db,
-    add_to_vector_db,
-    delete_from_kb_vector_db,
-    delete_from_vector_db,
-    query_kb_vector_db,
-    query_vector_db,
-)
 
 __all__ = [
     "DocumentDatabase",
-    "add_to_vector_db",
-    "delete_from_vector_db",
-    "query_vector_db",
-    "add_to_kb_vector_db",
-    "delete_from_kb_vector_db",
-    "query_kb_vector_db",
     "LINK_TYPE_VALUES",
     "WORKFLOW_STATUS_VALUES",
     "KNOWLEDGE_STATUS_VALUES",

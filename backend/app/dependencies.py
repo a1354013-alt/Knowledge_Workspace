@@ -7,7 +7,6 @@ from fastapi import Header
 
 from app.core.security import extract_token_from_header, verify_token
 
-
 logger = logging.getLogger("knowledge_workspace")
 
 

@@ -13,9 +13,7 @@ logger = logging.getLogger("knowledge_workspace")
 
 try:
     import pytesseract
-    from PIL import Image
-    from PIL import ImageFile
-    from PIL import UnidentifiedImageError
+    from PIL import Image, ImageFile, UnidentifiedImageError
     from PIL import Image as PILImage
 
     PYTESSERACT_AVAILABLE = True

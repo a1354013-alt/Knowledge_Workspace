@@ -56,7 +56,7 @@ import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
-import { del, get, post } from '../api'
+import { del, post } from '../api'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import { useWorkspaceStore } from '../workspace-store'
 import type { MessageResponse, SavedPromptCreateRequest, SavedPromptResponse } from '../types'
@@ -153,7 +153,7 @@ async function copyPrompt(item: SavedPromptResponse) {
   try {
     await navigator.clipboard.writeText(text)
     toast.add({ severity: 'success', summary: 'Copied', detail: 'Prompt copied to clipboard.', life: 2000 })
-  } catch (error) {
+  } catch {
     toast.add({ severity: 'warn', summary: 'Copy failed', detail: 'Clipboard permission denied.', life: 2500 })
   }
 }

@@ -13,7 +13,6 @@ from app.llm import get_llm_provider
 from app.models import Source
 from app.text_files import read_text_file
 
-
 logger = logging.getLogger("knowledge_workspace")
 
 

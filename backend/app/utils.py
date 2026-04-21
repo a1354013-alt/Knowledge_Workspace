@@ -10,7 +10,6 @@ from fastapi import HTTPException, status
 from app.models import ROLE_VALUES
 from app.text_files import decode_text_bytes, looks_like_text_bytes
 
-
 ALLOWED_FILE_EXTENSIONS = (".pdf", ".txt", ".md")
 ALLOWED_ROLES = set(ROLE_VALUES)
 

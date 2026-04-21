@@ -94,7 +94,7 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
-import { del, get, patch, post } from '../api'
+import { del, patch, post } from '../api'
 import { useWorkspaceStore } from '../workspace-store'
 import type {
   AutoTestRunListItemResponse,
