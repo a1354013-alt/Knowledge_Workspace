@@ -138,4 +138,5 @@ The release zip is built from a clean staging directory and excludes:
 
 - No default secrets: the backend refuses to start without a real `JWT_SECRET`.
 - The initial `owner` account is seeded only when the database is empty and requires `DEFAULT_OWNER_PASSWORD`.
-- AutoTest execution can be forced into `simulated` mode (recommended for CI/demo).
+- AutoTest is a **guarded / constrained project runner** for supported stacks (smoke/build/test). It is **not** a fully isolated sandbox.
+- AutoTest execution can be forced into `simulated` mode (recommended for CI/demo and reproducible runs).

@@ -124,6 +124,7 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
 import { get, patch, post } from '../api'
+import { useWorkspaceStore } from '../workspace-store'
 import type {
   AutoTestRunListItemResponse,
   DocumentResponse,
@@ -141,6 +142,7 @@ import type {
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 
 const toast = useToast()
+const store = useWorkspaceStore()
 
 const question = ref('')
 const asking = ref(false)
@@ -310,7 +312,8 @@ async function saveEntry() {
 async function loadRecent() {
   loadingRecent.value = true
   try {
-    recent.value = await get<KnowledgeEntryResponse[]>('/api/knowledge/entries')
+    await store.refreshKnowledgeEntries({ force: true })
+    recent.value = store.state.lists.knowledgeEntries || []
   } catch (error: unknown) {
     recent.value = []
     const apiError = error as { message?: string }
@@ -322,20 +325,13 @@ async function loadRecent() {
 
 async function loadPickers() {
   try {
-    const [docs, imgs, runs, promptList, kbEntries, lbEntries] = await Promise.all([
-      get<DocumentResponse[]>('/api/docs'),
-      get<PhotoResponse[]>('/api/photos'),
-      get<AutoTestRunListItemResponse[]>('/api/autotest/runs'),
-      get<SavedPromptResponse[]>('/api/prompts'),
-      get<KnowledgeEntryResponse[]>('/api/knowledge/entries'),
-      get<LogbookEntryResponse[]>('/api/logbook/entries'),
-    ])
-    documents.value = docs || []
-    photos.value = imgs || []
-    autotestRuns.value = runs || []
-    prompts.value = promptList || []
-    knowledgeEntries.value = kbEntries || []
-    logbookEntries.value = lbEntries || []
+    await store.refreshAll()
+    documents.value = store.state.lists.documents || []
+    photos.value = store.state.lists.photos || []
+    autotestRuns.value = store.state.lists.autotestRuns || []
+    prompts.value = store.state.lists.prompts || []
+    knowledgeEntries.value = store.state.lists.knowledgeEntries || []
+    logbookEntries.value = store.state.lists.logbookEntries || []
   } catch {
     // ignore (pickers are optional)
   }

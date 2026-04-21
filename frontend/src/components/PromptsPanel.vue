@@ -58,6 +58,7 @@ import Textarea from 'primevue/textarea'
 
 import { del, get, post } from '../api'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
+import { useWorkspaceStore } from '../workspace-store'
 import type { MessageResponse, SavedPromptCreateRequest, SavedPromptResponse } from '../types'
 
 const toast = useToast()
@@ -67,6 +68,7 @@ const saving = ref(false)
 const prompts = ref<SavedPromptResponse[]>([])
 const filterText = ref('')
 const selectedRelatedItemId = ref('')
+const store = useWorkspaceStore()
 
 const form = ref<SavedPromptCreateRequest>(createBlankForm())
 
@@ -92,7 +94,8 @@ const filteredPrompts = computed(() => {
 async function loadPrompts() {
   loading.value = true
   try {
-    prompts.value = await get<SavedPromptResponse[]>('/api/prompts')
+    await store.refreshPrompts({ force: true })
+    prompts.value = store.state.lists.prompts || []
   } catch {
     prompts.value = []
   } finally {

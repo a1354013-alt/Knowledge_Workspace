@@ -95,6 +95,7 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
 import { del, get, patch, post } from '../api'
+import { useWorkspaceStore } from '../workspace-store'
 import type {
   AutoTestRunListItemResponse,
   DocumentResponse,
@@ -114,6 +115,7 @@ const toast = useToast()
 const loading = ref(false)
 const saving = ref(false)
 const entries = ref<LogbookEntryResponse[]>([])
+const store = useWorkspaceStore()
 
 const selectedRelatedItemId = ref('')
 
@@ -172,7 +174,8 @@ function resetForm() {
 async function loadEntries() {
   loading.value = true
   try {
-    entries.value = await get<LogbookEntryResponse[]>('/api/logbook/entries')
+    await store.refreshLogbookEntries({ force: true })
+    entries.value = store.state.lists.logbookEntries || []
   } catch (error: unknown) {
     entries.value = []
     const apiError = error as { message?: string }
@@ -276,20 +279,13 @@ function openEditor(item: LogbookEntryResponse) {
 
 async function loadPickers() {
   try {
-    const [docs, imgs, runs, promptList, kbEntries, lbEntries] = await Promise.all([
-      get<DocumentResponse[]>('/api/docs'),
-      get<PhotoResponse[]>('/api/photos'),
-      get<AutoTestRunListItemResponse[]>('/api/autotest/runs'),
-      get<SavedPromptResponse[]>('/api/prompts'),
-      get<KnowledgeEntryResponse[]>('/api/knowledge/entries'),
-      get<LogbookEntryResponse[]>('/api/logbook/entries'),
-    ])
-    documents.value = docs || []
-    photos.value = imgs || []
-    autotestRuns.value = runs || []
-    prompts.value = promptList || []
-    knowledgeEntries.value = kbEntries || []
-    logbookEntries.value = lbEntries || []
+    await store.refreshAll()
+    documents.value = store.state.lists.documents || []
+    photos.value = store.state.lists.photos || []
+    autotestRuns.value = store.state.lists.autotestRuns || []
+    prompts.value = store.state.lists.prompts || []
+    knowledgeEntries.value = store.state.lists.knowledgeEntries || []
+    logbookEntries.value = store.state.lists.logbookEntries || []
   } catch {
     // ignore
   }

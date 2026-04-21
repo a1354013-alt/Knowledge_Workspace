@@ -35,33 +35,78 @@
       </header>
 
       <main class="main-grid">
-        <TabView>
+        <TabView :lazy="true">
           <TabPanel header="Activity" value="activity">
-            <ActivityDashboard />
+            <Suspense>
+              <ActivityDashboard />
+              <template #fallback>
+                <div class="panel-loading">Loading…</div>
+              </template>
+            </Suspense>
           </TabPanel>
           <TabPanel header="Search" value="search">
-            <GlobalSearchPanel />
+            <Suspense>
+              <GlobalSearchPanel />
+              <template #fallback>
+                <div class="panel-loading">Loading…</div>
+              </template>
+            </Suspense>
           </TabPanel>
           <TabPanel header="Knowledge Base" value="knowledge">
-            <KnowledgeBase />
+            <Suspense>
+              <KnowledgeBase />
+              <template #fallback>
+                <div class="panel-loading">Loading…</div>
+              </template>
+            </Suspense>
           </TabPanel>
           <TabPanel header="Problem Logbook" value="logbook">
-            <LogbookPanel />
+            <Suspense>
+              <LogbookPanel />
+              <template #fallback>
+                <div class="panel-loading">Loading…</div>
+              </template>
+            </Suspense>
           </TabPanel>
           <TabPanel header="Documents & Photos" value="docsPhotos">
-            <DocsPhotosPanel />
+            <Suspense>
+              <DocsPhotosPanel />
+              <template #fallback>
+                <div class="panel-loading">Loading…</div>
+              </template>
+            </Suspense>
           </TabPanel>
           <TabPanel header="Auto Test" value="autotest">
-            <AutoTestPanel />
+            <Suspense>
+              <AutoTestPanel />
+              <template #fallback>
+                <div class="panel-loading">Loading…</div>
+              </template>
+            </Suspense>
           </TabPanel>
           <TabPanel header="Prompts" value="prompts">
-            <PromptsPanel />
+            <Suspense>
+              <PromptsPanel />
+              <template #fallback>
+                <div class="panel-loading">Loading…</div>
+              </template>
+            </Suspense>
           </TabPanel>
           <TabPanel header="Generator" value="generator">
-            <TemplateGeneratorPanel />
+            <Suspense>
+              <TemplateGeneratorPanel />
+              <template #fallback>
+                <div class="panel-loading">Loading…</div>
+              </template>
+            </Suspense>
           </TabPanel>
           <TabPanel header="Settings" value="settings">
-            <SettingsPanel :current-user="currentUser" />
+            <Suspense>
+              <SettingsPanel :current-user="currentUser" />
+              <template #fallback>
+                <div class="panel-loading">Loading…</div>
+              </template>
+            </Suspense>
           </TabPanel>
         </TabView>
       </main>
@@ -70,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
@@ -80,19 +125,20 @@ import TabPanel from 'primevue/tabpanel'
 import TabView from 'primevue/tabview'
 import Toast from 'primevue/toast'
 
-import KnowledgeBase from './components/KnowledgeBase.vue'
-import ActivityDashboard from './components/ActivityDashboard.vue'
-import GlobalSearchPanel from './components/GlobalSearchPanel.vue'
-import LogbookPanel from './components/LogbookPanel.vue'
-import DocsPhotosPanel from './components/DocsPhotosPanel.vue'
-import AutoTestPanel from './components/AutoTestPanel.vue'
-import PromptsPanel from './components/PromptsPanel.vue'
-import TemplateGeneratorPanel from './components/TemplateGeneratorPanel.vue'
-import SettingsPanel from './components/SettingsPanel.vue'
+const ActivityDashboard = defineAsyncComponent(() => import('./components/ActivityDashboard.vue'))
+const GlobalSearchPanel = defineAsyncComponent(() => import('./components/GlobalSearchPanel.vue'))
+const KnowledgeBase = defineAsyncComponent(() => import('./components/KnowledgeBase.vue'))
+const LogbookPanel = defineAsyncComponent(() => import('./components/LogbookPanel.vue'))
+const DocsPhotosPanel = defineAsyncComponent(() => import('./components/DocsPhotosPanel.vue'))
+const AutoTestPanel = defineAsyncComponent(() => import('./components/AutoTestPanel.vue'))
+const PromptsPanel = defineAsyncComponent(() => import('./components/PromptsPanel.vue'))
+const TemplateGeneratorPanel = defineAsyncComponent(() => import('./components/TemplateGeneratorPanel.vue'))
+const SettingsPanel = defineAsyncComponent(() => import('./components/SettingsPanel.vue'))
 
 import { createInitialUser } from './app-state'
 import { get, post } from './api'
 import { clearToken, onUnauthorized, restoreToken, setToken } from './auth'
+import { useWorkspaceStore } from './workspace-store'
 import type { LoginRequest, LoginResponse, MeResponse } from './types'
 
 const toast = useToast()
@@ -100,6 +146,7 @@ const toast = useToast()
 const loginLoading = ref(false)
 const currentUser = ref(createInitialUser())
 const loginForm = ref<LoginRequest>({ user_id: '', password: '' })
+const workspaceStore = useWorkspaceStore()
 
 const isLoggedIn = computed(() => Boolean(currentUser.value.user_id))
 
@@ -130,6 +177,7 @@ function logout(showToast = true) {
   clearToken()
   currentUser.value = createInitialUser()
   loginForm.value = { user_id: '', password: '' }
+  workspaceStore.reset()
   if (showToast) {
     toast.add({ severity: 'info', summary: 'Logged out', detail: 'Session cleared.', life: 3000 })
   }
@@ -244,5 +292,14 @@ onBeforeUnmount(() => {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+.panel-loading {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #51606f;
+  font-size: 13px;
 }
 </style>

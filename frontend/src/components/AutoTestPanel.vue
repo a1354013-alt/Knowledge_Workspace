@@ -2,7 +2,9 @@
   <div class="grid">
     <Card>
       <template #title>Run acceptance (install / build / test / lint)</template>
-      <template #subtitle>Upload a project zip and let the workspace run a basic pipeline and generate fix prompts via local AI.</template>
+      <template #subtitle>
+        Guarded runner for supported project zips (smoke/build/test only). Not a fully isolated sandbox — use trusted inputs and a constrained stack.
+      </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
@@ -105,6 +107,7 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 
 import { get, post } from '../api'
+import { useWorkspaceStore } from '../workspace-store'
 import type { AutoTestRunListItemResponse, AutoTestRunResponse, PromoteToKnowledgeResponse } from '../types'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 
@@ -117,6 +120,7 @@ const running = ref(false)
 const loadingRuns = ref(false)
 const runs = ref<AutoTestRunListItemResponse[]>([])
 const selectedRun = ref<AutoTestRunResponse | null>(null)
+const store = useWorkspaceStore()
 
 function badgeClass(status: string) {
   const value = String(status || '').toLowerCase()
@@ -140,7 +144,8 @@ function onZipSelected(event: Event) {
 async function loadRuns() {
   loadingRuns.value = true
   try {
-    runs.value = await get<AutoTestRunListItemResponse[]>('/api/autotest/runs')
+    await store.refreshAutotestRuns({ force: true })
+    runs.value = store.state.lists.autotestRuns || []
   } catch {
     runs.value = []
   } finally {

@@ -29,5 +29,29 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined
+          }
+          // Split heavy UI dependencies into multiple predictable chunks to reduce first-load pressure.
+          if (id.includes('axios')) {
+            return 'http-vendor'
+          }
+          if (id.includes('primeicons') || id.includes('@primeuix')) {
+            return 'prime-style'
+          }
+          if (id.includes('primevue')) {
+            const heavy = ['/datatable', '/column', '/dialog', '/dropdown', '/chips', '/textarea', '/password']
+            if (heavy.some((part) => id.includes(part))) {
+              return 'prime-heavy'
+            }
+            return 'prime-core'
+          }
+          return 'vendor'
+        },
+      },
+    },
   },
 })

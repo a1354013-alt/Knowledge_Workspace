@@ -124,6 +124,7 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
 import { del, get, patch, post } from '../api'
+import { useWorkspaceStore } from '../workspace-store'
 import { downloadBlob, openBlobInNewTab } from '../utils/blob'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import type {
@@ -141,6 +142,7 @@ const photoInput = ref<HTMLInputElement | null>(null)
 
 const documents = ref<DocumentResponse[]>([])
 const photos = ref<PhotoResponse[]>([])
+const store = useWorkspaceStore()
 const docFilterText = ref('')
 
 const selectedDoc = ref<File | null>(null)
@@ -204,7 +206,8 @@ function onPhotoSelected(event: Event) {
 async function loadDocuments() {
   loadingDocs.value = true
   try {
-    documents.value = await get<DocumentResponse[]>('/api/docs')
+    await store.refreshDocuments({ force: true })
+    documents.value = store.state.lists.documents || []
   } catch {
     documents.value = []
   } finally {
@@ -244,7 +247,8 @@ async function uploadDoc() {
 async function loadPhotos() {
   loadingPhotos.value = true
   try {
-    photos.value = await get<PhotoResponse[]>('/api/photos')
+    await store.refreshPhotos({ force: true })
+    photos.value = store.state.lists.photos || []
   } catch {
     photos.value = []
   } finally {

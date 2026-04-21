@@ -45,18 +45,11 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 
-import { get } from '../api'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
-import type {
-  AutoTestRunListItemResponse,
-  DocumentResponse,
-  KnowledgeEntryResponse,
-  LogbookEntryResponse,
-  PhotoResponse,
-  SavedPromptResponse,
-} from '../types'
+import { useWorkspaceStore } from '../workspace-store'
 
-const loading = ref(false)
+const store = useWorkspaceStore()
+const loading = computed(() => store.anyLoading.value)
 const filterText = ref('')
 
 type ActivityRow = {
@@ -91,84 +84,73 @@ function byWhenDesc(a: ActivityRow, b: ActivityRow) {
 }
 
 async function load() {
-  loading.value = true
-  try {
-    const [knowledge, logbook, docs, photos, runs, prompts] = await Promise.all([
-      get<KnowledgeEntryResponse[]>('/api/knowledge/entries'),
-      get<LogbookEntryResponse[]>('/api/logbook/entries'),
-      get<DocumentResponse[]>('/api/docs'),
-      get<PhotoResponse[]>('/api/photos'),
-      get<AutoTestRunListItemResponse[]>('/api/autotest/runs'),
-      get<SavedPromptResponse[]>('/api/prompts'),
-    ])
+  await store.refreshAll({ force: true })
+  const { knowledgeEntries, logbookEntries, documents, photos, autotestRuns, prompts } = store.state.lists
 
-    const mapped: ActivityRow[] = []
+  const mapped: ActivityRow[] = []
 
-    for (const entry of knowledge || []) {
-      mapped.push({
-        kind: 'Knowledge',
-        title: entry.title || entry.problem?.slice?.(0, 80) || 'Knowledge entry',
-        status: entry.status || '',
-        source: `${entry.source_type || ''}`.trim(),
-        when: normalizeWhen(entry.updated_at || entry.created_at),
-        item_id: `knowledge:${entry.id}`,
-      })
-    }
-    for (const entry of logbook || []) {
-      mapped.push({
-        kind: 'Logbook',
-        title: entry.title || entry.problem?.slice?.(0, 80) || 'Logbook entry',
-        status: entry.status || '',
-        source: `${entry.source_type || ''}`.trim(),
-        when: normalizeWhen(entry.updated_at || entry.created_at),
-        item_id: `logbook:${entry.id}`,
-      })
-    }
-    for (const doc of docs || []) {
-      mapped.push({
-        kind: 'Document',
-        title: doc.filename || 'Document',
-        status: doc.status || '',
-        source: 'upload',
-        when: normalizeWhen(doc.updated_at || doc.uploaded_at),
-        item_id: `document:${doc.id}`,
-      })
-    }
-    for (const photo of photos || []) {
-      mapped.push({
-        kind: 'Photo',
-        title: photo.filename || 'Photo',
-        status: photo.status || '',
-        source: 'upload',
-        when: normalizeWhen(photo.updated_at || photo.created_at),
-        item_id: `photo:${photo.id}`,
-      })
-    }
-    for (const run of runs || []) {
-      mapped.push({
-        kind: 'AutoTest',
-        title: run.project_name || run.id,
-        status: run.status || '',
-        source: 'upload',
-        when: normalizeWhen(run.created_at),
-        item_id: `autotest_run:${run.id}`,
-      })
-    }
-    for (const prompt of prompts || []) {
-      mapped.push({
-        kind: 'Prompt',
-        title: prompt.title || 'Prompt',
-        status: 'active',
-        source: 'manual',
-        when: normalizeWhen(prompt.updated_at || prompt.created_at),
-        item_id: `prompt:${prompt.id}`,
-      })
-    }
-
-    items.value = mapped.sort(byWhenDesc)
-  } finally {
-    loading.value = false
+  for (const entry of knowledgeEntries || []) {
+    mapped.push({
+      kind: 'Knowledge',
+      title: entry.title || entry.problem?.slice?.(0, 80) || 'Knowledge entry',
+      status: entry.status || '',
+      source: `${entry.source_type || ''}`.trim(),
+      when: normalizeWhen(entry.updated_at || entry.created_at),
+      item_id: `knowledge:${entry.id}`,
+    })
   }
+  for (const entry of logbookEntries || []) {
+    mapped.push({
+      kind: 'Logbook',
+      title: entry.title || entry.problem?.slice?.(0, 80) || 'Logbook entry',
+      status: entry.status || '',
+      source: `${entry.source_type || ''}`.trim(),
+      when: normalizeWhen(entry.updated_at || entry.created_at),
+      item_id: `logbook:${entry.id}`,
+    })
+  }
+  for (const doc of documents || []) {
+    mapped.push({
+      kind: 'Document',
+      title: doc.filename || 'Document',
+      status: doc.status || '',
+      source: 'upload',
+      when: normalizeWhen(doc.updated_at || doc.uploaded_at),
+      item_id: `document:${doc.id}`,
+    })
+  }
+  for (const photo of photos || []) {
+    mapped.push({
+      kind: 'Photo',
+      title: photo.filename || 'Photo',
+      status: photo.status || '',
+      source: 'upload',
+      when: normalizeWhen(photo.updated_at || photo.created_at),
+      item_id: `photo:${photo.id}`,
+    })
+  }
+  for (const run of autotestRuns || []) {
+    mapped.push({
+      kind: 'AutoTest',
+      title: run.project_name || run.id,
+      status: run.status || '',
+      source: 'upload',
+      when: normalizeWhen(run.created_at),
+      item_id: `autotest_run:${run.id}`,
+    })
+  }
+  for (const prompt of prompts || []) {
+    mapped.push({
+      kind: 'Prompt',
+      title: prompt.title || 'Prompt',
+      status: 'saved',
+      source: 'manual',
+      when: normalizeWhen(prompt.updated_at || prompt.created_at),
+      item_id: `prompt:${prompt.id}`,
+    })
+  }
+
+  items.value = mapped.sort(byWhenDesc)
 }
 
 function onRowClick(event: unknown) {
