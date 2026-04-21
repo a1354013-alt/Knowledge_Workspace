@@ -1,13 +1,27 @@
 <template>
   <div class="grid">
     <Card>
-      <template #title>Recent activity</template>
-      <template #subtitle>A traceable timeline across knowledge, logbook, documents, photos, prompts, and AutoTest runs.</template>
+      <template #title>
+        Recent activity
+      </template>
+      <template #subtitle>
+        A traceable timeline across knowledge, logbook, documents, photos, prompts, and AutoTest runs.
+      </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
-            <Button label="Refresh" outlined icon="pi pi-refresh" :loading="loading" @click="load" />
-            <InputText v-model="filterText" placeholder="Filter (title/type/status/source)" class="filter" />
+            <Button
+              label="Refresh"
+              outlined
+              icon="pi pi-refresh"
+              :loading="loading"
+              @click="load"
+            />
+            <InputText
+              v-model="filterText"
+              placeholder="Filter (title/type/status/source)"
+              class="filter"
+            />
           </div>
 
           <DataTable
@@ -18,11 +32,26 @@
             responsive-layout="scroll"
             @row-click="onRowClick"
           >
-            <Column field="kind" header="Type" />
-            <Column field="title" header="Title" />
-            <Column field="status" header="Status" />
-            <Column field="source" header="Source" />
-            <Column field="when" header="When" />
+            <Column
+              field="kind"
+              header="Type"
+            />
+            <Column
+              field="title"
+              header="Title"
+            />
+            <Column
+              field="status"
+              header="Status"
+            />
+            <Column
+              field="source"
+              header="Source"
+            />
+            <Column
+              field="when"
+              header="When"
+            />
             <Column header="Item">
               <template #body="slotProps">
                 <code>{{ slotProps.data.item_id }}</code>
@@ -30,7 +59,10 @@
             </Column>
           </DataTable>
 
-          <RelatedItemsPanel v-if="selectedItemId" :item-id="selectedItemId" />
+          <RelatedItemsPanel
+            v-if="selectedItemId"
+            :item-id="selectedItemId"
+          />
         </div>
       </template>
     </Card>

@@ -54,7 +54,9 @@ def validate_file_magic_bytes(file_content: bytes, filename: str) -> bool:
     rather than relying solely on file extensions which can be easily spoofed.
     
     Args:
-        file_content: The raw bytes content of the uploaded file.
+        file_content: A prefix of the raw bytes content of the uploaded file.
+            This function is designed to work with only a small header/sample and
+            should not be fed an entire large upload into memory.
         filename: The original filename (used to determine expected extension).
     
     Returns:
@@ -72,7 +74,7 @@ def validate_file_magic_bytes(file_content: bytes, filename: str) -> bool:
             detail=f"File extension '{ext}' is not allowed.",
         )
     
-    # For text/markdown files, we just check they're valid UTF-8
+    # For text/markdown files, validate using a sample prefix.
     if ext in (".txt", ".md"):
         if not looks_like_text_bytes(file_content):
             raise HTTPException(
@@ -94,7 +96,8 @@ def validate_file_magic_bytes(file_content: bytes, filename: str) -> bool:
         # No signature defined for this extension, allow it through
         return True
     
-    # Check if file content starts with the expected magic bytes
+    # Check if file content starts with the expected magic bytes.
+    # NOTE: Callers should supply enough prefix bytes for the signature checks.
     if not file_content.startswith(expected_signature):
         # Special handling for JPEG (sometimes has different headers)
         if ext in (".jpg", ".jpeg") and file_content.startswith(b"\xff\xd8"):

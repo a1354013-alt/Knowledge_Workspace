@@ -1,44 +1,112 @@
 <template>
   <div class="grid">
     <Card>
-      <template #title>Saved prompts</template>
-      <template #subtitle>Reusable prompts for recurring engineering workflows (debugging, reviews, postmortems).</template>
+      <template #title>
+        Saved prompts
+      </template>
+      <template #subtitle>
+        Reusable prompts for recurring engineering workflows (debugging, reviews, postmortems).
+      </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
-            <Button label="Refresh" outlined icon="pi pi-refresh" :loading="loading" @click="loadPrompts" />
+            <Button
+              label="Refresh"
+              outlined
+              icon="pi pi-refresh"
+              :loading="loading"
+              @click="loadPrompts"
+            />
           </div>
-          <InputText v-model="filterText" placeholder="Filter by title/tags" />
-          <DataTable :value="filteredPrompts" :loading="loading" data-key="id" size="small" responsive-layout="scroll">
-            <Column field="title" header="Title" />
-            <Column field="tags" header="Tags" />
-            <Column field="updated_at" header="Updated" />
+          <InputText
+            v-model="filterText"
+            placeholder="Filter by title/tags"
+          />
+          <DataTable
+            :value="filteredPrompts"
+            :loading="loading"
+            data-key="id"
+            size="small"
+            responsive-layout="scroll"
+          >
+            <Column
+              field="title"
+              header="Title"
+            />
+            <Column
+              field="tags"
+              header="Tags"
+            />
+            <Column
+              field="updated_at"
+              header="Updated"
+            />
             <Column header="Actions">
               <template #body="slotProps">
                 <div class="actions-inline">
-                  <Button icon="pi pi-copy" text @click="copyPrompt(slotProps.data)" />
-                  <Button icon="pi pi-sitemap" text severity="secondary" @click="selectForRelated(slotProps.data)" />
-                  <Button icon="pi pi-trash" text severity="danger" @click="deletePrompt(slotProps.data)" />
+                  <Button
+                    icon="pi pi-copy"
+                    text
+                    @click="copyPrompt(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-sitemap"
+                    text
+                    severity="secondary"
+                    @click="selectForRelated(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    text
+                    severity="danger"
+                    @click="deletePrompt(slotProps.data)"
+                  />
                 </div>
               </template>
             </Column>
           </DataTable>
 
-          <RelatedItemsPanel v-if="selectedRelatedItemId" :item-id="selectedRelatedItemId" />
+          <RelatedItemsPanel
+            v-if="selectedRelatedItemId"
+            :item-id="selectedRelatedItemId"
+          />
         </div>
       </template>
     </Card>
 
     <Card>
-      <template #title>Create prompt</template>
+      <template #title>
+        Create prompt
+      </template>
       <template #content>
         <div class="stack-md">
-          <InputText v-model="form.title" placeholder="Title" />
-          <Textarea v-model="form.content" rows="10" placeholder="Prompt content" />
-          <InputText v-model="form.tags" placeholder="Tags (comma separated)" />
+          <InputText
+            v-model="form.title"
+            placeholder="Title"
+          />
+          <Textarea
+            v-model="form.content"
+            rows="10"
+            placeholder="Prompt content"
+          />
+          <InputText
+            v-model="form.tags"
+            placeholder="Tags (comma separated)"
+          />
           <div class="row">
-            <Button label="Save" icon="pi pi-save" :loading="saving" @click="savePrompt" />
-            <Button label="Reset" outlined severity="secondary" :disabled="saving" @click="resetForm" />
+            <Button
+              label="Save"
+              icon="pi pi-save"
+              :loading="saving"
+              @click="savePrompt"
+            />
+            <Button
+              label="Reset"
+              outlined
+              severity="secondary"
+              :disabled="saving"
+              @click="resetForm"
+            />
           </div>
         </div>
       </template>

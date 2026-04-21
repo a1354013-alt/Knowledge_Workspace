@@ -11,7 +11,6 @@ import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,9 +19,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from app.core.config import get_settings
+from app.context import APP_VERSION, UPLOAD_DIR, allow_credentials, allowed_origins, db, settings
 from app.core.security import create_token
-from app.database import DocumentDatabase, delete_from_kb_vector_db, delete_from_vector_db
+from app.database import delete_from_kb_vector_db, delete_from_vector_db
 from app.dependencies import get_current_user
 from app.kb_index import index_knowledge_entry, index_logbook_entry, index_photo, index_saved_prompt
 from app.llm import get_llm_provider, validate_env_vars
@@ -70,19 +69,8 @@ from app.utils import (
     validate_file_magic_bytes,
 )
 
-load_dotenv()
-settings = get_settings()
-APP_VERSION = settings.APP_VERSION
 logger = logging.getLogger("knowledge_workspace")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-
-UPLOAD_DIR = settings.UPLOAD_DIR
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-db = DocumentDatabase(str(settings.DATABASE_PATH))
-
-allowed_origins = settings.ALLOWED_ORIGINS
-allow_credentials = "*" not in allowed_origins
 
 
 def serialize_me(current_user: dict) -> MeResponse:
@@ -765,12 +753,13 @@ async def upload_document(
     if not validate_file_extension(file.filename):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported file type.")
 
-    # Read file content for magic bytes validation
-    file_content = await file.read()
-    await file.seek(0)  # Reset file pointer for subsequent reading
-    
-    # Validate file content using magic bytes (prevents file spoofing attacks)
-    validate_file_magic_bytes(file_content, file.filename)
+    # Validate content using a small prefix sample (avoid reading large uploads into RAM).
+    # - binary signatures: first bytes are sufficient
+    # - text/markdown: validate using a bounded sample prefix
+    prefix_limit = 64 * 1024 if Path(file.filename).suffix.lower() in (".txt", ".md") else 32
+    file_prefix = await file.read(prefix_limit)
+    await file.seek(0)
+    validate_file_magic_bytes(file_prefix, file.filename)
 
     safe_filename = generate_safe_filename(file.filename)
     file_path = UPLOAD_DIR / safe_filename
@@ -1166,18 +1155,10 @@ async def upload_photo(
     if file.content_type and not str(file.content_type).lower().startswith("image/"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid image content type.")
 
-    # Read file content for magic bytes validation
-    file_content = await file.read()
-    try:
-        await file.seek(0)
-    except Exception:
-        try:
-            file.file.seek(0)
-        except Exception:
-            pass
-    
-    # Validate image using magic bytes (more robust than extension check alone)
-    header = file_content[:32]
+    # Validate image using magic bytes (more robust than extension check alone),
+    # using only a small header prefix to avoid loading large uploads into RAM.
+    header = await file.read(32)
+    await file.seek(0)
     if sniff_image_type(header) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file does not look like an image.")
 

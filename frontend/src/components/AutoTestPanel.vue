@@ -1,20 +1,47 @@
 <template>
   <div class="grid">
     <Card>
-      <template #title>Run acceptance (install / build / test / lint)</template>
+      <template #title>
+        Run acceptance (install / build / test / lint)
+      </template>
       <template #subtitle>
         Guarded runner for supported project zips (smoke/build/test only). Not a fully isolated sandbox — use trusted inputs and a constrained stack.
       </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
-            <input ref="zipInput" type="file" accept=".zip" class="hidden-input" @change="onZipSelected" />
-            <Button label="Choose Zip" icon="pi pi-upload" outlined @click="openZipPicker" />
-            <span v-if="selectedZip" class="muted">{{ selectedZip.name }}</span>
+            <input
+              ref="zipInput"
+              type="file"
+              accept=".zip"
+              class="hidden-input"
+              @change="onZipSelected"
+            >
+            <Button
+              label="Choose Zip"
+              icon="pi pi-upload"
+              outlined
+              @click="openZipPicker"
+            />
+            <span
+              v-if="selectedZip"
+              class="muted"
+            >{{ selectedZip.name }}</span>
           </div>
           <div class="row">
-            <Button label="Run" icon="pi pi-play" :loading="running" @click="runAutoTest" />
-            <Button label="Refresh" outlined icon="pi pi-refresh" :loading="loadingRuns" @click="loadRuns" />
+            <Button
+              label="Run"
+              icon="pi pi-play"
+              :loading="running"
+              @click="runAutoTest"
+            />
+            <Button
+              label="Refresh"
+              outlined
+              icon="pi pi-refresh"
+              :loading="loadingRuns"
+              @click="loadRuns"
+            />
           </div>
           <p class="muted">
             Tip: keep zips small; steps have timeouts. Results are stored as structured data for later search.
@@ -24,7 +51,9 @@
     </Card>
 
     <Card>
-      <template #title>Recent runs</template>
+      <template #title>
+        Recent runs
+      </template>
       <template #content>
         <div class="stack-md">
           <DataTable
@@ -35,24 +64,43 @@
             responsive-layout="scroll"
             @row-click="onRunSelected"
           >
-            <Column field="project_name" header="Project" />
-            <Column field="status" header="Status" />
-            <Column field="created_at" header="Created" />
+            <Column
+              field="project_name"
+              header="Project"
+            />
+            <Column
+              field="status"
+              header="Status"
+            />
+            <Column
+              field="created_at"
+              header="Created"
+            />
           </DataTable>
         </div>
       </template>
     </Card>
 
     <Card v-if="selectedRun">
-      <template #title>Run details</template>
-      <template #subtitle>{{ selectedRun.id }}</template>
+      <template #title>
+        Run details
+      </template>
+      <template #subtitle>
+        {{ selectedRun.id }}
+      </template>
       <template #content>
         <div class="stack-md">
           <div class="result-box">
             <h3>Execution</h3>
-            <p class="muted">Mode: {{ selectedRun.execution_mode || '-' }}</p>
-            <p class="muted">Project type detected: {{ selectedRun.project_type_detected || selectedRun.project_type || '-' }}</p>
-            <p class="muted">Working directory: {{ selectedRun.working_directory || '-' }}</p>
+            <p class="muted">
+              Mode: {{ selectedRun.execution_mode || '-' }}
+            </p>
+            <p class="muted">
+              Project type detected: {{ selectedRun.project_type_detected || selectedRun.project_type || '-' }}
+            </p>
+            <p class="muted">
+              Working directory: {{ selectedRun.working_directory || '-' }}
+            </p>
           </div>
 
           <div class="result-box">
@@ -60,33 +108,62 @@
             <pre class="mono">{{ selectedRun.summary || '-' }}</pre>
           </div>
 
-          <div class="result-box" v-if="selectedRun.suggestion">
+          <div
+            v-if="selectedRun.suggestion"
+            class="result-box"
+          >
             <h3>Fix suggestion</h3>
             <pre class="mono">{{ selectedRun.suggestion }}</pre>
           </div>
 
-          <div class="result-box" v-if="selectedRun.problem_entry_id || selectedRun.solution_entry_id">
+          <div
+            v-if="selectedRun.problem_entry_id || selectedRun.solution_entry_id"
+            class="result-box"
+          >
             <h3>Knowledge capture</h3>
-            <p class="muted">Problem draft: {{ selectedRun.problem_entry_id || '-' }}</p>
-            <p class="muted">Solution entry: {{ selectedRun.solution_entry_id || '-' }}</p>
-            <div class="row" v-if="selectedRun.problem_entry_id && !selectedRun.solution_entry_id">
-              <Button label="Promote problem → verified solution" icon="pi pi-check" @click="promoteProblem" />
+            <p class="muted">
+              Problem draft: {{ selectedRun.problem_entry_id || '-' }}
+            </p>
+            <p class="muted">
+              Solution entry: {{ selectedRun.solution_entry_id || '-' }}
+            </p>
+            <div
+              v-if="selectedRun.problem_entry_id && !selectedRun.solution_entry_id"
+              class="row"
+            >
+              <Button
+                label="Promote problem → verified solution"
+                icon="pi pi-check"
+                @click="promoteProblem"
+              />
             </div>
           </div>
 
-          <div class="result-box" v-if="selectedRun.prompt_output">
+          <div
+            v-if="selectedRun.prompt_output"
+            class="result-box"
+          >
             <h3>Prompt output (for Codex/Copilot)</h3>
             <pre class="mono">{{ selectedRun.prompt_output }}</pre>
           </div>
 
-          <div class="result-box" v-if="selectedRun.steps?.length">
+          <div
+            v-if="selectedRun.steps?.length"
+            class="result-box"
+          >
             <h3>Steps</h3>
-            <article v-for="step in selectedRun.steps" :key="step.step_id" class="step-card">
+            <article
+              v-for="step in selectedRun.steps"
+              :key="step.step_id"
+              class="step-card"
+            >
               <div class="step-head">
                 <strong>{{ step.name }}</strong>
                 <span :class="badgeClass(step.status)">{{ step.status }}</span>
               </div>
-              <p class="muted">{{ step.command }}</p>
+              <p class="muted">
+                {{ step.command }}
+              </p>
               <pre class="mono">{{ step.output || step.stderr_summary || step.stdout_summary || '-' }}</pre>
             </article>
           </div>

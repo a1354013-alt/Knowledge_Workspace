@@ -1,12 +1,29 @@
 <template>
   <Card>
-    <template #title>Related items</template>
-    <template #subtitle v-if="itemId">Trace relationships for <code>{{ itemId }}</code></template>
+    <template #title>
+      Related items
+    </template>
+    <template
+      v-if="itemId"
+      #subtitle
+    >
+      Trace relationships for <code>{{ itemId }}</code>
+    </template>
     <template #content>
       <div class="stack-md">
         <div class="row">
-          <Button label="Refresh" outlined icon="pi pi-refresh" :loading="loading" :disabled="!itemId" @click="load" />
-          <span v-if="!itemId" class="muted">Select an item to view relationships.</span>
+          <Button
+            label="Refresh"
+            outlined
+            icon="pi pi-refresh"
+            :loading="loading"
+            :disabled="!itemId"
+            @click="load"
+          />
+          <span
+            v-if="!itemId"
+            class="muted"
+          >Select an item to view relationships.</span>
         </div>
 
         <DataTable
@@ -17,8 +34,14 @@
           size="small"
           responsive-layout="scroll"
         >
-          <Column field="created_at" header="When" />
-          <Column field="link_type" header="Type" />
+          <Column
+            field="created_at"
+            header="When"
+          />
+          <Column
+            field="link_type"
+            header="Type"
+          />
           <Column header="Related item">
             <template #body="slotProps">
               <div class="stack-xs">
@@ -27,7 +50,10 @@
                   <span>{{ slotProps.data?.other_item?.item_type || 'unknown' }}</span>
                   <span class="sep">·</span>
                   <code>{{ displayOtherId(slotProps.data) }}</code>
-                  <span v-if="slotProps.data?.other_item?.status" class="sep">·</span>
+                  <span
+                    v-if="slotProps.data?.other_item?.status"
+                    class="sep"
+                  >·</span>
                   <span v-if="slotProps.data?.other_item?.status">{{ slotProps.data.other_item.status }}</span>
                 </div>
               </div>
@@ -36,7 +62,12 @@
           <Column header="Actions">
             <template #body="slotProps">
               <div class="actions-inline">
-                <Button icon="pi pi-copy" text severity="secondary" @click="copyOtherId(slotProps.data)" />
+                <Button
+                  icon="pi pi-copy"
+                  text
+                  severity="secondary"
+                  @click="copyOtherId(slotProps.data)"
+                />
                 <Button
                   v-if="isDownloadable(slotProps.data?.other_item?.item_id)"
                   icon="pi pi-download"

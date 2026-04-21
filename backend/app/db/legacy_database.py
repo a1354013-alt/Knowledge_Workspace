@@ -15,7 +15,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any
 
-from app.db import schema
+from app.db import migrations, schema
 from app.passwords import hash_password, verify_password_hash
 
 logger = logging.getLogger("knowledge_workspace")
@@ -64,164 +64,15 @@ class DocumentDatabase:
     def init_db(self) -> None:
         with self._connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    user_id TEXT PRIMARY KEY,
-                    password_hash TEXT NOT NULL,
-                    display_name TEXT NOT NULL,
-                    role TEXT NOT NULL DEFAULT 'owner',
-                    is_active INTEGER NOT NULL DEFAULT 1,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS documents (
-                    doc_id TEXT PRIMARY KEY,
-                    filename TEXT NOT NULL,
-                    saved_filename TEXT NOT NULL,
-                    allowed_roles TEXT NOT NULL,
-                    category TEXT NOT NULL DEFAULT '',
-                    tags TEXT NOT NULL DEFAULT '',
-                    status TEXT NOT NULL DEFAULT 'reviewed',
-                    uploaded_by TEXT,
-                    uploaded_at TEXT NOT NULL,
-                    file_size INTEGER NOT NULL DEFAULT 0,
-                    approved INTEGER NOT NULL DEFAULT 1,
-                    is_active INTEGER NOT NULL DEFAULT 1,
-                    updated_at TEXT NOT NULL
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS knowledge_entries (
-                    entry_id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL DEFAULT '',
-                    status TEXT NOT NULL DEFAULT 'draft',
-                    problem TEXT NOT NULL,
-                    root_cause TEXT NOT NULL DEFAULT '',
-                    solution TEXT NOT NULL,
-                    tags TEXT NOT NULL DEFAULT '',
-                    notes TEXT NOT NULL DEFAULT '',
-                    source_type TEXT NOT NULL DEFAULT 'manual',
-                    source_ref TEXT NOT NULL DEFAULT '',
-                    created_by TEXT NOT NULL DEFAULT '',
-                    is_active INTEGER NOT NULL DEFAULT 1,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS logbook_entries (
-                    entry_id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'draft',
-                    run_id TEXT NOT NULL DEFAULT '',
-                    problem TEXT NOT NULL,
-                    root_cause TEXT NOT NULL DEFAULT '',
-                    solution TEXT NOT NULL,
-                    tags TEXT NOT NULL DEFAULT '',
-                    source_type TEXT NOT NULL DEFAULT 'manual',
-                    source_ref TEXT NOT NULL DEFAULT '',
-                    created_by TEXT NOT NULL DEFAULT '',
-                    is_active INTEGER NOT NULL DEFAULT 1,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS photos (
-                    photo_id TEXT PRIMARY KEY,
-                    filename TEXT NOT NULL,
-                    saved_filename TEXT NOT NULL,
-                    tags TEXT NOT NULL DEFAULT '',
-                    description TEXT NOT NULL DEFAULT '',
-                    ocr_text TEXT NOT NULL DEFAULT '',
-                    status TEXT NOT NULL DEFAULT 'reviewed',
-                    uploaded_by TEXT,
-                    is_active INTEGER NOT NULL DEFAULT 1,
-                    file_size INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS autotest_runs (
-                    run_id TEXT PRIMARY KEY,
-                    source_type TEXT NOT NULL,
-                    source_ref TEXT NOT NULL,
-                    execution_mode TEXT NOT NULL DEFAULT 'real',
-                    project_type_detected TEXT NOT NULL DEFAULT '',
-                    working_directory TEXT NOT NULL DEFAULT '',
-                    project_name TEXT NOT NULL DEFAULT '',
-                    project_type TEXT NOT NULL DEFAULT '',
-                    status TEXT NOT NULL DEFAULT 'unknown',
-                    summary TEXT NOT NULL DEFAULT '',
-                    suggestion TEXT NOT NULL DEFAULT '',
-                    prompt_output TEXT NOT NULL DEFAULT '',
-                    problem_entry_id TEXT NOT NULL DEFAULT '',
-                    solution_entry_id TEXT NOT NULL DEFAULT '',
-                    created_by TEXT NOT NULL DEFAULT '',
-                    created_at TEXT NOT NULL
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS autotest_steps (
-                    step_id TEXT PRIMARY KEY,
-                    run_id TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    command TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    started_at TEXT NOT NULL DEFAULT '',
-                    finished_at TEXT NOT NULL DEFAULT '',
-                    output TEXT NOT NULL DEFAULT '',
-                    success INTEGER NOT NULL DEFAULT 0,
-                    exit_code INTEGER NOT NULL DEFAULT 0,
-                    stdout_summary TEXT NOT NULL DEFAULT '',
-                    stderr_summary TEXT NOT NULL DEFAULT '',
-                    error_type TEXT NOT NULL DEFAULT '',
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(run_id) REFERENCES autotest_runs(run_id)
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS item_links (
-                    link_id TEXT PRIMARY KEY,
-                    from_item_id TEXT NOT NULL,
-                    to_item_id TEXT NOT NULL,
-                    link_type TEXT NOT NULL DEFAULT 'references',
-                    created_at TEXT NOT NULL
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS saved_prompts (
-                    prompt_id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    tags TEXT NOT NULL DEFAULT '',
-                    created_by TEXT NOT NULL DEFAULT '',
-                    is_active INTEGER NOT NULL DEFAULT 1,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-                """
-            )
+            cursor.execute(schema.CREATE_USERS_TABLE_SQL)
+            cursor.execute(schema.CREATE_DOCUMENTS_TABLE_SQL)
+            cursor.execute(schema.CREATE_KNOWLEDGE_ENTRIES_TABLE_SQL)
+            cursor.execute(schema.CREATE_LOGBOOK_ENTRIES_TABLE_SQL)
+            cursor.execute(schema.CREATE_PHOTOS_TABLE_SQL)
+            cursor.execute(schema.CREATE_AUTOTEST_RUNS_TABLE_SQL)
+            cursor.execute(schema.CREATE_AUTOTEST_STEPS_TABLE_SQL)
+            cursor.execute(schema.CREATE_ITEM_LINKS_TABLE_SQL)
+            cursor.execute(schema.CREATE_SAVED_PROMPTS_TABLE_SQL)
             self._migrate_documents_table(cursor)
             self._migrate_users_table(cursor)
             self._migrate_knowledge_entries_table(cursor)
@@ -234,139 +85,28 @@ class DocumentDatabase:
             conn.commit()
 
     def _migrate_item_links_table(self, cursor: sqlite3.Cursor) -> None:
-        # Older versions used a generic 'related' link_type; normalize it to 'references'.
-        cursor.execute(
-            """
-            UPDATE item_links
-            SET link_type = 'references'
-            WHERE link_type IN ('related', 'reference', 'ref', '')
-            """
-        )
+        migrations.migrate_item_links_table(cursor)
 
     def _migrate_users_table(self, cursor: sqlite3.Cursor) -> None:
-        cursor.execute("UPDATE users SET role = 'owner' WHERE role != 'owner'")
+        migrations.migrate_users_table(cursor)
 
     def _migrate_documents_table(self, cursor: sqlite3.Cursor) -> None:
-        cursor.execute("PRAGMA table_info(documents)")
-        columns = {row[1] for row in cursor.fetchall()}
-        migrations = {
-            "uploaded_by": "ALTER TABLE documents ADD COLUMN uploaded_by TEXT",
-            "approved": "ALTER TABLE documents ADD COLUMN approved INTEGER NOT NULL DEFAULT 0",
-            "is_active": "ALTER TABLE documents ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
-            "updated_at": "ALTER TABLE documents ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
-            "file_size": "ALTER TABLE documents ADD COLUMN file_size INTEGER NOT NULL DEFAULT 0",
-            "category": "ALTER TABLE documents ADD COLUMN category TEXT NOT NULL DEFAULT ''",
-            "tags": "ALTER TABLE documents ADD COLUMN tags TEXT NOT NULL DEFAULT ''",
-            "status": "ALTER TABLE documents ADD COLUMN status TEXT NOT NULL DEFAULT 'reviewed'",
-        }
-        for column, sql in migrations.items():
-            if column not in columns:
-                cursor.execute(sql)
-        cursor.execute("UPDATE documents SET updated_at = uploaded_at WHERE updated_at = ''")
-        cursor.execute("UPDATE documents SET allowed_roles = 'owner' WHERE allowed_roles = '' OR allowed_roles IS NULL")
-        cursor.execute("UPDATE documents SET approved = 1 WHERE approved = 0")
-        cursor.execute("UPDATE documents SET status = 'archived' WHERE is_active = 0 AND status != 'archived'")
-        cursor.execute("UPDATE documents SET status = 'reviewed' WHERE is_active = 1 AND status = ''")
-        cursor.execute("UPDATE documents SET uploaded_by = 'owner' WHERE uploaded_by IS NULL OR uploaded_by = ''")
+        migrations.migrate_documents_table(cursor)
 
     def _migrate_autotest_tables(self, cursor: sqlite3.Cursor) -> None:
-        cursor.execute("PRAGMA table_info(autotest_runs)")
-        run_columns = {row[1] for row in cursor.fetchall()}
-        if "execution_mode" not in run_columns:
-            cursor.execute("ALTER TABLE autotest_runs ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'real'")
-        if "project_type_detected" not in run_columns:
-            cursor.execute("ALTER TABLE autotest_runs ADD COLUMN project_type_detected TEXT NOT NULL DEFAULT ''")
-        if "working_directory" not in run_columns:
-            cursor.execute("ALTER TABLE autotest_runs ADD COLUMN working_directory TEXT NOT NULL DEFAULT ''")
-        if "project_name" not in run_columns:
-            cursor.execute("ALTER TABLE autotest_runs ADD COLUMN project_name TEXT NOT NULL DEFAULT ''")
-        cursor.execute("UPDATE autotest_runs SET project_name = source_ref WHERE project_name = ''")
-        if "problem_entry_id" not in run_columns:
-            cursor.execute("ALTER TABLE autotest_runs ADD COLUMN problem_entry_id TEXT NOT NULL DEFAULT ''")
-        if "solution_entry_id" not in run_columns:
-            cursor.execute("ALTER TABLE autotest_runs ADD COLUMN solution_entry_id TEXT NOT NULL DEFAULT ''")
-        if "created_by" not in run_columns:
-            cursor.execute("ALTER TABLE autotest_runs ADD COLUMN created_by TEXT NOT NULL DEFAULT ''")
-        cursor.execute("UPDATE autotest_runs SET created_by = 'owner' WHERE created_by = ''")
-
-        cursor.execute("PRAGMA table_info(autotest_steps)")
-        step_columns = {row[1] for row in cursor.fetchall()}
-        migrations = {
-            "started_at": "ALTER TABLE autotest_steps ADD COLUMN started_at TEXT NOT NULL DEFAULT ''",
-            "finished_at": "ALTER TABLE autotest_steps ADD COLUMN finished_at TEXT NOT NULL DEFAULT ''",
-            "output": "ALTER TABLE autotest_steps ADD COLUMN output TEXT NOT NULL DEFAULT ''",
-            "success": "ALTER TABLE autotest_steps ADD COLUMN success INTEGER NOT NULL DEFAULT 0",
-        }
-        for column, sql in migrations.items():
-            if column not in step_columns:
-                cursor.execute(sql)
-        cursor.execute("UPDATE autotest_steps SET success = 1 WHERE status = 'passed' AND success = 0")
+        migrations.migrate_autotest_tables(cursor)
 
     def _migrate_knowledge_entries_table(self, cursor: sqlite3.Cursor) -> None:
-        cursor.execute("PRAGMA table_info(knowledge_entries)")
-        columns = {row[1] for row in cursor.fetchall()}
-        migrations = {
-            "status": "ALTER TABLE knowledge_entries ADD COLUMN status TEXT NOT NULL DEFAULT 'draft'",
-            "source_type": "ALTER TABLE knowledge_entries ADD COLUMN source_type TEXT NOT NULL DEFAULT 'manual'",
-            "source_ref": "ALTER TABLE knowledge_entries ADD COLUMN source_ref TEXT NOT NULL DEFAULT ''",
-            "created_by": "ALTER TABLE knowledge_entries ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
-            "is_active": "ALTER TABLE knowledge_entries ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
-        }
-        for column, sql in migrations.items():
-            if column not in columns:
-                cursor.execute(sql)
-
-        cursor.execute("UPDATE knowledge_entries SET status = 'draft' WHERE status = ''")
-        cursor.execute("UPDATE knowledge_entries SET status = 'reviewed' WHERE status = 'published'")
-        cursor.execute("UPDATE knowledge_entries SET is_active = 0 WHERE status = 'archived'")
-        cursor.execute("UPDATE knowledge_entries SET is_active = 1 WHERE status != 'archived'")
-        cursor.execute("UPDATE knowledge_entries SET created_by = 'owner' WHERE created_by = ''")
+        migrations.migrate_knowledge_entries_table(cursor)
 
     def _migrate_logbook_entries_table(self, cursor: sqlite3.Cursor) -> None:
-        cursor.execute("PRAGMA table_info(logbook_entries)")
-        columns = {row[1] for row in cursor.fetchall()}
-        migrations = {
-            "status": "ALTER TABLE logbook_entries ADD COLUMN status TEXT NOT NULL DEFAULT 'draft'",
-            "run_id": "ALTER TABLE logbook_entries ADD COLUMN run_id TEXT NOT NULL DEFAULT ''",
-            "source_ref": "ALTER TABLE logbook_entries ADD COLUMN source_ref TEXT NOT NULL DEFAULT ''",
-            "created_by": "ALTER TABLE logbook_entries ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
-            "is_active": "ALTER TABLE logbook_entries ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
-        }
-        for column, sql in migrations.items():
-            if column not in columns:
-                cursor.execute(sql)
-        cursor.execute("UPDATE logbook_entries SET status = 'draft' WHERE status = '' OR status = 'open'")
-        cursor.execute("UPDATE logbook_entries SET status = 'archived' WHERE status = 'obsolete'")
-        cursor.execute("UPDATE logbook_entries SET is_active = 0 WHERE status = 'archived'")
-        cursor.execute("UPDATE logbook_entries SET is_active = 1 WHERE status != 'archived'")
-        cursor.execute("UPDATE logbook_entries SET created_by = 'owner' WHERE created_by = ''")
+        migrations.migrate_logbook_entries_table(cursor)
 
     def _migrate_photos_table(self, cursor: sqlite3.Cursor) -> None:
-        cursor.execute("PRAGMA table_info(photos)")
-        columns = {row[1] for row in cursor.fetchall()}
-        migrations = {
-            "status": "ALTER TABLE photos ADD COLUMN status TEXT NOT NULL DEFAULT 'reviewed'",
-            "uploaded_by": "ALTER TABLE photos ADD COLUMN uploaded_by TEXT",
-            "is_active": "ALTER TABLE photos ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
-        }
-        for column, sql in migrations.items():
-            if column not in columns:
-                cursor.execute(sql)
-        cursor.execute("UPDATE photos SET uploaded_by = 'owner' WHERE uploaded_by IS NULL OR uploaded_by = ''")
+        migrations.migrate_photos_table(cursor)
 
     def _migrate_saved_prompts_table(self, cursor: sqlite3.Cursor) -> None:
-        cursor.execute("PRAGMA table_info(saved_prompts)")
-        columns = {row[1] for row in cursor.fetchall()}
-        migrations = {
-            "tags": "ALTER TABLE saved_prompts ADD COLUMN tags TEXT NOT NULL DEFAULT ''",
-            "created_by": "ALTER TABLE saved_prompts ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
-            "is_active": "ALTER TABLE saved_prompts ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
-            "updated_at": "ALTER TABLE saved_prompts ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
-        }
-        for column, sql in migrations.items():
-            if column not in columns:
-                cursor.execute(sql)
-        cursor.execute("UPDATE saved_prompts SET created_by = 'owner' WHERE created_by = ''")
+        migrations.migrate_saved_prompts_table(cursor)
 
     def _seed_owner_user(self, cursor: sqlite3.Cursor) -> None:
         cursor.execute("SELECT COUNT(*) FROM users")

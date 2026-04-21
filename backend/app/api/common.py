@@ -84,6 +84,8 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
             status=str(entry.get("status", "") or "draft"),
             created_at=str(entry.get("created_at", "") or ""),
             updated_at=str(entry.get("updated_at", "") or ""),
+            source_type=str(entry.get("source_type", "") or ""),
+            source_ref=str(entry.get("source_ref", "") or ""),
         )
 
     if prefix == "logbook":
@@ -97,6 +99,8 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
             status=str(entry.get("status", "") or "draft"),
             created_at=str(entry.get("created_at", "") or ""),
             updated_at=str(entry.get("updated_at", "") or ""),
+            source_type=str(entry.get("source_type", "") or ""),
+            source_ref=str(entry.get("source_ref", "") or ""),
         )
 
     if prefix == "document":
@@ -121,7 +125,7 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
             item_type="photo",
             title=str(photo.get("filename", "") or "Photo"),
             status=str(photo.get("status", "") or "reviewed"),
-            created_at=str(photo.get("uploaded_at", "") or ""),
+            created_at=str(photo.get("created_at", "") or ""),
             updated_at=str(photo.get("updated_at", "") or ""),
         )
 
@@ -254,4 +258,3 @@ def require_owned_row(row: dict[str, Any] | None, *, user_id: str, owner_key: st
     if str(row.get(owner_key, "")) != str(user_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this item.")
     return row
-

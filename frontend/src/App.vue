@@ -2,19 +2,46 @@
   <div class="app-shell">
     <Toast />
 
-    <section v-if="!isLoggedIn" class="login-shell">
+    <section
+      v-if="!isLoggedIn"
+      class="login-shell"
+    >
       <Card class="login-card">
-        <template #title>Personal AI Knowledge Workspace for Engineers</template>
-        <template #subtitle>Capture solutions, index docs & screenshots, ask AI with traceable sources, and recycle AutoTest results into reusable troubleshooting knowledge.</template>
+        <template #title>
+          Personal AI Knowledge Workspace for Engineers
+        </template>
+        <template #subtitle>
+          Capture solutions, index docs & screenshots, ask AI with traceable sources, and recycle AutoTest results into reusable troubleshooting knowledge.
+        </template>
         <template #content>
           <div class="stack-md">
-            <label class="field-label" for="userId">User ID</label>
-            <InputText id="userId" v-model="loginForm.user_id" autocomplete="username" />
+            <label
+              class="field-label"
+              for="userId"
+            >User ID</label>
+            <InputText
+              id="userId"
+              v-model="loginForm.user_id"
+              autocomplete="username"
+            />
 
-            <label class="field-label" for="password">Password</label>
-            <Password id="password" v-model="loginForm.password" :feedback="false" toggle-mask input-class="w-full" />
+            <label
+              class="field-label"
+              for="password"
+            >Password</label>
+            <Password
+              id="password"
+              v-model="loginForm.password"
+              :feedback="false"
+              toggle-mask
+              input-class="w-full"
+            />
 
-            <Button label="Sign In" :loading="loginLoading" @click="login" />
+            <Button
+              label="Sign In"
+              :loading="loginLoading"
+              @click="login"
+            />
             <p class="muted-text">
               Default provider: Ollama (configure `OLLAMA_BASE_URL` / `OLLAMA_MODEL` in backend).
             </p>
@@ -23,88 +50,140 @@
       </Card>
     </section>
 
-    <section v-else class="workspace-shell">
+    <section
+      v-else
+      class="workspace-shell"
+    >
       <header class="topbar">
         <div>
           <h1>Personal AI Knowledge Workspace</h1>
           <p>{{ currentUser.display_name }}</p>
         </div>
         <div class="toolbar-actions">
-          <Button label="Logout" severity="secondary" @click="logout()" />
+          <Button
+            label="Logout"
+            severity="secondary"
+            @click="logout()"
+          />
         </div>
       </header>
 
       <main class="main-grid">
         <TabView :lazy="true">
-          <TabPanel header="Activity" value="activity">
+          <TabPanel
+            header="Activity"
+            value="activity"
+          >
             <Suspense>
               <ActivityDashboard />
               <template #fallback>
-                <div class="panel-loading">Loading…</div>
+                <div class="panel-loading">
+                  Loading…
+                </div>
               </template>
             </Suspense>
           </TabPanel>
-          <TabPanel header="Search" value="search">
+          <TabPanel
+            header="Search"
+            value="search"
+          >
             <Suspense>
               <GlobalSearchPanel />
               <template #fallback>
-                <div class="panel-loading">Loading…</div>
+                <div class="panel-loading">
+                  Loading…
+                </div>
               </template>
             </Suspense>
           </TabPanel>
-          <TabPanel header="Knowledge Base" value="knowledge">
+          <TabPanel
+            header="Knowledge Base"
+            value="knowledge"
+          >
             <Suspense>
               <KnowledgeBase />
               <template #fallback>
-                <div class="panel-loading">Loading…</div>
+                <div class="panel-loading">
+                  Loading…
+                </div>
               </template>
             </Suspense>
           </TabPanel>
-          <TabPanel header="Problem Logbook" value="logbook">
+          <TabPanel
+            header="Problem Logbook"
+            value="logbook"
+          >
             <Suspense>
               <LogbookPanel />
               <template #fallback>
-                <div class="panel-loading">Loading…</div>
+                <div class="panel-loading">
+                  Loading…
+                </div>
               </template>
             </Suspense>
           </TabPanel>
-          <TabPanel header="Documents & Photos" value="docsPhotos">
+          <TabPanel
+            header="Documents & Photos"
+            value="docsPhotos"
+          >
             <Suspense>
               <DocsPhotosPanel />
               <template #fallback>
-                <div class="panel-loading">Loading…</div>
+                <div class="panel-loading">
+                  Loading…
+                </div>
               </template>
             </Suspense>
           </TabPanel>
-          <TabPanel header="Auto Test" value="autotest">
+          <TabPanel
+            header="Auto Test"
+            value="autotest"
+          >
             <Suspense>
               <AutoTestPanel />
               <template #fallback>
-                <div class="panel-loading">Loading…</div>
+                <div class="panel-loading">
+                  Loading…
+                </div>
               </template>
             </Suspense>
           </TabPanel>
-          <TabPanel header="Prompts" value="prompts">
+          <TabPanel
+            header="Prompts"
+            value="prompts"
+          >
             <Suspense>
               <PromptsPanel />
               <template #fallback>
-                <div class="panel-loading">Loading…</div>
+                <div class="panel-loading">
+                  Loading…
+                </div>
               </template>
             </Suspense>
           </TabPanel>
-          <TabPanel header="Generator" value="generator">
+          <TabPanel
+            header="Generator"
+            value="generator"
+          >
             <Suspense>
               <TemplateGeneratorPanel />
               <template #fallback>
-                <div class="panel-loading">Loading…</div>
+                <div class="panel-loading">
+                  Loading…
+                </div>
               </template>
             </Suspense>
           </TabPanel>
-          <TabPanel header="Settings" value="settings">
+          <TabPanel
+            header="Settings"
+            value="settings"
+          >
             <Suspense>
               <SettingsPanel :current-user="currentUser" />
               <template #fallback>
-                <div class="panel-loading">Loading…</div>
+                <div class="panel-loading">
+                  Loading…
+                </div>
               </template>
             </Suspense>
           </TabPanel>

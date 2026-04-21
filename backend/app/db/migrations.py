@@ -59,20 +59,32 @@ def migrate_photos_table(cursor: sqlite3.Cursor) -> None:
     columns = {row[1] for row in cursor.fetchall()}
     migrations = {
         "uploaded_by": "ALTER TABLE photos ADD COLUMN uploaded_by TEXT",
-        "approved": "ALTER TABLE photos ADD COLUMN approved INTEGER NOT NULL DEFAULT 0",
         "is_active": "ALTER TABLE photos ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
         "updated_at": "ALTER TABLE photos ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
         "file_size": "ALTER TABLE photos ADD COLUMN file_size INTEGER NOT NULL DEFAULT 0",
-        "category": "ALTER TABLE photos ADD COLUMN category TEXT NOT NULL DEFAULT ''",
         "tags": "ALTER TABLE photos ADD COLUMN tags TEXT NOT NULL DEFAULT ''",
         "status": "ALTER TABLE photos ADD COLUMN status TEXT NOT NULL DEFAULT 'reviewed'",
+        "description": "ALTER TABLE photos ADD COLUMN description TEXT NOT NULL DEFAULT ''",
+        "ocr_text": "ALTER TABLE photos ADD COLUMN ocr_text TEXT NOT NULL DEFAULT ''",
+        "created_at": "ALTER TABLE photos ADD COLUMN created_at TEXT NOT NULL DEFAULT ''",
     }
     for column, sql in migrations.items():
         if column not in columns:
             cursor.execute(sql)
-    cursor.execute("UPDATE photos SET updated_at = uploaded_at WHERE updated_at = ''")
-    cursor.execute("UPDATE photos SET allowed_roles = 'owner' WHERE allowed_roles = '' OR allowed_roles IS NULL")
-    cursor.execute("UPDATE photos SET approved = 1 WHERE approved = 0")
+
+    # Normalize timestamps from older schemas.
+    if "uploaded_at" in columns:
+        cursor.execute("UPDATE photos SET created_at = uploaded_at WHERE created_at = ''")
+        cursor.execute("UPDATE photos SET updated_at = uploaded_at WHERE updated_at = ''")
+    else:
+        cursor.execute("UPDATE photos SET created_at = updated_at WHERE created_at = ''")
+
+    # Older photos schemas sometimes carried these document-like columns; keep them but ensure sane values.
+    if "allowed_roles" in columns:
+        cursor.execute("UPDATE photos SET allowed_roles = 'owner' WHERE allowed_roles = '' OR allowed_roles IS NULL")
+    if "approved" in columns:
+        cursor.execute("UPDATE photos SET approved = 1 WHERE approved = 0")
+
     cursor.execute("UPDATE photos SET status = 'archived' WHERE is_active = 0 AND status != 'archived'")
     cursor.execute("UPDATE photos SET status = 'reviewed' WHERE is_active = 1 AND status = ''")
     cursor.execute("UPDATE photos SET uploaded_by = 'owner' WHERE uploaded_by IS NULL OR uploaded_by = ''")
@@ -135,10 +147,35 @@ def migrate_saved_prompts_table(cursor: sqlite3.Cursor) -> None:
 def migrate_autotest_tables(cursor: sqlite3.Cursor) -> None:
     cursor.execute("PRAGMA table_info(autotest_runs)")
     run_columns = {row[1] for row in cursor.fetchall()}
-    if "execution_mode" not in run_columns:
-        cursor.execute("ALTER TABLE autotest_runs ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'simulated'")
-    if "error_message" not in run_columns:
-        cursor.execute("ALTER TABLE autotest_runs ADD COLUMN error_message TEXT NOT NULL DEFAULT ''")
+    run_migrations = {
+        "execution_mode": "ALTER TABLE autotest_runs ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'real'",
+        "project_type_detected": "ALTER TABLE autotest_runs ADD COLUMN project_type_detected TEXT NOT NULL DEFAULT ''",
+        "working_directory": "ALTER TABLE autotest_runs ADD COLUMN working_directory TEXT NOT NULL DEFAULT ''",
+        "project_name": "ALTER TABLE autotest_runs ADD COLUMN project_name TEXT NOT NULL DEFAULT ''",
+        "project_type": "ALTER TABLE autotest_runs ADD COLUMN project_type TEXT NOT NULL DEFAULT ''",
+        "status": "ALTER TABLE autotest_runs ADD COLUMN status TEXT NOT NULL DEFAULT 'queued'",
+        "summary": "ALTER TABLE autotest_runs ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+        "suggestion": "ALTER TABLE autotest_runs ADD COLUMN suggestion TEXT NOT NULL DEFAULT ''",
+        "prompt_output": "ALTER TABLE autotest_runs ADD COLUMN prompt_output TEXT NOT NULL DEFAULT ''",
+        "problem_entry_id": "ALTER TABLE autotest_runs ADD COLUMN problem_entry_id TEXT NOT NULL DEFAULT ''",
+        "solution_entry_id": "ALTER TABLE autotest_runs ADD COLUMN solution_entry_id TEXT NOT NULL DEFAULT ''",
+        "created_by": "ALTER TABLE autotest_runs ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
+    }
+    for column, sql in run_migrations.items():
+        if column not in run_columns:
+            cursor.execute(sql)
+
+    # Some older schemas used a freeform 'unknown' status; normalize to queued to satisfy API contracts.
+    cursor.execute(
+        """
+        UPDATE autotest_runs
+        SET status = 'queued'
+        WHERE status IS NULL OR status IN ('', 'unknown')
+        """
+    )
+    if "project_name" in run_columns:
+        cursor.execute("UPDATE autotest_runs SET project_name = source_ref WHERE project_name = ''")
+    cursor.execute("UPDATE autotest_runs SET created_by = 'owner' WHERE created_by = ''")
 
     cursor.execute("PRAGMA table_info(autotest_steps)")
     step_columns = {row[1] for row in cursor.fetchall()}
@@ -186,4 +223,3 @@ def ensure_owner_password_is_current(cursor: sqlite3.Cursor) -> None:
 
 def new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:12]}"
-

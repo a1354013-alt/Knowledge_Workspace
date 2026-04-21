@@ -1,13 +1,33 @@
 <template>
   <Card>
-    <template #title>Global search</template>
-    <template #subtitle>Keyword + filters across knowledge, logbook, documents, photos, prompts, and AutoTest runs.</template>
+    <template #title>
+      Global search
+    </template>
+    <template #subtitle>
+      Keyword + filters across knowledge, logbook, documents, photos, prompts, and AutoTest runs.
+    </template>
     <template #content>
       <div class="stack-md">
         <div class="row">
-          <InputText v-model="query" placeholder="Keyword..." class="grow" @keyup.enter="runSearch" />
-          <Button label="Search" icon="pi pi-search" :loading="loading" @click="runSearch" />
-          <Button label="Clear" outlined severity="secondary" :disabled="loading" @click="reset" />
+          <InputText
+            v-model="query"
+            placeholder="Keyword..."
+            class="grow"
+            @keyup.enter="runSearch"
+          />
+          <Button
+            label="Search"
+            icon="pi pi-search"
+            :loading="loading"
+            @click="runSearch"
+          />
+          <Button
+            label="Clear"
+            outlined
+            severity="secondary"
+            :disabled="loading"
+            @click="reset"
+          />
         </div>
 
         <div class="row">
@@ -20,21 +40,65 @@
             display="chip"
             class="types"
           />
-          <Dropdown v-model="statusFilter" :options="statusOptions" option-label="label" option-value="value" placeholder="Status" class="status" />
-          <InputText v-model="tag" placeholder="Tag contains..." class="tag" />
+          <Dropdown
+            v-model="statusFilter"
+            :options="statusOptions"
+            option-label="label"
+            option-value="value"
+            placeholder="Status"
+            class="status"
+          />
+          <InputText
+            v-model="tag"
+            placeholder="Tag contains..."
+            class="tag"
+          />
         </div>
 
         <div class="row">
-          <InputText v-model="dateFrom" placeholder="Date from (YYYY-MM-DD)" class="date" />
-          <InputText v-model="dateTo" placeholder="Date to (YYYY-MM-DD)" class="date" />
-          <Dropdown v-model="limit" :options="limitOptions" option-label="label" option-value="value" placeholder="Limit" class="limit" />
+          <InputText
+            v-model="dateFrom"
+            placeholder="Date from (YYYY-MM-DD)"
+            class="date"
+          />
+          <InputText
+            v-model="dateTo"
+            placeholder="Date to (YYYY-MM-DD)"
+            class="date"
+          />
+          <Dropdown
+            v-model="limit"
+            :options="limitOptions"
+            option-label="label"
+            option-value="value"
+            placeholder="Limit"
+            class="limit"
+          />
         </div>
 
-        <DataTable :value="results" :loading="loading" data-key="item_id" size="small" responsive-layout="scroll">
-          <Column field="item_type" header="Type" />
-          <Column field="title" header="Title" />
-          <Column field="status" header="Status" />
-          <Column field="updated_at" header="Updated" />
+        <DataTable
+          :value="results"
+          :loading="loading"
+          data-key="item_id"
+          size="small"
+          responsive-layout="scroll"
+        >
+          <Column
+            field="item_type"
+            header="Type"
+          />
+          <Column
+            field="title"
+            header="Title"
+          />
+          <Column
+            field="status"
+            header="Status"
+          />
+          <Column
+            field="updated_at"
+            header="Updated"
+          />
           <Column header="Item">
             <template #body="slotProps">
               <code>{{ slotProps.data.item_id }}</code>
@@ -43,14 +107,27 @@
           <Column header="Actions">
             <template #body="slotProps">
               <div class="actions-inline">
-                <Button icon="pi pi-sitemap" text severity="secondary" @click="selectRelated(slotProps.data)" />
-                <Button icon="pi pi-copy" text severity="secondary" @click="copyId(slotProps.data)" />
+                <Button
+                  icon="pi pi-sitemap"
+                  text
+                  severity="secondary"
+                  @click="selectRelated(slotProps.data)"
+                />
+                <Button
+                  icon="pi pi-copy"
+                  text
+                  severity="secondary"
+                  @click="copyId(slotProps.data)"
+                />
               </div>
             </template>
           </Column>
         </DataTable>
 
-        <RelatedItemsPanel v-if="selectedItemId" :item-id="selectedItemId" />
+        <RelatedItemsPanel
+          v-if="selectedItemId"
+          :item-id="selectedItemId"
+        />
       </div>
     </template>
   </Card>

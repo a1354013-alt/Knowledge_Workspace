@@ -1,12 +1,22 @@
 <template>
   <div class="grid">
     <Card>
-      <template #title>Template generator</template>
-      <template #subtitle>Generate structured engineering docs (bug reports, troubleshooting notes, PR descriptions, postmortems).</template>
+      <template #title>
+        Template generator
+      </template>
+      <template #subtitle>
+        Generate structured engineering docs (bug reports, troubleshooting notes, PR descriptions, postmortems).
+      </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
-            <Button label="Refresh templates" outlined icon="pi pi-refresh" :loading="loadingTemplates" @click="loadTemplates" />
+            <Button
+              label="Refresh templates"
+              outlined
+              icon="pi pi-refresh"
+              :loading="loadingTemplates"
+              @click="loadTemplates"
+            />
             <Dropdown
               v-model="selectedTemplate"
               :options="templates"
@@ -17,19 +27,46 @@
             />
           </div>
 
-          <div v-if="selectedTemplate && fields.length" class="stack-md">
-            <div v-for="field in fields" :key="field" class="stack-xs">
+          <div
+            v-if="selectedTemplate && fields.length"
+            class="stack-md"
+          >
+            <div
+              v-for="field in fields"
+              :key="field"
+              class="stack-xs"
+            >
               <label class="field-label">{{ field }}</label>
-              <Textarea v-model="inputs[field]" rows="2" :placeholder="field" auto-resize />
+              <Textarea
+                v-model="inputs[field]"
+                rows="2"
+                :placeholder="field"
+                auto-resize
+              />
             </div>
           </div>
 
           <div class="row">
-            <Button label="Generate" icon="pi pi-bolt" :loading="generating" :disabled="!selectedTemplate" @click="generate" />
-            <Button label="Clear output" outlined severity="secondary" :disabled="generating" @click="output = ''" />
+            <Button
+              label="Generate"
+              icon="pi pi-bolt"
+              :loading="generating"
+              :disabled="!selectedTemplate"
+              @click="generate"
+            />
+            <Button
+              label="Clear output"
+              outlined
+              severity="secondary"
+              :disabled="generating"
+              @click="output = ''"
+            />
           </div>
 
-          <div v-if="output" class="result-box">
+          <div
+            v-if="output"
+            class="result-box"
+          >
             <h3>Output</h3>
             <pre class="mono">{{ output }}</pre>
           </div>

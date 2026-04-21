@@ -1,80 +1,246 @@
 <template>
   <div class="grid">
     <Card>
-      <template #title>Documents</template>
-      <template #subtitle>Upload and tag engineering docs. Indexing happens immediately for your workspace.</template>
+      <template #title>
+        Documents
+      </template>
+      <template #subtitle>
+        Upload and tag engineering docs. Indexing happens immediately for your workspace.
+      </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
-            <input ref="docInput" type="file" accept=".pdf,.txt,.md" class="hidden-input" @change="onDocSelected" />
-            <Button label="Choose Document" icon="pi pi-upload" outlined @click="openDocPicker" />
-            <span v-if="selectedDoc" class="muted">{{ selectedDoc.name }}</span>
+            <input
+              ref="docInput"
+              type="file"
+              accept=".pdf,.txt,.md"
+              class="hidden-input"
+              @change="onDocSelected"
+            >
+            <Button
+              label="Choose Document"
+              icon="pi pi-upload"
+              outlined
+              @click="openDocPicker"
+            />
+            <span
+              v-if="selectedDoc"
+              class="muted"
+            >{{ selectedDoc.name }}</span>
           </div>
 
-          <InputText v-model="docCategory" placeholder="Category (optional)" />
-          <InputText v-model="docTags" placeholder="Tags (comma separated, optional)" />
+          <InputText
+            v-model="docCategory"
+            placeholder="Category (optional)"
+          />
+          <InputText
+            v-model="docTags"
+            placeholder="Tags (comma separated, optional)"
+          />
           <div class="row">
-            <Button label="Upload" :loading="uploadingDoc" @click="uploadDoc" />
-            <Button label="Refresh" outlined icon="pi pi-refresh" :loading="loadingDocs" @click="loadDocuments" />
+            <Button
+              label="Upload"
+              :loading="uploadingDoc"
+              @click="uploadDoc"
+            />
+            <Button
+              label="Refresh"
+              outlined
+              icon="pi pi-refresh"
+              :loading="loadingDocs"
+              @click="loadDocuments"
+            />
           </div>
 
-          <InputText v-model="docFilterText" placeholder="Filter docs (filename/tags)" />
+          <InputText
+            v-model="docFilterText"
+            placeholder="Filter docs (filename/tags)"
+          />
 
-          <DataTable :value="filteredDocuments" :loading="loadingDocs" data-key="id" size="small" responsive-layout="scroll">
-            <Column field="filename" header="File" />
-            <Column field="category" header="Category" />
-            <Column field="tags" header="Tags" />
-            <Column field="status" header="Status" />
+          <DataTable
+            :value="filteredDocuments"
+            :loading="loadingDocs"
+            data-key="id"
+            size="small"
+            responsive-layout="scroll"
+          >
+            <Column
+              field="filename"
+              header="File"
+            />
+            <Column
+              field="category"
+              header="Category"
+            />
+            <Column
+              field="tags"
+              header="Tags"
+            />
+            <Column
+              field="status"
+              header="Status"
+            />
             <Column header="Actions">
               <template #body="slotProps">
                 <div class="actions-inline">
-                  <Button icon="pi pi-eye" text severity="secondary" @click="previewDocument(slotProps.data)" />
-                  <Button icon="pi pi-download" text severity="secondary" @click="downloadDocument(slotProps.data)" />
-                  <Button icon="pi pi-pencil" text severity="secondary" @click="openDocEditor(slotProps.data)" />
-                  <Button icon="pi pi-sitemap" text severity="secondary" @click="showDocReferences(slotProps.data)" />
-                  <Button icon="pi pi-archive" text severity="secondary" @click="archiveDocument(slotProps.data)" />
-                  <Button icon="pi pi-trash" text severity="danger" @click="deleteDocument(slotProps.data)" />
+                  <Button
+                    icon="pi pi-eye"
+                    text
+                    severity="secondary"
+                    @click="previewDocument(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-download"
+                    text
+                    severity="secondary"
+                    @click="downloadDocument(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-pencil"
+                    text
+                    severity="secondary"
+                    @click="openDocEditor(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-sitemap"
+                    text
+                    severity="secondary"
+                    @click="showDocReferences(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-archive"
+                    text
+                    severity="secondary"
+                    @click="archiveDocument(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    text
+                    severity="danger"
+                    @click="deleteDocument(slotProps.data)"
+                  />
                 </div>
               </template>
             </Column>
           </DataTable>
 
-          <RelatedItemsPanel v-if="selectedRelatedItemId" :item-id="selectedRelatedItemId" />
+          <RelatedItemsPanel
+            v-if="selectedRelatedItemId"
+            :item-id="selectedRelatedItemId"
+          />
         </div>
       </template>
     </Card>
 
     <Card>
-      <template #title>Photos / Images</template>
-      <template #subtitle>Upload images, add tags/description. OCR is optional and safe-by-default.</template>
+      <template #title>
+        Photos / Images
+      </template>
+      <template #subtitle>
+        Upload images, add tags/description. OCR is optional and safe-by-default.
+      </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
-            <input ref="photoInput" type="file" accept="image/*" class="hidden-input" @change="onPhotoSelected" />
-            <Button label="Choose Image" icon="pi pi-image" outlined @click="openPhotoPicker" />
-            <span v-if="selectedPhoto" class="muted">{{ selectedPhoto.name }}</span>
+            <input
+              ref="photoInput"
+              type="file"
+              accept="image/*"
+              class="hidden-input"
+              @change="onPhotoSelected"
+            >
+            <Button
+              label="Choose Image"
+              icon="pi pi-image"
+              outlined
+              @click="openPhotoPicker"
+            />
+            <span
+              v-if="selectedPhoto"
+              class="muted"
+            >{{ selectedPhoto.name }}</span>
           </div>
 
-          <InputText v-model="photoTags" placeholder="Tags (comma separated, optional)" />
-          <Textarea v-model="photoDescription" rows="2" placeholder="Description (optional)" />
+          <InputText
+            v-model="photoTags"
+            placeholder="Tags (comma separated, optional)"
+          />
+          <Textarea
+            v-model="photoDescription"
+            rows="2"
+            placeholder="Description (optional)"
+          />
           <div class="row">
-            <Button label="Upload" :loading="uploadingPhoto" @click="uploadPhoto" />
-            <Button label="Refresh" outlined icon="pi pi-refresh" :loading="loadingPhotos" @click="loadPhotos" />
+            <Button
+              label="Upload"
+              :loading="uploadingPhoto"
+              @click="uploadPhoto"
+            />
+            <Button
+              label="Refresh"
+              outlined
+              icon="pi pi-refresh"
+              :loading="loadingPhotos"
+              @click="loadPhotos"
+            />
           </div>
 
-          <DataTable :value="photos" :loading="loadingPhotos" data-key="id" size="small" responsive-layout="scroll">
-            <Column field="filename" header="File" />
-            <Column field="tags" header="Tags" />
-            <Column field="description" header="Description" />
-            <Column field="created_at" header="Created" />
+          <DataTable
+            :value="photos"
+            :loading="loadingPhotos"
+            data-key="id"
+            size="small"
+            responsive-layout="scroll"
+          >
+            <Column
+              field="filename"
+              header="File"
+            />
+            <Column
+              field="tags"
+              header="Tags"
+            />
+            <Column
+              field="description"
+              header="Description"
+            />
+            <Column
+              field="created_at"
+              header="Created"
+            />
             <Column header="Actions">
               <template #body="slotProps">
                 <div class="actions-inline">
-                  <Button icon="pi pi-eye" text severity="secondary" @click="previewPhoto(slotProps.data)" />
-                  <Button icon="pi pi-download" text severity="secondary" @click="downloadPhoto(slotProps.data)" />
-                  <Button icon="pi pi-pencil" text severity="secondary" @click="openPhotoEditor(slotProps.data)" />
-                  <Button icon="pi pi-sitemap" text severity="secondary" @click="showPhotoReferences(slotProps.data)" />
-                  <Button icon="pi pi-trash" text severity="danger" @click="deletePhoto(slotProps.data)" />
+                  <Button
+                    icon="pi pi-eye"
+                    text
+                    severity="secondary"
+                    @click="previewPhoto(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-download"
+                    text
+                    severity="secondary"
+                    @click="downloadPhoto(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-pencil"
+                    text
+                    severity="secondary"
+                    @click="openPhotoEditor(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-sitemap"
+                    text
+                    severity="secondary"
+                    @click="showPhotoReferences(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    text
+                    severity="danger"
+                    @click="deletePhoto(slotProps.data)"
+                  />
                 </div>
               </template>
             </Column>
@@ -84,28 +250,89 @@
     </Card>
   </div>
 
-  <Dialog v-model:visible="docEditorVisible" modal header="Edit document" :style="{ width: 'min(720px, 95vw)' }">
+  <Dialog
+    v-model:visible="docEditorVisible"
+    modal
+    header="Edit document"
+    :style="{ width: 'min(720px, 95vw)' }"
+  >
     <div class="stack-md">
-      <div class="muted"><code>{{ docEditor.id ? `document:${docEditor.id}` : '' }}</code></div>
-      <InputText v-model="docEditor.category" placeholder="Category" />
-      <InputText v-model="docEditor.tags" placeholder="Tags" />
-      <Dropdown v-model="docEditor.status" :options="statusOptions" option-label="label" option-value="value" placeholder="Status" />
+      <div class="muted">
+        <code>{{ docEditor.id ? `document:${docEditor.id}` : '' }}</code>
+      </div>
+      <InputText
+        v-model="docEditor.category"
+        placeholder="Category"
+      />
+      <InputText
+        v-model="docEditor.tags"
+        placeholder="Tags"
+      />
+      <Dropdown
+        v-model="docEditor.status"
+        :options="statusOptions"
+        option-label="label"
+        option-value="value"
+        placeholder="Status"
+      />
       <div class="row">
-        <Button label="Save" icon="pi pi-save" :loading="docEditorSaving" @click="saveDocEditor" />
-        <Button label="Close" outlined severity="secondary" :disabled="docEditorSaving" @click="docEditorVisible = false" />
+        <Button
+          label="Save"
+          icon="pi pi-save"
+          :loading="docEditorSaving"
+          @click="saveDocEditor"
+        />
+        <Button
+          label="Close"
+          outlined
+          severity="secondary"
+          :disabled="docEditorSaving"
+          @click="docEditorVisible = false"
+        />
       </div>
     </div>
   </Dialog>
 
-  <Dialog v-model:visible="photoEditorVisible" modal header="Edit photo" :style="{ width: 'min(720px, 95vw)' }">
+  <Dialog
+    v-model:visible="photoEditorVisible"
+    modal
+    header="Edit photo"
+    :style="{ width: 'min(720px, 95vw)' }"
+  >
     <div class="stack-md">
-      <div class="muted"><code>{{ photoEditor.id ? `photo:${photoEditor.id}` : '' }}</code></div>
-      <InputText v-model="photoEditor.tags" placeholder="Tags" />
-      <Textarea v-model="photoEditor.description" rows="2" placeholder="Description" />
-      <Dropdown v-model="photoEditor.status" :options="statusOptions" option-label="label" option-value="value" placeholder="Status" />
+      <div class="muted">
+        <code>{{ photoEditor.id ? `photo:${photoEditor.id}` : '' }}</code>
+      </div>
+      <InputText
+        v-model="photoEditor.tags"
+        placeholder="Tags"
+      />
+      <Textarea
+        v-model="photoEditor.description"
+        rows="2"
+        placeholder="Description"
+      />
+      <Dropdown
+        v-model="photoEditor.status"
+        :options="statusOptions"
+        option-label="label"
+        option-value="value"
+        placeholder="Status"
+      />
       <div class="row">
-        <Button label="Save" icon="pi pi-save" :loading="photoEditorSaving" @click="savePhotoEditor" />
-        <Button label="Close" outlined severity="secondary" :disabled="photoEditorSaving" @click="photoEditorVisible = false" />
+        <Button
+          label="Save"
+          icon="pi pi-save"
+          :loading="photoEditorSaving"
+          @click="savePhotoEditor"
+        />
+        <Button
+          label="Close"
+          outlined
+          severity="secondary"
+          :disabled="photoEditorSaving"
+          @click="photoEditorVisible = false"
+        />
       </div>
     </div>
   </Dialog>
@@ -133,6 +360,8 @@ import type {
   MessageResponse,
   PhotoResponse,
   PhotoUpdateRequest,
+  UploadDocumentResponse,
+  UploadPhotoResponse,
 } from '../types'
 
 const toast = useToast()
@@ -227,8 +456,10 @@ async function uploadDoc() {
     formData.append('file', selectedDoc.value)
     formData.append('category', docCategory.value || '')
     formData.append('tags', docTags.value || '')
-    await post<MessageResponse, FormData>('/api/docs/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-    toast.add({ severity: 'success', summary: 'Uploaded', detail: 'Document uploaded.', life: 3000 })
+    const response = await post<UploadDocumentResponse, FormData>('/api/docs/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    toast.add({ severity: 'success', summary: 'Uploaded', detail: response.message || 'Document uploaded.', life: 3000 })
     selectedDoc.value = null
     if (docInput.value) {
       docInput.value.value = ''
@@ -268,8 +499,10 @@ async function uploadPhoto() {
     formData.append('file', selectedPhoto.value)
     formData.append('tags', photoTags.value || '')
     formData.append('description', photoDescription.value || '')
-    await post<MessageResponse, FormData>('/api/photos/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-    toast.add({ severity: 'success', summary: 'Uploaded', detail: 'Image saved.', life: 3000 })
+    const response = await post<UploadPhotoResponse, FormData>('/api/photos/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    toast.add({ severity: 'success', summary: 'Uploaded', detail: response.message || 'Image saved.', life: 3000 })
     selectedPhoto.value = null
     if (photoInput.value) {
       photoInput.value.value = ''

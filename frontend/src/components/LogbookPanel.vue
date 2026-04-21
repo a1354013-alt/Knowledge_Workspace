@@ -1,81 +1,254 @@
 <template>
   <div class="grid">
     <Card>
-      <template #title>Engineering troubleshooting logbook</template>
-      <template #subtitle>First-class module for problems you solved. Fully searchable via Knowledge Base.</template>
+      <template #title>
+        Engineering troubleshooting logbook
+      </template>
+      <template #subtitle>
+        First-class module for problems you solved. Fully searchable via Knowledge Base.
+      </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
-            <Button label="Refresh" outlined icon="pi pi-refresh" :loading="loading" @click="loadEntries" />
+            <Button
+              label="Refresh"
+              outlined
+              icon="pi pi-refresh"
+              :loading="loading"
+              @click="loadEntries"
+            />
           </div>
-          <DataTable :value="entries" :loading="loading" data-key="id" size="small" responsive-layout="scroll">
-            <Column field="title" header="Title" />
-            <Column field="tags" header="Tags" />
-            <Column field="source_type" header="Source" />
-            <Column field="source_ref" header="Source ref" />
-            <Column field="status" header="Status" />
-            <Column field="updated_at" header="Updated" />
+          <DataTable
+            :value="entries"
+            :loading="loading"
+            data-key="id"
+            size="small"
+            responsive-layout="scroll"
+          >
+            <Column
+              field="title"
+              header="Title"
+            />
+            <Column
+              field="tags"
+              header="Tags"
+            />
+            <Column
+              field="source_type"
+              header="Source"
+            />
+            <Column
+              field="source_ref"
+              header="Source ref"
+            />
+            <Column
+              field="status"
+              header="Status"
+            />
+            <Column
+              field="updated_at"
+              header="Updated"
+            />
             <Column header="Actions">
               <template #body="slotProps">
                 <div class="actions-inline">
-                  <Button icon="pi pi-pencil" text severity="secondary" @click="openEditor(slotProps.data)" />
-                  <Button icon="pi pi-sitemap" text severity="secondary" @click="selectForRelated(slotProps.data)" />
-                  <Button icon="pi pi-check" text severity="success" @click="promoteEntry(slotProps.data)" />
-                  <Button icon="pi pi-trash" text severity="danger" @click="deleteEntry(slotProps.data)" />
+                  <Button
+                    icon="pi pi-pencil"
+                    text
+                    severity="secondary"
+                    @click="openEditor(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-sitemap"
+                    text
+                    severity="secondary"
+                    @click="selectForRelated(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-check"
+                    text
+                    severity="success"
+                    @click="promoteEntry(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    text
+                    severity="danger"
+                    @click="deleteEntry(slotProps.data)"
+                  />
                 </div>
               </template>
             </Column>
           </DataTable>
 
-          <RelatedItemsPanel v-if="selectedRelatedItemId" :item-id="selectedRelatedItemId" />
+          <RelatedItemsPanel
+            v-if="selectedRelatedItemId"
+            :item-id="selectedRelatedItemId"
+          />
         </div>
       </template>
     </Card>
 
     <Card>
-      <template #title>Add entry</template>
+      <template #title>
+        Add entry
+      </template>
       <template #content>
         <div class="stack-md">
-          <InputText v-model="form.title" placeholder="Title" />
-          <Textarea v-model="form.problem" rows="3" placeholder="Problem" />
-          <Textarea v-model="form.root_cause" rows="3" placeholder="Root cause" />
-          <Textarea v-model="form.solution" rows="4" placeholder="Solution" />
-          <InputText v-model="form.tags" placeholder="Tags (comma separated)" />
-          <Dropdown v-model="form.status" :options="statusOptions" option-label="label" option-value="value" placeholder="Status" />
-          <Dropdown v-model="form.source_type" :options="sourceTypes" option-label="label" option-value="value" placeholder="Source type" />
-          <InputText v-model="form.source_ref" placeholder="Source ref (optional, e.g. doc:..., autotest_run:...)" />
-          <Chips v-model="form.related_item_ids" separator="," placeholder="Related item IDs (comma-separated, e.g. document:..., photo:..., prompt:...)" />
+          <InputText
+            v-model="form.title"
+            placeholder="Title"
+          />
+          <Textarea
+            v-model="form.problem"
+            rows="3"
+            placeholder="Problem"
+          />
+          <Textarea
+            v-model="form.root_cause"
+            rows="3"
+            placeholder="Root cause"
+          />
+          <Textarea
+            v-model="form.solution"
+            rows="4"
+            placeholder="Solution"
+          />
+          <InputText
+            v-model="form.tags"
+            placeholder="Tags (comma separated)"
+          />
+          <Dropdown
+            v-model="form.status"
+            :options="statusOptions"
+            option-label="label"
+            option-value="value"
+            placeholder="Status"
+          />
+          <Dropdown
+            v-model="form.source_type"
+            :options="sourceTypes"
+            option-label="label"
+            option-value="value"
+            placeholder="Source type"
+          />
+          <InputText
+            v-model="form.source_ref"
+            placeholder="Source ref (optional, e.g. doc:..., autotest_run:...)"
+          />
+          <Chips
+            v-model="form.related_item_ids"
+            separator=","
+            placeholder="Related item IDs (comma-separated, e.g. document:..., photo:..., prompt:...)"
+          />
           <div class="row">
-            <Button label="Save" icon="pi pi-save" :loading="saving" @click="saveEntry" />
-            <Button label="Reset" outlined severity="secondary" :disabled="saving" @click="resetForm" />
+            <Button
+              label="Save"
+              icon="pi pi-save"
+              :loading="saving"
+              @click="saveEntry"
+            />
+            <Button
+              label="Reset"
+              outlined
+              severity="secondary"
+              :disabled="saving"
+              @click="resetForm"
+            />
           </div>
         </div>
       </template>
     </Card>
   </div>
 
-  <Dialog v-model:visible="editorVisible" modal header="Edit logbook entry" :style="{ width: 'min(920px, 95vw)' }">
+  <Dialog
+    v-model:visible="editorVisible"
+    modal
+    header="Edit logbook entry"
+    :style="{ width: 'min(920px, 95vw)' }"
+  >
     <div class="stack-md">
-      <InputText v-model="editor.title" placeholder="Title" />
-      <Textarea v-model="editor.problem" rows="3" placeholder="Problem" />
-      <Textarea v-model="editor.root_cause" rows="3" placeholder="Root cause" />
-      <Textarea v-model="editor.solution" rows="4" placeholder="Solution" />
-      <InputText v-model="editor.tags" placeholder="Tags" />
+      <InputText
+        v-model="editor.title"
+        placeholder="Title"
+      />
+      <Textarea
+        v-model="editor.problem"
+        rows="3"
+        placeholder="Problem"
+      />
+      <Textarea
+        v-model="editor.root_cause"
+        rows="3"
+        placeholder="Root cause"
+      />
+      <Textarea
+        v-model="editor.solution"
+        rows="4"
+        placeholder="Solution"
+      />
+      <InputText
+        v-model="editor.tags"
+        placeholder="Tags"
+      />
       <div class="row">
-        <Dropdown v-model="editor.status" :options="statusOptions" option-label="label" option-value="value" placeholder="Status" />
-        <Dropdown v-model="editor.source_type" :options="sourceTypes" option-label="label" option-value="value" placeholder="Source type" />
+        <Dropdown
+          v-model="editor.status"
+          :options="statusOptions"
+          option-label="label"
+          option-value="value"
+          placeholder="Status"
+        />
+        <Dropdown
+          v-model="editor.source_type"
+          :options="sourceTypes"
+          option-label="label"
+          option-value="value"
+          placeholder="Source type"
+        />
       </div>
-      <InputText v-model="editor.source_ref" placeholder="Source ref (optional)" />
-      <Chips v-model="editor.related_item_ids" separator="," placeholder="Related item IDs (comma-separated)" />
+      <InputText
+        v-model="editor.source_ref"
+        placeholder="Source ref (optional)"
+      />
+      <Chips
+        v-model="editor.related_item_ids"
+        separator=","
+        placeholder="Related item IDs (comma-separated)"
+      />
 
       <div class="row">
-        <Dropdown v-model="pickerSelected" :options="pickerOptions" option-label="label" option-value="value" placeholder="Add related item..." class="picker" />
-        <Button label="Add" icon="pi pi-plus" outlined :disabled="!pickerSelected" @click="addPickedRelated" />
+        <Dropdown
+          v-model="pickerSelected"
+          :options="pickerOptions"
+          option-label="label"
+          option-value="value"
+          placeholder="Add related item..."
+          class="picker"
+        />
+        <Button
+          label="Add"
+          icon="pi pi-plus"
+          outlined
+          :disabled="!pickerSelected"
+          @click="addPickedRelated"
+        />
       </div>
 
       <div class="row">
-        <Button label="Save changes" icon="pi pi-save" :loading="editorSaving" @click="saveEditor" />
-        <Button label="Close" outlined severity="secondary" :disabled="editorSaving" @click="editorVisible = false" />
+        <Button
+          label="Save changes"
+          icon="pi pi-save"
+          :loading="editorSaving"
+          @click="saveEditor"
+        />
+        <Button
+          label="Close"
+          outlined
+          severity="secondary"
+          :disabled="editorSaving"
+          @click="editorVisible = false"
+        />
       </div>
     </div>
   </Dialog>

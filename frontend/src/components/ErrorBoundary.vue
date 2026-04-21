@@ -1,14 +1,30 @@
 <template>
-  <div v-if="hasError" class="error-boundary">
+  <div
+    v-if="hasError"
+    class="error-boundary"
+  >
     <div class="error-content">
-      <i class="pi pi-exclamation-triangle error-icon"></i>
-      <h2 class="error-title">Something went wrong</h2>
-      <p class="error-message">{{ errorMessage }}</p>
-      <Button label="Try Again" icon="pi pi-refresh" @click="retry" />
-      <Button label="Go Home" icon="pi pi-home" severity="secondary" @click="goHome" />
+      <i class="pi pi-exclamation-triangle error-icon" />
+      <h2 class="error-title">
+        Something went wrong
+      </h2>
+      <p class="error-message">
+        {{ errorMessage }}
+      </p>
+      <Button
+        label="Try Again"
+        icon="pi pi-refresh"
+        @click="retry"
+      />
+      <Button
+        label="Go Home"
+        icon="pi pi-home"
+        severity="secondary"
+        @click="goHome"
+      />
     </div>
   </div>
-  <slot v-else></slot>
+  <slot v-else />
 </template>
 
 <script setup lang="ts">

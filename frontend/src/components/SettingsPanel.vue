@@ -1,22 +1,52 @@
 <template>
   <div class="grid">
     <Card>
-      <template #title>Local AI provider</template>
-      <template #subtitle>Ollama is the default provider. If it is down, the workspace keeps working in fallback mode.</template>
+      <template #title>
+        Local AI provider
+      </template>
+      <template #subtitle>
+        Ollama is the default provider. If it is down, the workspace keeps working in fallback mode.
+      </template>
       <template #content>
         <div class="stack-md">
-          <Button label="Refresh" outlined icon="pi pi-refresh" :loading="loading" @click="loadStatus" />
+          <Button
+            label="Refresh"
+            outlined
+            icon="pi pi-refresh"
+            :loading="loading"
+            @click="loadStatus"
+          />
           <div class="kv">
-            <div class="key">Provider</div>
-            <div class="value">{{ status.provider || '-' }}</div>
-            <div class="key">Model</div>
-            <div class="value">{{ status.model || '-' }}</div>
-            <div class="key">Base URL</div>
-            <div class="value">{{ status.base_url || '-' }}</div>
-            <div class="key">Healthy</div>
-            <div class="value">{{ status.healthy ? 'yes' : 'no' }}</div>
-            <div class="key">Fallback</div>
-            <div class="value">{{ status.fallback_mode ? 'enabled' : 'disabled' }}</div>
+            <div class="key">
+              Provider
+            </div>
+            <div class="value">
+              {{ status.provider || '-' }}
+            </div>
+            <div class="key">
+              Model
+            </div>
+            <div class="value">
+              {{ status.model || '-' }}
+            </div>
+            <div class="key">
+              Base URL
+            </div>
+            <div class="value">
+              {{ status.base_url || '-' }}
+            </div>
+            <div class="key">
+              Healthy
+            </div>
+            <div class="value">
+              {{ status.healthy ? 'yes' : 'no' }}
+            </div>
+            <div class="key">
+              Fallback
+            </div>
+            <div class="value">
+              {{ status.fallback_mode ? 'enabled' : 'disabled' }}
+            </div>
           </div>
           <p class="muted">
             Start Ollama: `ollama serve` and pull a model: `ollama pull llama3.1`.
@@ -26,37 +56,86 @@
     </Card>
 
     <Card>
-      <template #title>Prompt templates</template>
-      <template #subtitle>Engineering-focused templates for bug reports, troubleshooting notes, PR descriptions, and postmortems.</template>
+      <template #title>
+        Prompt templates
+      </template>
+      <template #subtitle>
+        Engineering-focused templates for bug reports, troubleshooting notes, PR descriptions, and postmortems.
+      </template>
       <template #content>
         <div class="stack-md">
-          <Button label="Refresh" outlined icon="pi pi-refresh" :loading="loadingTemplates" @click="loadTemplates" />
-          <div class="kv" v-if="templates.length">
-            <div class="key">Available</div>
-            <div class="value">{{ templates.map((t) => t.value).join(', ') }}</div>
+          <Button
+            label="Refresh"
+            outlined
+            icon="pi pi-refresh"
+            :loading="loadingTemplates"
+            @click="loadTemplates"
+          />
+          <div
+            v-if="templates.length"
+            class="kv"
+          >
+            <div class="key">
+              Available
+            </div>
+            <div class="value">
+              {{ templates.map((t) => t.value).join(', ') }}
+            </div>
           </div>
-          <p class="muted">Use `Generate` in the Knowledge tab via API: `POST /api/generate` with `template_type` and `inputs`.</p>
+          <p class="muted">
+            Use `Generate` in the Knowledge tab via API: `POST /api/generate` with `template_type` and `inputs`.
+          </p>
         </div>
       </template>
     </Card>
 
     <Card>
-      <template #title>OCR</template>
-      <template #subtitle>Extract text from photos for search. Controlled by backend environment variables.</template>
+      <template #title>
+        OCR
+      </template>
+      <template #subtitle>
+        Extract text from photos for search. Controlled by backend environment variables.
+      </template>
       <template #content>
         <div class="stack-md">
-          <Button label="Refresh" outlined icon="pi pi-refresh" :loading="loadingOcr" @click="loadOcrStatus" />
+          <Button
+            label="Refresh"
+            outlined
+            icon="pi pi-refresh"
+            :loading="loadingOcr"
+            @click="loadOcrStatus"
+          />
           <div class="kv">
-            <div class="key">Enabled</div>
-            <div class="value">{{ ocr.enabled ? 'yes' : 'no' }}</div>
-            <div class="key">Available</div>
-            <div class="value">{{ ocr.available ? 'yes' : 'no' }}</div>
-            <div class="key">Tesseract</div>
-            <div class="value">{{ ocr.tesseract_version || '-' }}</div>
-            <div class="key">Command</div>
-            <div class="value">{{ ocr.tesseract_cmd || '-' }}</div>
-            <div class="key">Details</div>
-            <div class="value">{{ ocr.details || '-' }}</div>
+            <div class="key">
+              Enabled
+            </div>
+            <div class="value">
+              {{ ocr.enabled ? 'yes' : 'no' }}
+            </div>
+            <div class="key">
+              Available
+            </div>
+            <div class="value">
+              {{ ocr.available ? 'yes' : 'no' }}
+            </div>
+            <div class="key">
+              Tesseract
+            </div>
+            <div class="value">
+              {{ ocr.tesseract_version || '-' }}
+            </div>
+            <div class="key">
+              Command
+            </div>
+            <div class="value">
+              {{ ocr.tesseract_cmd || '-' }}
+            </div>
+            <div class="key">
+              Details
+            </div>
+            <div class="value">
+              {{ ocr.details || '-' }}
+            </div>
           </div>
           <p class="muted">
             OCR requires both Python deps (pytesseract/Pillow) and a system Tesseract binary. Set `OCR_ENABLED=0` to disable OCR, or set
