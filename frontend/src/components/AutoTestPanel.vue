@@ -43,6 +43,32 @@
               @click="loadRuns"
             />
           </div>
+
+          <Divider />
+
+          <div class="stack-sm">
+            <h3>Analyze GitHub Repository</h3>
+            <div class="row">
+              <span class="p-input-icon-left fill">
+                <i class="pi pi-github" />
+                <InputText
+                  v-model="repoUrl"
+                  placeholder="https://github.com/owner/repo"
+                  class="fill"
+                  :disabled="analyzing"
+                />
+              </span>
+              <Button
+                label="Analyze"
+                icon="pi pi-search"
+                :loading="analyzing"
+                @click="analyzeGithubRepo"
+              />
+            </div>
+            <p class="muted">
+              Auto-clone, detect tech stack, and run pipeline for public repositories.
+            </p>
+          </div>
           <p class="muted">
             Tip: keep zips small; steps have timeouts. Results are stored as structured data for later search.
           </p>
@@ -91,7 +117,35 @@
       <template #content>
         <div class="stack-md">
           <div class="result-box">
-            <h3>Execution</h3>
+            <div class="row justify-between">
+              <h3>Execution</h3>
+              <div class="row">
+                <Button
+                  label="Export MD"
+                  icon="pi pi-file"
+                  size="small"
+                  outlined
+                  :loading="exporting === 'md'"
+                  @click="exportReport('md')"
+                />
+                <Button
+                  label="Export HTML"
+                  icon="pi pi-code"
+                  size="small"
+                  outlined
+                  :loading="exporting === 'html'"
+                  @click="exportReport('html')"
+                />
+                <Button
+                  label="Export PDF"
+                  icon="pi pi-file-pdf"
+                  size="small"
+                  outlined
+                  :loading="exporting === 'pdf'"
+                  @click="exportReport('pdf')"
+                />
+              </div>
+            </div>
             <p class="muted">
               Mode: {{ selectedRun.execution_mode || '-' }}
             </p>
@@ -190,11 +244,17 @@ import RelatedItemsPanel from './RelatedItemsPanel.vue'
 
 const toast = useToast()
 
+import InputText from 'primevue/inputtext'
+import Divider from 'primevue/divider'
+
 const zipInput = ref<HTMLInputElement | null>(null)
 const selectedZip = ref<File | null>(null)
+const repoUrl = ref('')
 
 const running = ref(false)
+const analyzing = ref(false)
 const loadingRuns = ref(false)
+const exporting = ref<string | null>(null)
 const runs = ref<AutoTestRunListItemResponse[]>([])
 const selectedRun = ref<AutoTestRunResponse | null>(null)
 const store = useWorkspaceStore()
@@ -258,6 +318,33 @@ async function runAutoTest() {
   }
 }
 
+async function analyzeGithubRepo() {
+  if (!repoUrl.value) {
+    toast.add({ severity: 'warn', summary: 'No URL', detail: 'Enter a GitHub repository URL.', life: 3000 })
+    return
+  }
+
+  analyzing.value = true
+  try {
+    const response = await post<{ run_id: string, status: string, message: string }>('/api/autotest/github/analyze', {
+      repo_url: repoUrl.value
+    })
+    toast.add({ severity: 'info', summary: 'Analysis started', detail: response.message, life: 3000 })
+    repoUrl.value = ''
+    await loadRuns()
+    
+    // Poll for results if needed or just let user refresh
+    if (response.run_id) {
+        selectedRun.value = await get<AutoTestRunResponse>(`/api/autotest/runs/${response.run_id}`)
+    }
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({ severity: 'error', summary: 'Analysis failed', detail: apiError?.message || 'Request failed.', life: 5000 })
+  } finally {
+    analyzing.value = false
+  }
+}
+
 async function onRunSelected(event: unknown) {
   const item = (event as { data?: AutoTestRunListItemResponse } | null)?.data
   if (!item?.id) {
@@ -291,6 +378,41 @@ async function promoteProblem() {
   }
 }
 
+async function exportReport(format: string) {
+  if (!selectedRun.value?.id) return
+  exporting.value = format
+  try {
+    const runId = selectedRun.value.id
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost:8000'}/api/autotest/${runId}/export?format=${format}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.statusText}`)
+    }
+    
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `autotest_report_${runId}.${format}`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+    
+    toast.add({ severity: 'success', summary: 'Exported', detail: `Report downloaded as ${format.toUpperCase()}`, life: 3000 })
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({ severity: 'error', summary: 'Export failed', detail: apiError?.message || 'Request failed.', life: 5000 })
+  } finally {
+    exporting.value = null
+  }
+}
+
 onMounted(loadRuns)
 </script>
 
@@ -307,11 +429,26 @@ onMounted(loadRuns)
   gap: 12px;
 }
 
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fill {
+  flex: 1;
+  width: 100%;
+}
+
 .row {
   display: flex;
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.justify-between {
+  justify-content: space-between;
 }
 
 .hidden-input {
