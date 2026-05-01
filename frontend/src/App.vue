@@ -71,6 +71,19 @@
       <main class="main-grid">
         <TabView :lazy="true">
           <TabPanel
+            header="Health"
+            value="health"
+          >
+            <Suspense>
+              <ProjectHealthDashboard />
+              <template #fallback>
+                <div class="panel-loading">
+                  Loading…
+                </div>
+              </template>
+            </Suspense>
+          </TabPanel>
+          <TabPanel
             header="Activity"
             value="activity"
           >
@@ -204,6 +217,7 @@ import TabPanel from 'primevue/tabpanel'
 import TabView from 'primevue/tabview'
 import Toast from 'primevue/toast'
 
+const ProjectHealthDashboard = defineAsyncComponent(() => import('./components/ProjectHealthDashboard.vue'))
 const ActivityDashboard = defineAsyncComponent(() => import('./components/ActivityDashboard.vue'))
 const GlobalSearchPanel = defineAsyncComponent(() => import('./components/GlobalSearchPanel.vue'))
 const KnowledgeBase = defineAsyncComponent(() => import('./components/KnowledgeBase.vue'))

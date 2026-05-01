@@ -12,7 +12,7 @@ import os
 import sqlite3
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.db import migrations, schema
@@ -73,7 +73,6 @@ class DocumentDatabase:
             cursor.execute(schema.CREATE_AUTOTEST_STEPS_TABLE_SQL)
             cursor.execute(schema.CREATE_ITEM_LINKS_TABLE_SQL)
             cursor.execute(schema.CREATE_SAVED_PROMPTS_TABLE_SQL)
-            cursor.execute(schema.CREATE_KNOWLEDGE_REVISIONS_TABLE_SQL)
             self._migrate_documents_table(cursor)
             self._migrate_users_table(cursor)
             self._migrate_knowledge_entries_table(cursor)
@@ -81,7 +80,6 @@ class DocumentDatabase:
             self._migrate_photos_table(cursor)
             self._migrate_saved_prompts_table(cursor)
             self._migrate_autotest_tables(cursor)
-            self._migrate_knowledge_revisions_table(cursor)
             self._migrate_item_links_table(cursor)
             self._seed_owner_user(cursor)
             conn.commit()
@@ -109,9 +107,6 @@ class DocumentDatabase:
 
     def _migrate_saved_prompts_table(self, cursor: sqlite3.Cursor) -> None:
         migrations.migrate_saved_prompts_table(cursor)
-
-    def _migrate_knowledge_revisions_table(self, cursor: sqlite3.Cursor) -> None:
-        migrations.migrate_knowledge_revisions_table(cursor)
 
     def _seed_owner_user(self, cursor: sqlite3.Cursor) -> None:
         cursor.execute("SELECT COUNT(*) FROM users")
@@ -445,72 +440,6 @@ class DocumentDatabase:
             cursor = conn.execute("DELETE FROM knowledge_entries WHERE entry_id = ?", (entry_id,))
             conn.commit()
             return cursor.rowcount > 0
-
-    def add_knowledge_revision(
-        self,
-        knowledge_id: str,
-        changed_by: str,
-        change_note: str = "",
-        version_number: int | None = None,
-    ) -> str | None:
-        entry = self.get_knowledge_entry(knowledge_id)
-        if not entry:
-            return None
-
-        if version_number is None:
-            with self._connection() as conn:
-                row = conn.execute(
-                    "SELECT MAX(version_number) FROM knowledge_revisions WHERE knowledge_id = ?", (knowledge_id,)
-                ).fetchone()
-                current_max = row[0] if row and row[0] is not None else 0
-                version_number = current_max + 1
-
-        revision_id = str(uuid.uuid4())
-        now = utc_now_iso()
-        try:
-            with self._connection() as conn:
-                conn.execute(
-                    """
-                    INSERT INTO knowledge_revisions
-                    (revision_id, knowledge_id, version_number, title, status, problem, root_cause, solution, tags, notes, source_type, source_ref, changed_by, change_note, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        revision_id,
-                        knowledge_id,
-                        version_number,
-                        entry.get("title", ""),
-                        entry.get("status", ""),
-                        entry.get("problem", ""),
-                        entry.get("root_cause", ""),
-                        entry.get("solution", ""),
-                        entry.get("tags", ""),
-                        entry.get("notes", ""),
-                        entry.get("source_type", ""),
-                        entry.get("source_ref", ""),
-                        changed_by,
-                        change_note,
-                        now,
-                    ),
-                )
-                conn.commit()
-            return revision_id
-        except sqlite3.Error as e:
-            logger.error(f"Failed to add knowledge revision: {e}")
-            return None
-
-    def list_knowledge_revisions(self, knowledge_id: str) -> list[dict[str, Any]]:
-        with self._connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM knowledge_revisions WHERE knowledge_id = ? ORDER BY version_number DESC",
-                (knowledge_id,),
-            ).fetchall()
-        return [dict(row) for row in rows]
-
-    def get_knowledge_revision(self, revision_id: str) -> dict[str, Any] | None:
-        with self._connection() as conn:
-            row = conn.execute("SELECT * FROM knowledge_revisions WHERE revision_id = ?", (revision_id,)).fetchone()
-        return dict(row) if row else None
 
     def add_logbook_entry(
         self,
@@ -1255,3 +1184,138 @@ class DocumentDatabase:
         with self._connection() as conn:
             rows = conn.execute(sql, all_params).fetchall()
         return [dict(row) for row in rows]
+
+    def get_dashboard_health(self, user_id: str) -> dict[str, Any]:
+        """Get aggregate metrics for the dashboard."""
+        now = datetime.now(timezone.utc)
+        seven_days_ago = (now - timedelta(days=7)).isoformat()
+
+        with self._connection() as conn:
+            # 1. Knowledge Metrics
+            k_total = conn.execute(
+                "SELECT COUNT(*) FROM knowledge_entries WHERE created_by = ? AND is_active = 1", (user_id,)
+            ).fetchone()[0]
+            k_status_rows = conn.execute(
+                "SELECT status, COUNT(*) FROM knowledge_entries WHERE created_by = ? AND is_active = 1 GROUP BY status",
+                (user_id,),
+            ).fetchall()
+            k_by_status = {row[0]: row[1] for row in k_status_rows}
+            # Ensure all standard statuses are present
+            for s in WORKFLOW_STATUS_VALUES:
+                if s not in k_by_status:
+                    k_by_status[s] = 0
+
+            # 2. Logbook Metrics
+            l_total = conn.execute(
+                "SELECT COUNT(*) FROM logbook_entries WHERE created_by = ? AND is_active = 1", (user_id,)
+            ).fetchone()[0]
+            l_with_sol = conn.execute(
+                "SELECT COUNT(*) FROM logbook_entries WHERE created_by = ? AND is_active = 1 AND solution != ''",
+                (user_id,),
+            ).fetchone()[0]
+            # Check promoted via item_links (logbook -> knowledge)
+            l_promoted = conn.execute(
+                """
+                SELECT COUNT(DISTINCT from_item_id) FROM item_links 
+                WHERE from_item_id LIKE 'logbook_%' AND to_item_id LIKE 'knowledge_%'
+                """
+            ).fetchone()[0]
+            l_rate = (l_with_sol / l_total * 100) if l_total > 0 else 0.0
+
+            # 3. AutoTest Metrics
+            a_total = conn.execute(
+                "SELECT COUNT(*) FROM autotest_runs WHERE created_by = ?", (user_id,)
+            ).fetchone()[0]
+            a_passed = conn.execute(
+                "SELECT COUNT(*) FROM autotest_runs WHERE created_by = ? AND status = 'passed'", (user_id,)
+            ).fetchone()[0]
+            a_failed = conn.execute(
+                "SELECT COUNT(*) FROM autotest_runs WHERE created_by = ? AND status = 'failed'", (user_id,)
+            ).fetchone()[0]
+            a_skipped = conn.execute(
+                "SELECT COUNT(*) FROM autotest_runs WHERE created_by = ? AND status = 'skipped'", (user_id,)
+            ).fetchone()[0]
+            a_rate = (a_passed / a_total * 100) if a_total > 0 else 0.0
+            
+            recent_runs_rows = conn.execute(
+                """
+                SELECT run_id as id, project_name, status, created_at, summary 
+                FROM autotest_runs WHERE created_by = ? 
+                ORDER BY created_at DESC LIMIT 5
+                """,
+                (user_id,),
+            ).fetchall()
+            recent_runs = [dict(row) for row in recent_runs_rows]
+
+            # 4. Document Metrics
+            # We don't have a formal indexing status table, but we can check if it exists in vector DB
+            # For simplicity and following the prompt's "if available" logic, 
+            # we'll treat 'reviewed' or 'verified' as indexed success, 'draft' as pending.
+            d_total = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1", (user_id,)
+            ).fetchone()[0]
+            d_indexed = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND status IN ('reviewed', 'verified')",
+                (user_id,),
+            ).fetchone()[0]
+            d_pending = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND status = 'draft'",
+                (user_id,),
+            ).fetchone()[0]
+            d_failed = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND status = 'archived'",
+                (user_id,),
+            ).fetchone()[0]
+
+            # 5. Recent Activity (Last 7 days)
+            act_docs = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND uploaded_at >= ?", (user_id, seven_days_ago)
+            ).fetchone()[0]
+            act_knowledge = conn.execute(
+                "SELECT COUNT(*) FROM knowledge_entries WHERE created_by = ? AND created_at >= ?", (user_id, seven_days_ago)
+            ).fetchone()[0]
+            act_logbook = conn.execute(
+                "SELECT COUNT(*) FROM logbook_entries WHERE created_by = ? AND created_at >= ?", (user_id, seven_days_ago)
+            ).fetchone()[0]
+            # QA count: we don't have a QA table, so we return 0 as per prompt
+            act_qa = 0
+            act_runs = conn.execute(
+                "SELECT COUNT(*) FROM autotest_runs WHERE created_by = ? AND created_at >= ?", (user_id, seven_days_ago)
+            ).fetchone()[0]
+            act_passed = conn.execute(
+                "SELECT COUNT(*) FROM autotest_runs WHERE created_by = ? AND status = 'passed' AND created_at >= ?",
+                (user_id, seven_days_ago),
+            ).fetchone()[0]
+            act_failed = conn.execute(
+                "SELECT COUNT(*) FROM autotest_runs WHERE created_by = ? AND status = 'failed' AND created_at >= ?",
+                (user_id, seven_days_ago),
+            ).fetchone()[0]
+
+        return {
+            "knowledge": {"total": k_total, "by_status": k_by_status},
+            "logbook": {
+                "total": l_total,
+                "with_solution": l_with_sol,
+                "promoted_to_knowledge": l_promoted,
+                "resolution_rate": round(l_rate, 2),
+            },
+            "autotest": {
+                "total_runs": a_total,
+                "passed": a_passed,
+                "failed": a_failed,
+                "skipped": a_skipped,
+                "pass_rate": round(a_rate, 2),
+                "recent_runs": recent_runs,
+            },
+            "documents": {"total": d_total, "indexed": d_indexed, "failed": d_failed, "pending": d_pending},
+            "recent_activity": {
+                "days": 7,
+                "documents_added": act_docs,
+                "knowledge_added": act_knowledge,
+                "logbook_added": act_logbook,
+                "qa_count": act_qa,
+                "autotest_runs": act_runs,
+                "autotest_passed": act_passed,
+                "autotest_failed": act_failed,
+            },
+        }

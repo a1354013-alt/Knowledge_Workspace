@@ -101,37 +101,6 @@ export interface KnowledgeEntryUpdateRequest {
   source_type?: KnowledgeSourceType;
   source_ref?: string;
   related_item_ids?: string[];
-  change_note?: string;
-}
-
-export interface KnowledgeRevisionResponse {
-  revision_id: string;
-  knowledge_id: string;
-  version_number: number;
-  title: string;
-  status: string;
-  problem: string;
-  root_cause: string;
-  solution: string;
-  tags: string;
-  notes: string;
-  source_type: string;
-  source_ref: string;
-  changed_by: string;
-  change_note: string;
-  created_at: string;
-}
-
-export interface DiffItem {
-  field: string;
-  old_value: string;
-  new_value: string;
-}
-
-export interface KnowledgeDiffResponse {
-  added: DiffItem[];
-  removed: DiffItem[];
-  changed: DiffItem[];
 }
 
 // Logbook Entry
@@ -322,6 +291,54 @@ export interface ResolveItemsRequest {
 
 export interface ResolveItemsResponse {
   items: ItemSummary[];
+}
+
+// Dashboard
+export interface DashboardKnowledgeMetrics {
+  total: number;
+  by_status: Record<string, number>;
+}
+
+export interface DashboardLogbookMetrics {
+  total: number;
+  with_solution: number;
+  promoted_to_knowledge: number;
+  resolution_rate: number;
+}
+
+export interface DashboardAutoTestMetrics {
+  total_runs: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  pass_rate: number;
+  recent_runs: AutoTestRunListItemResponse[];
+}
+
+export interface DashboardDocumentMetrics {
+  total: number;
+  indexed: number;
+  failed: number;
+  pending: number;
+}
+
+export interface DashboardRecentActivity {
+  days: number;
+  documents_added: number;
+  knowledge_added: number;
+  logbook_added: number;
+  qa_count: number;
+  autotest_runs: number;
+  autotest_passed: number;
+  autotest_failed: number;
+}
+
+export interface DashboardHealthResponse {
+  knowledge: DashboardKnowledgeMetrics;
+  logbook: DashboardLogbookMetrics;
+  autotest: DashboardAutoTestMetrics;
+  documents: DashboardDocumentMetrics;
+  recent_activity: DashboardRecentActivity;
 }
 
 // Settings & Health

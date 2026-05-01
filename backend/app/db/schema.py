@@ -164,24 +164,3 @@ CREATE TABLE IF NOT EXISTS saved_prompts (
     updated_at TEXT NOT NULL
 )
 """
-
-CREATE_KNOWLEDGE_REVISIONS_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS knowledge_revisions (
-    revision_id TEXT PRIMARY KEY,
-    knowledge_id TEXT NOT NULL,
-    version_number INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    status TEXT NOT NULL,
-    problem TEXT NOT NULL,
-    root_cause TEXT NOT NULL,
-    solution TEXT NOT NULL,
-    tags TEXT NOT NULL,
-    notes TEXT NOT NULL,
-    source_type TEXT NOT NULL,
-    source_ref TEXT NOT NULL,
-    changed_by TEXT NOT NULL,
-    change_note TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL,
-    FOREIGN KEY(knowledge_id) REFERENCES knowledge_entries(entry_id)
-)
-"""

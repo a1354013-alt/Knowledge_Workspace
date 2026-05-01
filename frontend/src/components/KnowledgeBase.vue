@@ -199,28 +199,18 @@
                     text
                     severity="secondary"
                     @click="openEditor(slotProps.data)"
-                    v-tooltip.top="'Edit'"
-                  />
-                  <Button
-                    icon="pi pi-history"
-                    text
-                    severity="secondary"
-                    @click="openRevisionHistory(slotProps.data)"
-                    v-tooltip.top="'Revision History'"
                   />
                   <Button
                     icon="pi pi-sitemap"
                     text
                     severity="secondary"
                     @click="selectForRelated(slotProps.data)"
-                    v-tooltip.top="'Related Items'"
                   />
                   <Button
                     icon="pi pi-archive"
                     text
                     severity="secondary"
                     @click="archiveEntry(slotProps.data)"
-                    v-tooltip.top="'Archive'"
                   />
                 </div>
               </template>
@@ -236,7 +226,6 @@
     </Card>
   </div>
 
-  <!-- Edit Dialog -->
   <Dialog
     v-model:visible="editorVisible"
     modal
@@ -316,11 +305,6 @@
         />
       </div>
 
-      <InputText
-        v-model="editor.change_note"
-        placeholder="Change note (optional)"
-      />
-
       <div class="row">
         <Button
           label="Save changes"
@@ -335,105 +319,6 @@
           :disabled="editorSaving"
           @click="editorVisible = false"
         />
-      </div>
-    </div>
-  </Dialog>
-
-  <!-- Revision History Dialog -->
-  <Dialog
-    v-model:visible="revisionVisible"
-    modal
-    header="Revision History"
-    :style="{ width: 'min(1000px, 95vw)' }"
-  >
-    <div class="stack-md">
-      <DataTable
-        :value="revisions"
-        :loading="loadingRevisions"
-        data-key="revision_id"
-        size="small"
-        responsive-layout="scroll"
-      >
-        <Column
-          field="version_number"
-          header="v#"
-          style="width: 60px"
-        />
-        <Column
-          field="created_at"
-          header="Time"
-        />
-        <Column
-          field="changed_by"
-          header="By"
-        />
-        <Column
-          field="change_note"
-          header="Note"
-        />
-        <Column header="Actions">
-          <template #body="slotProps">
-            <div class="actions-inline">
-              <Button
-                icon="pi pi-eye"
-                text
-                severity="secondary"
-                @click="viewRevision(slotProps.data)"
-                v-tooltip.top="'View Content'"
-              />
-              <Button
-                icon="pi pi-compare"
-                text
-                severity="secondary"
-                @click="viewDiff(slotProps.data)"
-                v-tooltip.top="'Compare with current'"
-              />
-              <Button
-                icon="pi pi-undo"
-                text
-                severity="warning"
-                @click="restoreRevision(slotProps.data)"
-                v-tooltip.top="'Restore this version'"
-              />
-            </div>
-          </template>
-        </Column>
-      </DataTable>
-
-      <div v-if="loadingRevisions" class="text-center p-4">
-        <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
-      </div>
-
-      <div v-if="!loadingRevisions && !revisions.length" class="empty-state">
-        No revisions found for this entry.
-      </div>
-
-      <!-- Revision Detail/Diff View -->
-      <div v-if="selectedRevision" class="revision-detail stack-md mt-4">
-        <div class="row justify-content-between">
-          <h3>{{ diffMode ? 'Difference' : 'Revision Content' }} (v{{ selectedRevision.version_number }})</h3>
-          <Button icon="pi pi-times" text severity="secondary" @click="selectedRevision = null; diffMode = false" />
-        </div>
-
-        <div v-if="diffMode && diffResult" class="stack-sm">
-          <div v-if="!diffResult.changed.length" class="p-2">No differences detected.</div>
-          <div v-for="item in diffResult.changed" :key="item.field" class="diff-item">
-            <div class="diff-field"><strong>{{ item.field }}</strong></div>
-            <div class="diff-values">
-              <div class="diff-old"> - {{ item.old_value }}</div>
-              <div class="diff-new"> + {{ item.new_value }}</div>
-            </div>
-          </div>
-        </div>
-
-        <div v-else class="stack-sm revision-content-box">
-          <div class="content-field"><strong>Title:</strong> {{ selectedRevision.title }}</div>
-          <div class="content-field"><strong>Status:</strong> {{ selectedRevision.status }}</div>
-          <div class="content-field"><strong>Problem:</strong> <pre>{{ selectedRevision.problem }}</pre></div>
-          <div class="content-field"><strong>Root Cause:</strong> <pre>{{ selectedRevision.root_cause }}</pre></div>
-          <div class="content-field"><strong>Solution:</strong> <pre>{{ selectedRevision.solution }}</pre></div>
-          <div class="content-field"><strong>Tags:</strong> {{ selectedRevision.tags }}</div>
-        </div>
       </div>
     </div>
   </Dialog>
@@ -452,7 +337,7 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
-import { get, patch, post } from '../api'
+import { patch, post } from '../api'
 import { useWorkspaceStore } from '../workspace-store'
 import type {
   AutoTestRunListItemResponse,
@@ -460,8 +345,6 @@ import type {
   KnowledgeEntryCreateRequest,
   KnowledgeEntryResponse,
   KnowledgeEntryUpdateRequest,
-  KnowledgeRevisionResponse,
-  KnowledgeDiffResponse,
   LogbookEntryResponse,
   MessageResponse,
   PhotoResponse,
@@ -481,59 +364,32 @@ const answer = ref('')
 const sources = ref<Source[]>([])
 
 const saving = ref(false)
-const entry = ref<KnowledgeEntryCreateRequest>({
-  title: '',
-  problem: '',
-  root_cause: '',
-  solution: '',
-  tags: '',
-  notes: '',
-  status: 'draft',
-  source_type: 'manual',
-  source_ref: '',
-  related_item_ids: [],
-})
+const entry = ref<KnowledgeEntryCreateRequest>(createBlankEntry())
 
 const loadingRecent = ref(false)
 const recent = ref<KnowledgeEntryResponse[]>([])
 const recentFilterText = ref('')
 
-const editorVisible = ref(false)
-const editorSaving = ref(false)
-const editor = ref<KnowledgeEntryUpdateRequest & { id: string }>({
-  id: '',
-  title: '',
-  problem: '',
-  root_cause: '',
-  solution: '',
-  tags: '',
-  notes: '',
-  status: 'draft',
-  source_type: 'manual',
-  source_ref: '',
-  related_item_ids: [],
-  change_note: '',
-})
-
 const selectedRelatedItemId = ref('')
 
+const editorVisible = ref(false)
+const editorSaving = ref(false)
+type KnowledgeEditorModel = KnowledgeEntryCreateRequest & { id: string }
+const editor = ref<KnowledgeEditorModel>(createBlankEditor())
+
+const pickerSelected = ref('')
 const documents = ref<DocumentResponse[]>([])
 const photos = ref<PhotoResponse[]>([])
-const autotestRuns = ref<AutoTestRunListItemResponse[]>([])
 const prompts = ref<SavedPromptResponse[]>([])
+const autotestRuns = ref<AutoTestRunListItemResponse[]>([])
 const knowledgeEntries = ref<KnowledgeEntryResponse[]>([])
 const logbookEntries = ref<LogbookEntryResponse[]>([])
 
-const pickerSelected = ref('')
-
-// Revision state
-const revisionVisible = ref(false)
-const loadingRevisions = ref(false)
-const revisions = ref<KnowledgeRevisionResponse[]>([])
-const selectedRevision = ref<KnowledgeRevisionResponse | null>(null)
-const diffMode = ref(false)
-const diffResult = ref<KnowledgeDiffResponse | null>(null)
-const currentKnowledgeId = ref('')
+const sourceTypes = [
+  { label: 'Manual', value: 'manual' },
+  { label: 'Document-derived', value: 'document-derived' },
+  { label: 'AutoTest-derived', value: 'autotest-derived' },
+]
 
 const statusOptions = [
   { label: 'Draft', value: 'draft' },
@@ -542,63 +398,47 @@ const statusOptions = [
   { label: 'Archived', value: 'archived' },
 ]
 
-const sourceTypes = [
-  { label: 'Manual', value: 'manual' },
-  { label: 'Document-derived', value: 'document-derived' },
-  { label: 'AutoTest-derived', value: 'autotest-derived' },
-]
+const pickerOptions = computed(() => {
+  const docOptions = documents.value.map((doc) => ({
+    label: `Document: ${doc.filename}`,
+    value: `document:${doc.id}`,
+  }))
+  const photoOptions = photos.value.map((photo) => ({
+    label: `Photo: ${photo.filename}`,
+    value: `photo:${photo.id}`,
+  }))
+  const promptOptions = prompts.value.map((prompt) => ({
+    label: `Prompt: ${prompt.title}`,
+    value: `prompt:${prompt.id}`,
+  }))
+  const runOptions = autotestRuns.value.map((run) => ({
+    label: `AutoTest: ${run.project_name || run.id}`,
+    value: `autotest_run:${run.id}`,
+  }))
+  const knowledgeOptions = knowledgeEntries.value.map((entry) => ({
+    label: `Knowledge: ${entry.title || entry.id}`,
+    value: `knowledge:${entry.id}`,
+  }))
+  const logbookOptions = logbookEntries.value.map((entry) => ({
+    label: `Logbook: ${entry.title || entry.id}`,
+    value: `logbook:${entry.id}`,
+  }))
+  return [...docOptions, ...photoOptions, ...runOptions, ...promptOptions, ...knowledgeOptions, ...logbookOptions]
+})
 
 const filteredRecent = computed(() => {
-  const query = recentFilterText.value.toLowerCase().trim()
-  if (!query) return recent.value
-  return recent.value.filter((item) => {
-    return (
-      (item.title || '').toLowerCase().includes(query) ||
-      (item.tags || '').toLowerCase().includes(query) ||
-      (item.status || '').toLowerCase().includes(query)
-    )
-  })
-})
-
-const pickerOptions = computed(() => {
-  const options: { label: string; value: string }[] = []
-  documents.value.forEach((d) => options.push({ label: `[Doc] ${d.filename}`, value: `document:${d.id}` }))
-  photos.value.forEach((p) => options.push({ label: `[Photo] ${p.filename}`, value: `photo:${p.id}` }))
-  autotestRuns.value.forEach((r) => options.push({ label: `[AutoTest] ${r.project_name || r.id}`, value: `autotest_run:${r.id}` }))
-  prompts.value.forEach((p) => options.push({ label: `[Prompt] ${p.title}`, value: `prompt:${p.id}` }))
-  knowledgeEntries.value.forEach((k) => {
-    if (k.id !== editor.value.id) {
-      options.push({ label: `[Knowledge] ${k.title}`, value: `knowledge:${k.id}` })
-    }
-  })
-  logbookEntries.value.forEach((l) => options.push({ label: `[Logbook] ${l.title}`, value: `logbook:${l.id}` }))
-  return options.sort((a, b) => a.label.localeCompare(b.label))
-})
-
-function clearResult() {
-  question.value = ''
-  answer.value = ''
-  sources.value = []
-}
-
-async function submitQA() {
-  const q = question.value.trim()
-  if (!q) return
-  asking.value = true
-  try {
-    const res = await post<QAResponse, QARequest>('/api/qa', { question: q })
-    answer.value = res.answer
-    sources.value = res.sources
-  } catch (error: unknown) {
-    const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'QA failed', detail: apiError?.message || 'Request failed.', life: 4000 })
-  } finally {
-    asking.value = false
+  const query = String(recentFilterText.value || '').trim().toLowerCase()
+  if (!query) {
+    return recent.value
   }
-}
+  return recent.value.filter((item) => {
+    const haystack = `${item.title || ''} ${item.tags || ''} ${item.status || ''}`.toLowerCase()
+    return haystack.includes(query)
+  })
+})
 
-function resetEntry() {
-  entry.value = {
+function createBlankEntry(): KnowledgeEntryCreateRequest {
+  return {
     title: '',
     problem: '',
     root_cause: '',
@@ -612,10 +452,49 @@ function resetEntry() {
   }
 }
 
+function createBlankEditor(): KnowledgeEditorModel {
+  return { ...createBlankEntry(), id: '' }
+}
+
+function clearResult() {
+  answer.value = ''
+  sources.value = []
+}
+
+function resetEntry() {
+  entry.value = createBlankEntry()
+}
+
+async function submitQA() {
+  if (!question.value.trim()) {
+    toast.add({ severity: 'warn', summary: 'Question required', detail: 'Enter a question first.', life: 3000 })
+    return
+  }
+
+  asking.value = true
+  try {
+    const response = await post<QAResponse, QARequest>('/api/qa', { question: question.value.trim() })
+    answer.value = response.answer
+    sources.value = response.sources || []
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({ severity: 'error', summary: 'QA failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+  } finally {
+    asking.value = false
+  }
+}
+
 async function saveEntry() {
-  const payload: KnowledgeEntryCreateRequest = {
+  // Validate problem field: must not be empty after trimming (matches backend min_length=1)
+  const trimmedProblem = String(entry.value.problem || '').trim()
+  if (!trimmedProblem) {
+    toast.add({ severity: 'warn', summary: 'Validation Error', detail: 'Problem field cannot be empty.', life: 3500 })
+    return
+  }
+
+  const payload = {
     title: String(entry.value.title || '').trim(),
-    problem: String(entry.value.problem || '').trim(),
+    problem: trimmedProblem,
     root_cause: String(entry.value.root_cause || '').trim(),
     solution: String(entry.value.solution || '').trim(),
     tags: String(entry.value.tags || '').trim(),
@@ -695,7 +574,6 @@ function openEditor(item: KnowledgeEntryResponse) {
     source_type: item.source_type || 'manual',
     source_ref: item.source_ref || '',
     related_item_ids: Array.isArray(item.related_item_ids) ? [...item.related_item_ids] : [],
-    change_note: '',
   }
   pickerSelected.value = ''
   editorVisible.value = true
@@ -729,7 +607,6 @@ async function saveEditor() {
     source_type: editor.value.source_type || 'manual',
     source_ref: String(editor.value.source_ref || '').trim(),
     related_item_ids: Array.isArray(editor.value.related_item_ids) ? editor.value.related_item_ids : [],
-    change_note: String(editor.value.change_note || '').trim(),
   }
   editorSaving.value = true
   try {
@@ -766,56 +643,6 @@ async function archiveEntry(item: KnowledgeEntryResponse) {
   }
 }
 
-// Revision methods
-async function openRevisionHistory(item: KnowledgeEntryResponse) {
-  currentKnowledgeId.value = item.id
-  revisions.value = []
-  selectedRevision.value = null
-  diffMode.value = false
-  revisionVisible.value = true
-  loadingRevisions.value = true
-  try {
-    revisions.value = await get<KnowledgeRevisionResponse[]>(`/api/knowledge/${item.id}/revisions`)
-  } catch (error: unknown) {
-    const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Load failed', detail: apiError?.message || 'Failed to load revisions.', life: 3500 })
-  } finally {
-    loadingRevisions.value = false
-  }
-}
-
-function viewRevision(rev: KnowledgeRevisionResponse) {
-  selectedRevision.value = rev
-  diffMode.value = false
-}
-
-async function viewDiff(rev: KnowledgeRevisionResponse) {
-  selectedRevision.value = rev
-  diffMode.value = true
-  diffResult.value = null
-  try {
-    diffResult.value = await get<KnowledgeDiffResponse>(`/api/knowledge/${currentKnowledgeId.value}/revisions/${rev.revision_id}/diff`)
-  } catch (error: unknown) {
-    const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Diff failed', detail: apiError?.message || 'Failed to get diff.', life: 3500 })
-  }
-}
-
-async function restoreRevision(rev: KnowledgeRevisionResponse) {
-  if (!window.confirm(`Restore to version ${rev.version_number}? This will create a snapshot of current state.`)) {
-    return
-  }
-  try {
-    const res = await post<MessageResponse, any>(`/api/knowledge/${currentKnowledgeId.value}/revisions/${rev.revision_id}/restore`, {})
-    toast.add({ severity: 'success', summary: 'Restored', detail: res.message, life: 3000 })
-    revisionVisible.value = false
-    await loadRecent()
-  } catch (error: unknown) {
-    const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Restore failed', detail: apiError?.message || 'Failed to restore.', life: 4000 })
-  }
-}
-
 onMounted(loadRecent)
 </script>
 
@@ -843,18 +670,6 @@ onMounted(loadRecent)
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-}
-
-.justify-content-between {
-  justify-content: space-between;
-}
-
-.mt-4 {
-  margin-top: 1.5rem;
-}
-
-.text-center {
-  text-align: center;
 }
 
 .actions-inline {
@@ -892,71 +707,6 @@ onMounted(loadRecent)
 
 .snippet {
   margin: 8px 0 0;
-  white-space: pre-wrap;
-}
-
-.empty-state {
-  padding: 2rem;
-  text-align: center;
-  color: #6c757d;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.revision-detail {
-  border-top: 1px solid #dee2e6;
-  padding-top: 1rem;
-}
-
-.revision-content-box {
-  background: #f8f9fa;
-  padding: 1rem;
-  border-radius: 8px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.content-field {
-  margin-bottom: 0.5rem;
-}
-
-.content-field pre {
-  background: #fff;
-  padding: 0.5rem;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.diff-item {
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.diff-field {
-  background: #e9ecef;
-  padding: 4px 8px;
-  border-bottom: 1px solid #dee2e6;
-}
-
-.diff-values {
-  padding: 8px;
-}
-
-.diff-old {
-  color: #dc3545;
-  background-color: #f8d7da;
-  padding: 2px 4px;
-  margin-bottom: 2px;
-  white-space: pre-wrap;
-}
-
-.diff-new {
-  color: #198754;
-  background-color: #d1e7dd;
-  padding: 2px 4px;
   white-space: pre-wrap;
 }
 

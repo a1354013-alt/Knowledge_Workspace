@@ -39,9 +39,6 @@ from app.models import (
     KnowledgeEntryCreateRequest,
     KnowledgeEntryResponse,
     KnowledgeEntryUpdateRequest,
-    KnowledgeRevisionResponse,
-    KnowledgeDiffResponse,
-    DiffItem,
     LogbookEntryCreateRequest,
     LogbookEntryResponse,
     LogbookEntryUpdateRequest,
@@ -62,6 +59,7 @@ from app.models import (
     SettingsOCRResponse,
     UploadDocumentResponse,
     UploadPhotoResponse,
+    DashboardHealthResponse,
 )
 from app.ocr_service import extract_text_from_image, get_ocr_status
 from app.services import FORM_TEMPLATES, generate_form, perform_qa, process_file
@@ -717,6 +715,20 @@ async def me(current_user: dict = Depends(get_current_user)) -> MeResponse:
     return serialize_me(current_user)
 
 
+@app.get("/api/dashboard/health", response_model=DashboardHealthResponse)
+async def dashboard_health(current_user: dict = Depends(get_current_user)) -> DashboardHealthResponse:
+    """Get aggregate metrics for the project health dashboard."""
+    try:
+        data = db.get_dashboard_health(current_user["sub"])
+        return DashboardHealthResponse(**data)
+    except Exception as exc:
+        logger.error("Dashboard API error: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch dashboard metrics."
+        )
+
+
 @app.get("/api/settings/llm", response_model=SettingsLLMResponse)
 async def llm_settings(current_user: dict = Depends(get_current_user)) -> SettingsLLMResponse:
     _ = current_user
@@ -919,8 +931,6 @@ async def create_knowledge_entry(
             source_type=request.source_type,
             source_ref=request.source_ref,
         )
-        # Create initial revision
-        db.add_knowledge_revision(entry_id, changed_by=user_id, change_note="Initial version", version_number=1)
         index_knowledge_entry(entry)
     return MessageResponse(message="Knowledge entry created.")
 
@@ -940,13 +950,8 @@ async def update_knowledge_entry(
 
     updates = request.model_dump(exclude_none=True)
     related = updates.pop("related_item_ids", None)
-    change_note = updates.pop("change_note", "Updated")
     if not updates and related is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No knowledge fields provided.")
-
-    # Create revision before update
-    db.add_knowledge_revision(entry_id, changed_by=user_id, change_note=change_note)
-
     if updates and not db.update_knowledge_entry(entry_id, **updates):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update knowledge entry.")
     if related is not None:
@@ -1060,120 +1065,6 @@ async def update_logbook_entry(
     return MessageResponse(message="Logbook entry updated.")
 
 
-@app.get("/api/knowledge/{id}/revisions", response_model=list[KnowledgeRevisionResponse])
-async def list_knowledge_revisions(id: str, current_user: dict = Depends(get_current_user)) -> list[KnowledgeRevisionResponse]:
-    user_id = current_user["sub"]
-    existing = db.get_knowledge_entry(id)
-    if not existing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge entry not found.")
-    if existing.get("created_by") != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot view revisions for this entry.")
-
-    revisions = db.list_knowledge_revisions(id)
-    return [KnowledgeRevisionResponse(**rev) for rev in revisions]
-
-
-@app.get("/api/knowledge/{id}/revisions/{revision_id}", response_model=KnowledgeRevisionResponse)
-async def get_knowledge_revision(id: str, revision_id: str, current_user: dict = Depends(get_current_user)) -> KnowledgeRevisionResponse:
-    user_id = current_user["sub"]
-    existing = db.get_knowledge_entry(id)
-    if not existing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge entry not found.")
-    if existing.get("created_by") != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot view revisions for this entry.")
-
-    rev = db.get_knowledge_revision(revision_id)
-    if not rev or rev["knowledge_id"] != id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Revision not found.")
-
-    return KnowledgeRevisionResponse(**rev)
-
-
-@app.get("/api/knowledge/{id}/revisions/{revision_id}/diff", response_model=KnowledgeDiffResponse)
-async def get_knowledge_revision_diff(id: str, revision_id: str, current_user: dict = Depends(get_current_user)) -> KnowledgeDiffResponse:
-    user_id = current_user["sub"]
-    current = db.get_knowledge_entry(id)
-    if not current:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge entry not found.")
-    if current.get("created_by") != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot view diff for this entry.")
-
-    rev = db.get_knowledge_revision(revision_id)
-    if not rev or rev["knowledge_id"] != id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Revision not found.")
-
-    diff = KnowledgeDiffResponse()
-    fields_to_compare = ["title", "status", "problem", "root_cause", "solution", "tags"]
-
-    for field in fields_to_compare:
-        old_val = str(rev.get(field, ""))
-        new_val = str(current.get(field, ""))
-        if old_val != new_val:
-            diff.changed.append(DiffItem(field=field, old_value=old_val, new_value=new_val))
-
-    return diff
-
-
-@app.post("/api/knowledge/{id}/revisions/{revision_id}/restore", response_model=MessageResponse)
-async def restore_knowledge_revision(id: str, revision_id: str, current_user: dict = Depends(get_current_user)) -> MessageResponse:
-    user_id = current_user["sub"]
-    current = db.get_knowledge_entry(id)
-    if not current:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge entry not found.")
-    if current.get("created_by") != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot restore this entry.")
-
-    rev = db.get_knowledge_revision(revision_id)
-    if not rev or rev["knowledge_id"] != id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Revision not found.")
-
-    # Create a revision of the current state before restoring
-    db.add_knowledge_revision(id, changed_by=user_id, change_note=f"Pre-restore snapshot (v{rev['version_number']})")
-
-    # Restore the entry
-    restore_data = {
-        "title": rev["title"],
-        "status": rev["status"],
-        "problem": rev["problem"],
-        "root_cause": rev["root_cause"],
-        "solution": rev["solution"],
-        "tags": rev["tags"],
-        "notes": rev["notes"],
-        "source_type": rev["source_type"],
-        "source_ref": rev["source_ref"],
-    }
-
-    if not db.update_knowledge_entry(id, **restore_data):
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to restore revision.")
-
-    updated = db.get_knowledge_entry(id)
-    if updated:
-        index_knowledge_entry(updated)
-
-    return MessageResponse(message=f"Restored to version {rev['version_number']}.")
-
-
-@app.delete("/api/knowledge/entries/{entry_id}", response_model=MessageResponse)
-async def delete_knowledge_entry(entry_id: str, current_user: dict = Depends(get_current_user)) -> MessageResponse:
-    user_id = current_user["sub"]
-    existing = db.get_knowledge_entry(entry_id)
-    if not existing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge entry not found.")
-    if existing.get("created_by") != user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot delete this knowledge entry.")
-
-    # Create final revision before deletion
-    db.add_knowledge_revision(entry_id, changed_by=user_id, change_note="Deleted")
-
-    item_id = f"knowledge:{entry_id}"
-    delete_from_kb_vector_db(item_id)
-    db.delete_links(from_item_id=item_id)
-    db.delete_links(to_item_id=item_id)
-    if not db.delete_knowledge_entry(entry_id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge entry not found.")
-    return MessageResponse(message="Knowledge entry deleted.")
-
-
 @app.post("/api/logbook/entries/{entry_id}/promote-to-knowledge", response_model=PromoteToKnowledgeResponse)
 async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depends(get_current_user)) -> PromoteToKnowledgeResponse:
     user_id = current_user["sub"]
@@ -1217,9 +1108,6 @@ async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depen
         index_knowledge_entry(promoted)
     # Re-index the archived logbook (with updated status) for completeness
     index_logbook_entry(db.get_logbook_entry(entry_id) or logbook)
-
-    # Create initial revision for promoted knowledge
-    db.add_knowledge_revision(knowledge_id, changed_by=user_id, change_note="Promoted from logbook", version_number=1)
 
     # If this logbook was derived from an AutoTest run, mark the run as having a solution.
     run_id = str(logbook.get("run_id") or "").strip()

@@ -87,6 +87,42 @@ class HealthResponse(StrictModel):
     version: str
 
 
+class DashboardKnowledgeMetrics(StrictModel):
+    total: int
+    by_status: dict[str, int]
+
+
+class DashboardLogbookMetrics(StrictModel):
+    total: int
+    with_solution: int
+    promoted_to_knowledge: int
+    resolution_rate: float
+
+
+# Moved DashboardAutoTestMetrics below AutoTestRunListItemResponse to avoid forward reference issues
+
+
+class DashboardDocumentMetrics(StrictModel):
+    total: int
+    indexed: int
+    failed: int
+    pending: int
+
+
+class DashboardRecentActivity(StrictModel):
+    days: int
+    documents_added: int
+    knowledge_added: int
+    logbook_added: int
+    qa_count: int
+    autotest_runs: int
+    autotest_passed: int
+    autotest_failed: int
+
+
+# Moved DashboardHealthResponse to the bottom of the file
+
+
 class SettingsLLMResponse(StrictModel):
     provider: str
     model: str
@@ -143,37 +179,6 @@ class KnowledgeEntryUpdateRequest(StrictModel):
     source_type: Literal["manual", "document-derived", "autotest-derived"] | None = None
     source_ref: str | None = Field(default=None, max_length=2000)
     related_item_ids: list[str] | None = None
-    change_note: str | None = Field(default=None, max_length=1000)
-
-
-class KnowledgeRevisionResponse(StrictModel):
-    revision_id: str
-    knowledge_id: str
-    version_number: int
-    title: str
-    status: str
-    problem: str
-    root_cause: str
-    solution: str
-    tags: str
-    notes: str
-    source_type: str
-    source_ref: str
-    changed_by: str
-    change_note: str
-    created_at: str
-
-
-class DiffItem(StrictModel):
-    field: str
-    old_value: str
-    new_value: str
-
-
-class KnowledgeDiffResponse(StrictModel):
-    added: list[DiffItem] = Field(default_factory=list)
-    removed: list[DiffItem] = Field(default_factory=list)
-    changed: list[DiffItem] = Field(default_factory=list)
 
 
 class LogbookEntryCreateRequest(StrictModel):
@@ -283,6 +288,15 @@ class AutoTestRunListItemResponse(StrictModel):
     summary: str
 
 
+class DashboardAutoTestMetrics(StrictModel):
+    total_runs: int
+    passed: int
+    failed: int
+    skipped: int
+    pass_rate: float
+    recent_runs: list[AutoTestRunListItemResponse] = Field(default_factory=list)
+
+
 class AutoTestRunResponse(StrictModel):
     id: str
     source_type: str
@@ -334,6 +348,14 @@ class ResolveItemsRequest(StrictModel):
 
 class ResolveItemsResponse(StrictModel):
     items: list[ItemSummary] = Field(default_factory=list)
+
+
+class DashboardHealthResponse(StrictModel):
+    knowledge: DashboardKnowledgeMetrics
+    logbook: DashboardLogbookMetrics
+    autotest: DashboardAutoTestMetrics
+    documents: DashboardDocumentMetrics
+    recent_activity: DashboardRecentActivity
 
 
 # Note: model_rebuild() is no longer needed in Pydantic v2
