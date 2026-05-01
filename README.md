@@ -7,8 +7,16 @@ Local-first, single-user workspace for engineers to capture troubleshooting know
 - **Knowledge + Logbook workflow**: draft → reviewed → verified → archived
 - **Traceable retrieval**: QA responses include source snippets (documents + notes)
 - **Linked items graph**: connect knowledge, logbook, docs, photos, prompts, autotest runs
+- **Knowledge Revision History**: Tracks every change to knowledge entries, allowing users to view history, compare versions, and restore previous states.
 - **AutoTest ingestion**: upload a project zip, run a basic pipeline, save structured results
 - **Clean delivery**: CI runs backend tests + frontend tests/typecheck/build + release zip packaging
+
+## Knowledge Revision History
+The system automatically captures snapshots of knowledge entries to ensure data integrity and traceability:
+- **Automatic Versioning**: A revision is created upon initial creation, before every update, and before deletion.
+- **Safe Restoration**: Restoring a previous version creates a "Pre-restore snapshot" of the current state first, ensuring no data is ever lost.
+- **Diff Analysis**: Users can view exactly what changed between any historical version and the current live entry.
+- **Audit Trail**: Each revision records who made the change (`changed_by`) and an optional `change_note`.
 
 ## Architecture
 
@@ -147,41 +155,3 @@ The release zip is built from a clean staging directory and excludes:
 ## Further reading
 
 - `ARCHITECTURE_DECISIONS.md`
-
-## AutoTest Report Export
-
-The AutoTest module now supports exporting execution reports in multiple formats. This allows you to generate professional audit reports after a project scan.
-
-### Supported Formats
-- **Markdown (.md)**: The core structured format.
-- **HTML (.html)**: A styled, web-ready version of the report.
-- **PDF (.pdf)**: A printable document generated from the HTML version.
-
-### API Endpoints
-- `GET /api/autotest/{run_id}/export?format=md`
-- `GET /api/autotest/{run_id}/export?format=html`
-- `GET /api/autotest/{run_id}/export?format=pdf`
-
-### UI Integration
-In the **AutoTest** panel, once a run is selected, you will see export buttons in the **Execution** section of the run details. Clicking these will trigger an immediate download of the report in your chosen format.
-
-## GitHub Repository Analysis
-
-The AutoTest module now supports direct analysis of GitHub repositories. Simply provide a public GitHub HTTPS URL, and the system will:
-1. **Clone** the repository (shallow clone, depth=1).
-2. **Detect** the tech stack (Node.js, Python, Go, Docker).
-3. **Execute** the AutoTest pipeline (install, build, test, lint).
-4. **Generate** structured results and downloadable reports.
-
-### Security and Limits
-- Only **HTTPS** GitHub URLs are allowed.
-- Clones are restricted to a **timeout** and performed in a isolated temporary workspace.
-- Temporary data is **automatically cleaned up** after analysis.
-
-### API Usage
-- `POST /api/autotest/github/analyze`
-  - Body: `{"repo_url": "https://github.com/owner/repo"}`
-  - Returns a `run_id` for tracking.
-
-### UI Usage
-In the **AutoTest** panel, use the **Analyze GitHub Repository** section to enter a URL and start the review process.

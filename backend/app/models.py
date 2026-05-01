@@ -143,6 +143,37 @@ class KnowledgeEntryUpdateRequest(StrictModel):
     source_type: Literal["manual", "document-derived", "autotest-derived"] | None = None
     source_ref: str | None = Field(default=None, max_length=2000)
     related_item_ids: list[str] | None = None
+    change_note: str | None = Field(default=None, max_length=1000)
+
+
+class KnowledgeRevisionResponse(StrictModel):
+    revision_id: str
+    knowledge_id: str
+    version_number: int
+    title: str
+    status: str
+    problem: str
+    root_cause: str
+    solution: str
+    tags: str
+    notes: str
+    source_type: str
+    source_ref: str
+    changed_by: str
+    change_note: str
+    created_at: str
+
+
+class DiffItem(StrictModel):
+    field: str
+    old_value: str
+    new_value: str
+
+
+class KnowledgeDiffResponse(StrictModel):
+    added: list[DiffItem] = Field(default_factory=list)
+    removed: list[DiffItem] = Field(default_factory=list)
+    changed: list[DiffItem] = Field(default_factory=list)
 
 
 class LogbookEntryCreateRequest(StrictModel):

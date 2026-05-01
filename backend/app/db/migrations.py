@@ -144,6 +144,12 @@ def migrate_saved_prompts_table(cursor: sqlite3.Cursor) -> None:
     cursor.execute("UPDATE saved_prompts SET updated_at = created_at WHERE updated_at = ''")
 
 
+def migrate_knowledge_revisions_table(cursor: sqlite3.Cursor) -> None:
+    # No dynamic column migrations needed yet as this is a new table.
+    # The caller init_db will create it via schema.CREATE_KNOWLEDGE_REVISIONS_TABLE_SQL.
+    pass
+
+
 def migrate_autotest_tables(cursor: sqlite3.Cursor) -> None:
     cursor.execute("PRAGMA table_info(autotest_runs)")
     run_columns = {row[1] for row in cursor.fetchall()}

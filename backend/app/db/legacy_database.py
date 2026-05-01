@@ -73,6 +73,7 @@ class DocumentDatabase:
             cursor.execute(schema.CREATE_AUTOTEST_STEPS_TABLE_SQL)
             cursor.execute(schema.CREATE_ITEM_LINKS_TABLE_SQL)
             cursor.execute(schema.CREATE_SAVED_PROMPTS_TABLE_SQL)
+            cursor.execute(schema.CREATE_KNOWLEDGE_REVISIONS_TABLE_SQL)
             self._migrate_documents_table(cursor)
             self._migrate_users_table(cursor)
             self._migrate_knowledge_entries_table(cursor)
@@ -80,6 +81,7 @@ class DocumentDatabase:
             self._migrate_photos_table(cursor)
             self._migrate_saved_prompts_table(cursor)
             self._migrate_autotest_tables(cursor)
+            self._migrate_knowledge_revisions_table(cursor)
             self._migrate_item_links_table(cursor)
             self._seed_owner_user(cursor)
             conn.commit()
@@ -107,6 +109,9 @@ class DocumentDatabase:
 
     def _migrate_saved_prompts_table(self, cursor: sqlite3.Cursor) -> None:
         migrations.migrate_saved_prompts_table(cursor)
+
+    def _migrate_knowledge_revisions_table(self, cursor: sqlite3.Cursor) -> None:
+        migrations.migrate_knowledge_revisions_table(cursor)
 
     def _seed_owner_user(self, cursor: sqlite3.Cursor) -> None:
         cursor.execute("SELECT COUNT(*) FROM users")
@@ -440,6 +445,72 @@ class DocumentDatabase:
             cursor = conn.execute("DELETE FROM knowledge_entries WHERE entry_id = ?", (entry_id,))
             conn.commit()
             return cursor.rowcount > 0
+
+    def add_knowledge_revision(
+        self,
+        knowledge_id: str,
+        changed_by: str,
+        change_note: str = "",
+        version_number: int | None = None,
+    ) -> str | None:
+        entry = self.get_knowledge_entry(knowledge_id)
+        if not entry:
+            return None
+
+        if version_number is None:
+            with self._connection() as conn:
+                row = conn.execute(
+                    "SELECT MAX(version_number) FROM knowledge_revisions WHERE knowledge_id = ?", (knowledge_id,)
+                ).fetchone()
+                current_max = row[0] if row and row[0] is not None else 0
+                version_number = current_max + 1
+
+        revision_id = str(uuid.uuid4())
+        now = utc_now_iso()
+        try:
+            with self._connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO knowledge_revisions
+                    (revision_id, knowledge_id, version_number, title, status, problem, root_cause, solution, tags, notes, source_type, source_ref, changed_by, change_note, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        revision_id,
+                        knowledge_id,
+                        version_number,
+                        entry.get("title", ""),
+                        entry.get("status", ""),
+                        entry.get("problem", ""),
+                        entry.get("root_cause", ""),
+                        entry.get("solution", ""),
+                        entry.get("tags", ""),
+                        entry.get("notes", ""),
+                        entry.get("source_type", ""),
+                        entry.get("source_ref", ""),
+                        changed_by,
+                        change_note,
+                        now,
+                    ),
+                )
+                conn.commit()
+            return revision_id
+        except sqlite3.Error as e:
+            logger.error(f"Failed to add knowledge revision: {e}")
+            return None
+
+    def list_knowledge_revisions(self, knowledge_id: str) -> list[dict[str, Any]]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                "SELECT * FROM knowledge_revisions WHERE knowledge_id = ? ORDER BY version_number DESC",
+                (knowledge_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_knowledge_revision(self, revision_id: str) -> dict[str, Any] | None:
+        with self._connection() as conn:
+            row = conn.execute("SELECT * FROM knowledge_revisions WHERE revision_id = ?", (revision_id,)).fetchone()
+        return dict(row) if row else None
 
     def add_logbook_entry(
         self,
