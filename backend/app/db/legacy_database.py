@@ -1290,9 +1290,18 @@ class DocumentDatabase:
             # Check promoted via item_links (logbook -> knowledge)
             l_promoted = conn.execute(
                 """
-                SELECT COUNT(DISTINCT from_item_id) FROM item_links 
-                WHERE from_item_id LIKE 'logbook:%' AND to_item_id LIKE 'knowledge:%'
-                """
+                SELECT COUNT(DISTINCT il.from_item_id)
+                FROM item_links AS il
+                INNER JOIN logbook_entries AS le
+                    ON il.from_item_id = 'logbook:' || le.entry_id
+                INNER JOIN knowledge_entries AS ke
+                    ON il.to_item_id = 'knowledge:' || ke.entry_id
+                WHERE il.from_item_id LIKE 'logbook:%'
+                    AND il.to_item_id LIKE 'knowledge:%'
+                    AND le.created_by = ?
+                    AND ke.created_by = ?
+                """,
+                (user_id, user_id),
             ).fetchone()[0]
             l_rate = (l_with_sol / l_total * 100) if l_total > 0 else 0.0
 

@@ -147,3 +147,75 @@ def test_autotest_run_is_filtered_by_owner(monkeypatch, tmp_path):
 
     alice_detail = client.get(f"/api/autotest/runs/{run_id}", headers=alice_headers)
     assert alice_detail.status_code == 404
+
+
+def test_autotest_run_detail_includes_timeline_for_failed_runs(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+    headers = auth_headers(client)
+
+    payload = build_zip(marker_fail_step="test")
+    response = client.post(
+        "/api/autotest/run",
+        headers=headers,
+        files={"file": ("demo.zip", payload, "application/zip")},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+
+    assert isinstance(data.get("timeline"), list)
+    assert len(data["timeline"]) >= 1
+    assert [item["key"] for item in data["timeline"]] == [
+        "uploaded",
+        "extracted",
+        "detected_stack",
+        "ran_tests",
+        "generated_report",
+        "failed_reason",
+    ]
+    assert all(set(item.keys()) == {"key", "label", "status", "timestamp", "message"} for item in data["timeline"])
+    assert all(item["status"] in {"done", "running", "failed", "pending"} for item in data["timeline"])
+    failed_reason = next(item for item in data["timeline"] if item["key"] == "failed_reason")
+    assert failed_reason["status"] == "failed"
+    assert failed_reason["message"]
+
+
+def test_autotest_run_detail_derives_timeline_for_legacy_sparse_runs(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+    headers = auth_headers(client)
+
+    run_id = "legacy-run"
+    assert main.db.add_autotest_run(
+        run_id=run_id,
+        source_type="github_repo",
+        source_ref="https://github.com/example/repo",
+        execution_mode="simulated",
+        project_type_detected="",
+        working_directory="",
+        project_name="Legacy Repo",
+        project_type="github",
+        status="queued",
+        summary="",
+        suggestion="",
+        prompt_output="",
+        created_by="owner",
+    )
+
+    response = client.get(f"/api/autotest/runs/{run_id}", headers=headers)
+    assert response.status_code == 200, response.text
+    data = response.json()
+
+    assert isinstance(data.get("timeline"), list)
+    assert [item["key"] for item in data["timeline"]] == [
+        "uploaded",
+        "extracted",
+        "detected_stack",
+        "ran_tests",
+        "generated_report",
+        "failed_reason",
+    ]
+    uploaded = next(item for item in data["timeline"] if item["key"] == "uploaded")
+    assert uploaded["status"] == "done"
+    for item in data["timeline"]:
+        assert item["status"] in {"done", "pending", "running", "failed"}

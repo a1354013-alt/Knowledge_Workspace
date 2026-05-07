@@ -13,9 +13,13 @@ venv/
 .env.local
 .pytest_cache/
 .pytest-tmp/
+.pytest-*
 .mypy_cache/
 .coverage
 htmlcov/
+*.sqlite3
+*.sqlite
+chroma.sqlite3
 
 # Node / frontend
 node_modules/
@@ -32,6 +36,7 @@ backend/autotest_uploads/
 backend/chroma_db/
 backend/.pytest_cache/
 backend/.pytest-tmp/
+backend/.pytest-chroma/
 backend/.env
 
 # Logs / artifacts

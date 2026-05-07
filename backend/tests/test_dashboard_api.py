@@ -149,3 +149,72 @@ def test_dashboard_health_promoted_and_document_status_metrics(client, auth_head
     assert data["logbook"]["promoted_to_knowledge"] >= before_data["logbook"]["promoted_to_knowledge"] + 1
     assert data["documents"]["archivedDocuments"] >= before_data["documents"]["archivedDocuments"] + 1
     assert data["documents"]["failedDocuments"] == 0
+
+
+def test_dashboard_health_promoted_metrics_are_scoped_to_current_user(client, auth_headers):
+    before = client.get("/api/dashboard/health", headers=auth_headers)
+    assert before.status_code == 200
+    before_count = before.json()["logbook"]["promoted_to_knowledge"]
+
+    owner_suffix = uuid.uuid4().hex
+    other_suffix = uuid.uuid4().hex
+
+    owner_logbook_id = f"owner_logbook_{owner_suffix}"
+    owner_knowledge_id = f"owner_knowledge_{owner_suffix}"
+    other_logbook_id = f"other_logbook_{other_suffix}"
+    other_knowledge_id = f"other_knowledge_{other_suffix}"
+
+    db.add_knowledge_entry(
+        entry_id=owner_knowledge_id,
+        title="Owner Knowledge",
+        problem="Problem",
+        solution="Solution",
+        root_cause="",
+        tags="",
+        notes="",
+        created_by="owner",
+        status="verified",
+    )
+    db.add_logbook_entry(
+        entry_id=owner_logbook_id,
+        title="Owner Logbook",
+        problem="Problem",
+        solution="Solution",
+        root_cause="",
+        tags="",
+        run_id="",
+        source_type="manual",
+        created_by="owner",
+        status="reviewed",
+    )
+    db.add_knowledge_entry(
+        entry_id=other_knowledge_id,
+        title="Other Knowledge",
+        problem="Problem",
+        solution="Solution",
+        root_cause="",
+        tags="",
+        notes="",
+        created_by="teammate",
+        status="verified",
+    )
+    db.add_logbook_entry(
+        entry_id=other_logbook_id,
+        title="Other Logbook",
+        problem="Problem",
+        solution="Solution",
+        root_cause="",
+        tags="",
+        run_id="",
+        source_type="manual",
+        created_by="teammate",
+        status="reviewed",
+    )
+
+    assert db.add_link(f"logbook:{owner_logbook_id}", f"knowledge:{owner_knowledge_id}", link_type="produced")
+    assert db.add_link(f"logbook:{other_logbook_id}", f"knowledge:{other_knowledge_id}", link_type="produced")
+
+    response = client.get("/api/dashboard/health", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["logbook"]["promoted_to_knowledge"] == before_count + 1

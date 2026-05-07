@@ -3,6 +3,8 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api import legacy_main
+from app.context import db
 from app.core.security import create_token
 from app.main import app
 from app.services.report_generator import ReportGenerator
@@ -37,10 +39,6 @@ def mock_autotest_data(monkeypatch):
         }
     ]
     
-    # Mock database calls
-    from app.context import db
-    from app.api import legacy_main
-
     monkeypatch.setattr(db, "get_autotest_run", lambda run_id, created_by: run_data)
     monkeypatch.setattr(db, "list_autotest_steps", lambda run_id: steps_data)
     monkeypatch.setattr(legacy_main.db, "get_autotest_run", lambda run_id, created_by: run_data)
@@ -84,10 +82,8 @@ def test_export_api_html(mock_autotest_data, auth_headers):
     assert response.headers["content-type"] == "text/html; charset=utf-8"
     assert "<!DOCTYPE html>" in response.text
 
-def test_export_api_404(monkeypatch, auth_headers):
-    from app.context import db
-    from app.api import legacy_main
 
+def test_export_api_404(monkeypatch, auth_headers):
     monkeypatch.setattr(db, "get_autotest_run", lambda run_id, created_by: None)
     monkeypatch.setattr(legacy_main.db, "get_autotest_run", lambda run_id, created_by: None)
 

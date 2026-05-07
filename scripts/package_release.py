@@ -43,11 +43,16 @@ def main() -> int:
                 "__pycache__",
                 ".pytest_cache",
                 ".pytest-tmp",
+                ".pytest-*",
+                ".pytest-chroma",
                 "uploads",
                 "photos",
                 "autotest_uploads",
                 "chroma_db",
                 "*.db",
+                "*.sqlite3",
+                "*.sqlite",
+                "chroma.sqlite3",
                 ".env",
             ),
         )
@@ -88,6 +93,7 @@ def main() -> int:
         rm_tree(release_root / "backend" / "photos")
         rm_tree(release_root / "backend" / "autotest_uploads")
         rm_tree(release_root / "backend" / "chroma_db")
+        rm_tree(release_root / "backend" / ".pytest-chroma")
         rm_tree(release_root / "backend" / ".pytest-tmp")
         rm_tree(release_root / "backend" / ".pytest_cache")
         rm_tree(release_root / "frontend" / ".vite")
@@ -97,6 +103,12 @@ def main() -> int:
             rm_tree(candidate)
         for candidate in release_root.rglob("*.db"):
             rm_tree(candidate)
+        for pattern in ("*.sqlite3", "*.sqlite", "chroma.sqlite3"):
+            for candidate in release_root.rglob(pattern):
+                rm_tree(candidate)
+        for pattern in (".pytest-*",):
+            for candidate in release_root.rglob(pattern):
+                rm_tree(candidate)
 
         # Remove caches
         for cache_dir in ("__pycache__", ".pytest_cache", ".mypy_cache"):
@@ -112,6 +124,7 @@ def main() -> int:
             "node_modules",
             "__pycache__",
             ".pytest_cache",
+            ".pytest-chroma",
             ".mypy_cache",
             ".vite",
             "uploads",
@@ -124,7 +137,7 @@ def main() -> int:
             for root, dirs, files in os.walk(release_root):
                 dirs[:] = [d for d in dirs if d not in forbidden_dirs]
                 for filename in files:
-                    if filename == ".env" or filename.endswith(".db"):
+                    if filename == ".env" or filename.endswith(".db") or filename.endswith(".sqlite3") or filename.endswith(".sqlite"):
                         continue
                     path = Path(root) / filename
                     rel = path.relative_to(release_root.parent).as_posix()

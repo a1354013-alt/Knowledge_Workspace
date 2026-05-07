@@ -37,10 +37,12 @@ rm -rf "$RELEASE_ROOT/frontend/node_modules" || true
 rm -rf "$RELEASE_ROOT/.git" || true
 rm -rf "$RELEASE_ROOT/frontend/node_modules" || true
 rm -rf "$RELEASE_ROOT/backend/uploads" "$RELEASE_ROOT/backend/photos" "$RELEASE_ROOT/backend/autotest_uploads" "$RELEASE_ROOT/backend/chroma_db" || true
-rm -rf "$RELEASE_ROOT/backend/.pytest-tmp" "$RELEASE_ROOT/backend/.pytest_cache" "$RELEASE_ROOT/frontend/.vite" || true
+rm -rf "$RELEASE_ROOT/backend/.pytest-tmp" "$RELEASE_ROOT/backend/.pytest_cache" "$RELEASE_ROOT/backend/.pytest-chroma" "$RELEASE_ROOT/frontend/.vite" || true
 
 find "$RELEASE_ROOT" -type f -name ".env" -delete || true
 find "$RELEASE_ROOT" -type f -name "*.db" -delete || true
+find "$RELEASE_ROOT" -type f \( -name "*.sqlite3" -o -name "*.sqlite" -o -name "chroma.sqlite3" \) -delete || true
+find "$RELEASE_ROOT" -type d -name ".pytest-*" -prune -exec rm -rf {} + || true
 find "$RELEASE_ROOT" -type d -name "__pycache__" -prune -exec rm -rf {} + || true
 find "$RELEASE_ROOT" -type d -name ".pytest_cache" -prune -exec rm -rf {} + || true
 find "$RELEASE_ROOT" -type d -name ".mypy_cache" -prune -exec rm -rf {} + || true
@@ -58,13 +60,13 @@ if os.path.exists(out_zip):
 
 with zipfile.ZipFile(out_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
     for root, dirs, files in os.walk(src_root):
-        dirs[:] = [d for d in dirs if d not in {".git", "node_modules", "uploads", "photos", "autotest_uploads", "chroma_db", "__pycache__", ".pytest_cache", ".mypy_cache", ".vite"}]
+        dirs[:] = [d for d in dirs if d not in {".git", "node_modules", "uploads", "photos", "autotest_uploads", "chroma_db", "__pycache__", ".pytest_cache", ".pytest-chroma", ".mypy_cache", ".vite"}]
         for name in files:
             path = os.path.join(root, name)
             rel = os.path.relpath(path, os.path.dirname(src_root))
             if name == ".env":
                 continue
-            if name.endswith(".db"):
+            if name.endswith(".db") or name.endswith(".sqlite3") or name.endswith(".sqlite"):
                 continue
             zf.write(path, rel)
 

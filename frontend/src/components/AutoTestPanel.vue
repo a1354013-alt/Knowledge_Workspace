@@ -119,11 +119,11 @@
             </div>
 
             <div
-              v-if="selectedRun.timeline?.length"
+              v-if="timelineItems.length"
               class="timeline"
             >
               <article
-                v-for="item in selectedRun.timeline"
+                v-for="item in timelineItems"
                 :key="item.key"
                 class="timeline-item"
               >
@@ -235,12 +235,13 @@ import Card from 'primevue/card'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import { get, post } from '../api'
 import type {
   AutoTestRunListItemResponse,
   AutoTestRunResponse,
+  AutoTestTimelineItemResponse,
   PromoteToKnowledgeResponse,
 } from '../types'
 import { useWorkspaceStore } from '../workspace-store'
@@ -256,6 +257,19 @@ const loadingRuns = ref(false)
 const runs = ref<AutoTestRunListItemResponse[]>([])
 const selectedRun = ref<AutoTestRunResponse | null>(null)
 const store = useWorkspaceStore()
+
+const allowedTimelineStatuses = new Set(['done', 'running', 'failed', 'pending'])
+
+const fallbackTimelineKeys = [
+  ['uploaded', 'Uploaded'],
+  ['extracted', 'Extracted'],
+  ['detected_stack', 'Detected stack'],
+  ['ran_tests', 'Ran tests'],
+  ['generated_report', 'Generated report'],
+  ['failed_reason', 'Failed reason'],
+] as const
+
+const timelineItems = computed<AutoTestTimelineItemResponse[]>(() => buildTimeline(selectedRun.value))
 
 function badgeClass(status: string) {
   const value = String(status || '').toLowerCase()
@@ -278,6 +292,68 @@ function formatTimelineTimestamp(value: string) {
   } catch {
     return value
   }
+}
+
+function normalizeTimelineItem(
+  raw: Partial<AutoTestTimelineItemResponse> | null | undefined
+): AutoTestTimelineItemResponse | null {
+  const key = String(raw?.key || '').trim()
+  const label = String(raw?.label || '').trim()
+  const status = String(raw?.status || '').trim().toLowerCase()
+  if (!key || !label || !allowedTimelineStatuses.has(status)) {
+    return null
+  }
+  return {
+    key,
+    label,
+    status: status as AutoTestTimelineItemResponse['status'],
+    timestamp: raw?.timestamp ? String(raw.timestamp) : null,
+    message: raw?.message ? String(raw.message) : null,
+  }
+}
+
+function buildTimeline(run: AutoTestRunResponse | null): AutoTestTimelineItemResponse[] {
+  if (!run) {
+    return []
+  }
+
+  const normalized = Array.isArray(run.timeline)
+    ? run.timeline
+        .map((item) => normalizeTimelineItem(item))
+        .filter((item): item is AutoTestTimelineItemResponse => item !== null)
+    : []
+  if (normalized.length) {
+    return normalized
+  }
+
+  const failedMessage = run.summary || run.suggestion || null
+  return fallbackTimelineKeys.map(([key, label]) => ({
+    key,
+    label,
+    status:
+      key === 'uploaded'
+        ? 'done'
+        : key === 'failed_reason' && run.status === 'failed'
+          ? 'failed'
+          : key === 'generated_report' && (run.summary || run.prompt_output)
+            ? 'done'
+            : key === 'ran_tests' && run.status === 'running'
+              ? 'running'
+              : key === 'ran_tests' && (run.status === 'passed' || run.status === 'failed')
+                ? run.status === 'failed'
+                  ? 'failed'
+                  : 'done'
+                : 'pending',
+    timestamp: key === 'uploaded' ? run.created_at || null : null,
+    message:
+      key === 'uploaded'
+        ? run.source_ref || null
+        : key === 'failed_reason' && run.status === 'failed'
+          ? failedMessage
+          : key === 'generated_report' && run.summary
+            ? run.summary
+            : null,
+  }))
 }
 
 function openZipPicker() {
