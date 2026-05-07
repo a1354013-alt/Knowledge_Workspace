@@ -51,6 +51,10 @@ graph TD
 - upload `.zip` projects or register GitHub repos for analysis
 - simulated mode by default for demos, CI, and safe reproducibility
 - real mode is opt-in and uses fixed timeouts, `shell=False`, and sensitive env scrubbing
+- backend is now split into:
+  - `api/routes/autotest.py`: thin HTTP layer
+  - `services/autotest_service.py`: workflow orchestration, timeline, failure handling, cleanup
+  - `repositories/autotest_repository.py`: run/step persistence
 - run detail includes a timeline with:
   - `Uploaded`
   - `Extracted`
@@ -66,6 +70,10 @@ graph TD
 - knowledge counts by status
 - logbook resolution rate and promoted-to-knowledge count
 - AutoTest totals, pass rate, and recent runs
+- backend is now split into:
+  - `api/routes/dashboard.py`: thin HTTP layer
+  - `services/dashboard_service.py`: response composition
+  - `repositories/dashboard_repository.py`: SQL-backed metric queries
 - document counts based on real DB index state:
   - `pending`
   - `indexed`
@@ -176,8 +184,17 @@ CI lives in [.github/workflows/ci.yml](/D:/git/Knowledge_Workspace/.github/workf
 Key guarantees:
 
 - `logbook.promoted_to_knowledge` is counted from canonical `logbook -> knowledge` links
+- promoted logbooks remain countable even after the source logbook is archived
 - `documents.indexed`, `documents.pending`, and `documents.failed_documents` come from persisted document index state, not UI inference
 - metrics are scoped to the current authenticated user
+
+Metric sources:
+
+- `knowledge.*`: `knowledge_entries`
+- `logbook.*`: `logbook_entries` + canonical `item_links`
+- `autotest.*`: `autotest_runs`
+- `documents.*`: `documents.index_status`
+- `recent_activity.*`: last-7-day slices from the same user-scoped tables
 
 ## AutoTest Modes
 
@@ -194,12 +211,32 @@ Key guarantees:
 - runs project commands with constrained subprocess settings
 - should only be used on trusted code in an isolated environment
 
+## AutoTest Timeline Statuses
+
+Each timeline step returns:
+
+- `name`
+- `status`
+- `started_at`
+- `finished_at`
+- `duration_ms`
+- `message`
+
+Status meanings:
+
+- `pending`: not started yet
+- `running`: actively in progress
+- `success`: completed successfully
+- `failed`: terminal failure at this phase
+- `skipped`: intentionally not run because an earlier failure or a safe skip rule applied
+
 ## Known Limitations
 
 - AutoTest is not containerized or VM-isolated
-- frontend lint currently passes with warnings; the warnings are style-oriented rather than correctness failures
+- frontend lint is green in CI/Node 20, but still emits Vue formatting warnings in `ProjectHealthDashboard.vue`
 - Chroma emits third-party deprecation warnings in tests
 - GitHub analyze is still an intake flow, not a full remote clone-and-run executor
+- local Node 24/npm resolution on this machine is less stable than CI's Node 20 path for Vite/Vitest/ESLint
 
 ## Portfolio Case Study
 

@@ -26,8 +26,16 @@ This project treats those gaps as the product problem, not just implementation d
 - FastAPI application with router-based app factory
 - SQLite for authoritative metadata
 - Chroma for vector retrieval
-- service-oriented helper modules for form generation, report export, and indexing
-- compatibility-preserving legacy logic gradually wrapped by explicit routers
+- phase-2 service/repository split for AutoTest and Dashboard
+- compatibility-preserving legacy logic gradually replaced by thin routers
+
+Key backend split after phase 2:
+
+- `api/routes/*`: thin transport layer
+- `services/autotest_service.py`: workflow orchestration
+- `repositories/autotest_repository.py`: AutoTest persistence
+- `services/dashboard_service.py`: dashboard composition
+- `repositories/dashboard_repository.py`: dashboard SQL queries
 
 ### Frontend
 
@@ -49,6 +57,8 @@ This project treats those gaps as the product problem, not just implementation d
 6. successful runs create a draft knowledge item
 7. failed runs create a draft logbook item
 
+The key phase-2 improvement is that this workflow no longer lives primarily in `legacy_main.py`; it is orchestrated in `autotest_service.py` and persisted through `autotest_repository.py`.
+
 ## Project Health Dashboard Design
 
 The dashboard was explicitly redesigned around persisted truth:
@@ -69,6 +79,7 @@ Fix:
 - promotion now always writes canonical `logbook:{id} -> knowledge:{id}` `produced`
 - reverse `derived_from` is kept for traceability
 - migration backfills canonical links for old reverse-only rows
+- dashboard counts promoted logbooks from the canonical direction only, without double-counting reverse links
 
 ### 2. AutoTest stuck states
 
@@ -110,6 +121,7 @@ Fix:
 - document index metrics based on guesswork
 - misleading LLM readiness signal when fallback/noop was active
 - oversized backend entrypoint and route sprawl
+- AutoTest and dashboard business logic trapped in `legacy_main.py`
 
 ## Known Limitations
 
@@ -119,7 +131,7 @@ Fix:
 
 ## Future Work
 
-- move more business logic from `legacy_main.py` into dedicated services
+- continue moving remaining document/photo/logbook orchestration out of `legacy_main.py`
 - add containerized real-mode execution
 - add background queue support for larger indexing or AutoTest jobs
 - add richer dashboard drill-down views by metric source
@@ -131,4 +143,5 @@ Fix:
 3. create a logbook entry, promote it, and show the promoted count increment
 4. run AutoTest in simulated mode and inspect the timeline
 5. trigger a failure case and show `failed_reason`, logbook draft creation, and dashboard impact
-6. explain the safety boundary between simulated and real mode
+6. open the architecture notes and show the router -> service -> repository split
+7. explain the safety boundary between simulated and real mode

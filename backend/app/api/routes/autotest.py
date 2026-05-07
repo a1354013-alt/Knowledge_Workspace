@@ -1,13 +1,43 @@
-from __future__ import annotations
-
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi.responses import Response
 
 from app.api import legacy_main
+from app.dependencies import get_current_user
+from app.models import AutoTestRunListItemResponse, AutoTestRunResponse, GitHubAnalyzeRequest, GitHubAnalyzeResponse
+from app.services import autotest_service
 
 router = APIRouter()
 
-router.add_api_route("/api/autotest/run", legacy_main.run_autotest, methods=["POST"])
-router.add_api_route("/api/autotest/runs", legacy_main.list_autotest_runs, methods=["GET"])
-router.add_api_route("/api/autotest/runs/{run_id}", legacy_main.get_autotest_run, methods=["GET"])
-router.add_api_route("/api/autotest/{run_id}/export", legacy_main.export_autotest_report, methods=["GET"])
-router.add_api_route("/api/autotest/github/analyze", legacy_main.analyze_github_repo, methods=["POST"])
+
+@router.post("/api/autotest/run", response_model=AutoTestRunResponse)
+@legacy_main.limiter.limit("3/minute")
+async def run_autotest(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+) -> AutoTestRunResponse:
+    _ = request
+    return await autotest_service.run_autotest(file=file, current_user=current_user)
+
+
+@router.get("/api/autotest/runs", response_model=list[AutoTestRunListItemResponse])
+async def list_autotest_runs(current_user: dict = Depends(get_current_user)) -> list[AutoTestRunListItemResponse]:
+    return autotest_service.list_autotest_runs(current_user=current_user)
+
+
+@router.get("/api/autotest/runs/{run_id}", response_model=AutoTestRunResponse)
+async def get_autotest_run(run_id: str, current_user: dict = Depends(get_current_user)) -> AutoTestRunResponse:
+    return autotest_service.get_autotest_run(run_id=run_id, current_user=current_user)
+
+
+@router.get("/api/autotest/{run_id}/export", response_model=None)
+async def export_autotest_report(run_id: str, format: str, current_user: dict = Depends(get_current_user)) -> Response:
+    return autotest_service.export_autotest_report(run_id=run_id, requested_format=format, current_user=current_user)
+
+
+@router.post("/api/autotest/github/analyze", response_model=GitHubAnalyzeResponse)
+async def analyze_github_repo(
+    payload: GitHubAnalyzeRequest,
+    current_user: dict = Depends(get_current_user),
+) -> GitHubAnalyzeResponse:
+    return autotest_service.analyze_github_repo(payload=payload, current_user=current_user)

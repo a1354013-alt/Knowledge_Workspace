@@ -141,8 +141,8 @@ def test_autotest_run_detail_derives_timeline_for_legacy_sparse_runs(app_module,
 
 
 def test_autotest_zip_extract_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
-    monkeypatch.setattr(app_module.legacy_main, "safe_extract_zip", lambda zip_path, dest_dir: (_ for _ in ()).throw(ValueError("zip explode failed")))
-    app_module.legacy_main.settings.AUTOTEST_MODE = "real"
+    monkeypatch.setattr(app_module.autotest_service, "safe_extract_zip", lambda zip_path, dest_dir: (_ for _ in ()).throw(ValueError("zip explode failed")))
+    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
 
     response = client.post(
         "/api/autotest/run",
@@ -156,8 +156,8 @@ def test_autotest_zip_extract_failure_sets_failed(app_module, client: TestClient
 
 
 def test_autotest_stack_detection_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
-    monkeypatch.setattr(app_module.legacy_main, "find_project_root_on_disk", lambda extracted_dir: (_ for _ in ()).throw(RuntimeError("stack detect failed")))
-    app_module.legacy_main.settings.AUTOTEST_MODE = "real"
+    monkeypatch.setattr(app_module.autotest_service, "find_project_root_on_disk", lambda extracted_dir: (_ for _ in ()).throw(RuntimeError("stack detect failed")))
+    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
 
     response = client.post(
         "/api/autotest/run",
@@ -183,7 +183,7 @@ def test_autotest_test_command_failure_sets_failed(client: TestClient, auth_head
 
 
 def test_autotest_report_generation_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
-    monkeypatch.setattr(app_module.legacy_main, "index_knowledge_entry", lambda entry: (_ for _ in ()).throw(RuntimeError("report generation failed")))
+    monkeypatch.setattr(app_module.autotest_service, "index_knowledge_entry", lambda entry: (_ for _ in ()).throw(RuntimeError("report generation failed")))
 
     response = client.post(
         "/api/autotest/run",
@@ -194,3 +194,27 @@ def test_autotest_report_generation_failure_sets_failed(app_module, client: Test
     payload = response.json()
     assert payload["status"] == "failed"
     assert payload["failed_reason"]
+
+
+def test_autotest_simulated_mode_does_not_execute_real_commands(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    app_module.autotest_service.settings.AUTOTEST_MODE = "simulated"
+    monkeypatch.setattr(
+        app_module.autotest_service,
+        "_run_command",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("real command should not run in simulated mode")),
+    )
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(), "application/zip")},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] == "passed"
+    assert payload["execution_mode"] == "simulated"
