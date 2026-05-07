@@ -36,7 +36,7 @@ class Settings(BaseModel):
 
     # AutoTest working area
     AUTOTEST_DIR: Path = Field(default=Path("autotest_uploads"))
-    AUTOTEST_MODE: str = "real"
+    AUTOTEST_MODE: str = "simulated"
     
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
@@ -103,7 +103,7 @@ class Settings(BaseModel):
             PHOTO_DIR=resolve_path(os.getenv("PHOTO_DIR", ""), default=Path("photos")),
             CHROMA_DB_PATH=resolve_path(os.getenv("CHROMA_DB_PATH", ""), default=Path("chroma_db")),
             AUTOTEST_DIR=resolve_path(os.getenv("AUTOTEST_DIR", ""), default=Path("autotest_uploads")),
-            AUTOTEST_MODE=os.getenv("AUTOTEST_MODE", "real").strip().lower() or "real",
+            AUTOTEST_MODE=os.getenv("AUTOTEST_MODE", "simulated").strip().lower() or "simulated",
             ALLOWED_ORIGINS=allowed_origins,
             AUTOTEST_MAX_FILES=int(os.getenv("AUTOTEST_MAX_FILES", "5000")),
             AUTOTEST_MAX_UNZIPPED_BYTES=int(os.getenv("AUTOTEST_MAX_UNZIPPED_BYTES", str(250 * 1024 * 1024))),

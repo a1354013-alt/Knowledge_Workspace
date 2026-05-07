@@ -215,9 +215,14 @@ class DocumentDatabase:
         category: str = "",
         tags: str = "",
         status: str = "reviewed",
+        index_status: str = "pending",
+        index_error: str = "",
+        indexed_at: str = "",
     ) -> bool:
         if status not in DOC_STATUS_VALUES and status not in WORKFLOW_STATUS_VALUES:
             raise ValueError(f"Unsupported document status: {status}")
+        if index_status not in {"pending", "indexed", "failed"}:
+            raise ValueError(f"Unsupported document index_status: {index_status}")
         now = utc_now_iso()
         is_active = 0 if status == "archived" else 1
         try:
@@ -225,8 +230,8 @@ class DocumentDatabase:
                 conn.execute(
                     """
                     INSERT INTO documents
-                    (doc_id, filename, saved_filename, allowed_roles, category, tags, status, uploaded_by, uploaded_at, file_size, approved, is_active, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+                    (doc_id, filename, saved_filename, allowed_roles, category, tags, status, uploaded_by, uploaded_at, file_size, approved, is_active, index_status, index_error, indexed_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
                     """,
                     (
                         doc_id,
@@ -240,6 +245,9 @@ class DocumentDatabase:
                         now,
                         file_size,
                         is_active,
+                        index_status,
+                        str(index_error or ""),
+                        str(indexed_at or ""),
                         now,
                     ),
                 )
@@ -256,6 +264,9 @@ class DocumentDatabase:
         document["status"] = str(document.get("status", "") or "reviewed")
         document["category"] = str(document.get("category", "") or "")
         document["tags"] = str(document.get("tags", "") or "")
+        document["index_status"] = str(document.get("index_status", "") or "pending")
+        document["index_error"] = str(document.get("index_error", "") or "")
+        document["indexed_at"] = str(document.get("indexed_at", "") or "")
         return document
 
     def get_document(self, doc_id: str) -> dict[str, Any] | None:
@@ -297,6 +308,18 @@ class DocumentDatabase:
                 params.append(status_value)
                 columns.append("is_active = ?")
                 params.append(0 if status_value == "archived" else 1)
+        if "index_status" in updates:
+            index_status = str(updates["index_status"] or "").strip()
+            if index_status not in {"pending", "indexed", "failed"}:
+                raise ValueError(f"Unsupported document index_status: {index_status}")
+            columns.append("index_status = ?")
+            params.append(index_status)
+        if "index_error" in updates:
+            columns.append("index_error = ?")
+            params.append(str(updates["index_error"] or ""))
+        if "indexed_at" in updates:
+            columns.append("indexed_at = ?")
+            params.append(str(updates["indexed_at"] or ""))
         if not columns:
             return False
 
@@ -892,6 +915,8 @@ class DocumentDatabase:
         summary: str,
         suggestion: str,
         prompt_output: str,
+        failed_reason: str,
+        timeline_json: str,
         created_by: str,
     ) -> bool:
         if status not in AUTOTEST_STATUS_VALUES:
@@ -902,8 +927,8 @@ class DocumentDatabase:
                 conn.execute(
                     """
                     INSERT INTO autotest_runs
-                    (run_id, source_type, source_ref, execution_mode, project_type_detected, working_directory, project_name, project_type, status, summary, suggestion, prompt_output, created_by, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (run_id, source_type, source_ref, execution_mode, project_type_detected, working_directory, project_name, project_type, status, summary, suggestion, prompt_output, failed_reason, timeline_json, created_by, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         run_id,
@@ -918,6 +943,8 @@ class DocumentDatabase:
                         summary,
                         suggestion,
                         prompt_output,
+                        failed_reason,
+                        timeline_json,
                         created_by,
                         now,
                     ),
@@ -988,6 +1015,8 @@ class DocumentDatabase:
             "summary",
             "suggestion",
             "prompt_output",
+            "failed_reason",
+            "timeline_json",
             "project_type",
             "project_name",
             "source_ref",
@@ -1338,18 +1367,21 @@ class DocumentDatabase:
                 "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1", (user_id,)
             ).fetchone()[0]
             d_indexed = conn.execute(
-                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND status IN ('reviewed', 'verified')",
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status = 'indexed'",
                 (user_id,),
             ).fetchone()[0]
             d_pending = conn.execute(
-                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND status = 'draft'",
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status = 'pending'",
+                (user_id,),
+            ).fetchone()[0]
+            d_failed = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status = 'failed'",
                 (user_id,),
             ).fetchone()[0]
             d_archived = conn.execute(
                 "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND status = 'archived'",
                 (user_id,),
             ).fetchone()[0]
-            d_failed = 0
 
             # 5. Recent Activity (Last 7 days)
             act_docs = conn.execute(
@@ -1395,8 +1427,8 @@ class DocumentDatabase:
                 "total": d_total,
                 "indexed": d_indexed,
                 "pending": d_pending,
-                "failedDocuments": d_failed,
-                "archivedDocuments": d_archived,
+                "failed_documents": d_failed,
+                "archived_documents": d_archived,
             },
             "recent_activity": {
                 "days": 7,

@@ -1,192 +1,110 @@
 from __future__ import annotations
 
-import importlib
 import io
-import sys
 import zipfile
-from pathlib import Path
 
 from fastapi.testclient import TestClient
-
-BACKEND_DIR = Path(__file__).resolve().parents[1]
-if str(BACKEND_DIR) not in sys.path:
-    sys.path.insert(0, str(BACKEND_DIR))
-
-
-def load_app(monkeypatch, tmp_path):
-    monkeypatch.setenv("JWT_SECRET", "test-secret-test-secret-test-secret-1234")
-    monkeypatch.setenv("DEFAULT_OWNER_PASSWORD", "OwnerPass123!")
-    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "test.db"))
-    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path / "uploads"))
-    monkeypatch.setenv("AUTOTEST_DIR", str(tmp_path / "autotest"))
-    monkeypatch.setenv("AUTOTEST_MODE", "simulated")
-    monkeypatch.setenv("CHROMA_DB_PATH", str(tmp_path / "chroma"))
-    monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:5173")
-
-    for module_name in list(sys.modules):
-        if module_name == "app" or module_name.startswith("app."):
-            del sys.modules[module_name]
-
-    main = importlib.import_module("app.main")
-    main.delete_from_vector_db = lambda doc_id: True
-    main.delete_from_kb_vector_db = lambda item_id: True
-    return main
-
-
-def auth_headers(client: TestClient, user_id: str = "owner", password: str = "OwnerPass123!") -> dict[str, str]:
-    response = client.post("/api/login", json={"user_id": user_id, "password": password})
-    assert response.status_code == 200, response.text
-    token = response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
 
 
 def build_zip(*, marker_fail_step: str | None = None) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("package.json", '{"name":"demo","version":"1.0.0"}')
+        archive.writestr("package.json", '{"name":"demo","version":"1.0.0","scripts":{"test":"echo ok","build":"echo ok","lint":"echo ok"}}')
         archive.writestr("README.md", "# Demo")
         if marker_fail_step:
             archive.writestr(".autotest_fail_step", marker_fail_step)
     return buffer.getvalue()
 
 
-def test_invalid_template_returns_400(monkeypatch, tmp_path):
-    main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
-
-    response = client.post("/api/generate", headers=headers, json={"template_type": "nope", "inputs": {}})
+def test_invalid_template_returns_400(client: TestClient, auth_headers: dict[str, str]):
+    response = client.post("/api/generate", headers=auth_headers, json={"template_type": "nope", "inputs": {}})
     assert response.status_code == 400
 
 
-def test_missing_field_returns_400(monkeypatch, tmp_path):
-    main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-
+def test_missing_field_returns_400(client: TestClient):
     response = client.post("/api/login", json={"user_id": "owner"})
     assert response.status_code == 400
 
 
-def test_autotest_run_success_creates_knowledge_draft(monkeypatch, tmp_path):
-    main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
-
-    payload = build_zip()
+def test_autotest_run_success_creates_knowledge_draft(client: TestClient, auth_headers: dict[str, str]):
     response = client.post(
         "/api/autotest/run",
-        headers=headers,
-        files={"file": ("demo.zip", payload, "application/zip")},
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(), "application/zip")},
     )
     assert response.status_code == 200, response.text
-    data = response.json()
-    assert data["status"] == "passed"
-    assert data.get("execution_mode") in {"real", "simulated"}
-    assert isinstance(data.get("project_type_detected"), str)
-    assert isinstance(data.get("working_directory"), str)
+    payload = response.json()
+    assert payload["status"] == "passed"
+    assert payload["execution_mode"] == "simulated"
+    assert payload["failed_reason"] == ""
+    assert [item["key"] for item in payload["timeline"]] == [
+        "uploaded",
+        "extracted",
+        "detected_stack",
+        "prepared_environment",
+        "ran_tests",
+        "generated_report",
+        "failed_reason",
+    ]
 
-    runs = client.get("/api/autotest/runs", headers=headers)
-    assert runs.status_code == 200
-    assert any(item["id"] == data["id"] for item in runs.json())
-
-    knowledge = client.get("/api/knowledge/entries", headers=headers)
+    knowledge = client.get("/api/knowledge/entries", headers=auth_headers)
     assert knowledge.status_code == 200
-    assert any(entry.get("status") == "draft" and "AutoTest Passed" in entry.get("title", "") for entry in knowledge.json())
+    entries = knowledge.json()
+    assert len(entries) == 1
+    assert entries[0]["title"].startswith("AutoTest Passed")
 
 
-def test_autotest_run_failure_creates_logbook_entry(monkeypatch, tmp_path):
-    main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
-
-    payload = build_zip(marker_fail_step="test")
+def test_autotest_run_failure_creates_logbook_entry(client: TestClient, auth_headers: dict[str, str]):
     response = client.post(
         "/api/autotest/run",
-        headers=headers,
-        files={"file": ("demo.zip", payload, "application/zip")},
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(marker_fail_step="test"), "application/zip")},
     )
     assert response.status_code == 200, response.text
-    data = response.json()
-    assert data["status"] == "failed"
-    assert data.get("execution_mode") in {"real", "simulated"}
-    assert isinstance(data.get("project_type_detected"), str)
-    assert isinstance(data.get("working_directory"), str)
+    payload = response.json()
+    assert payload["status"] == "failed"
+    assert payload["failed_reason"]
+    failed_reason = next(item for item in payload["timeline"] if item["key"] == "failed_reason")
+    assert failed_reason["status"] == "failed"
+    assert failed_reason["message"]
 
-    logbook = client.get("/api/logbook/entries", headers=headers)
+    logbook = client.get("/api/logbook/entries", headers=auth_headers)
     assert logbook.status_code == 200
     entries = logbook.json()
-    assert any("AutoTest Failed" in entry.get("title", "") and entry.get("run_id") == data["id"] for entry in entries)
+    assert len(entries) == 1
+    assert entries[0]["run_id"] == payload["id"]
 
 
-def test_autotest_run_is_filtered_by_owner(monkeypatch, tmp_path):
-    main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
+def test_autotest_run_is_filtered_by_owner(app_module, client: TestClient, auth_headers: dict[str, str]):
+    assert app_module.db.add_user("alice", "AlicePass123!", "Alice", "owner")
 
-    # create a second user directly via DB (no public API for this)
-    assert main.db.add_user("alice", "AlicePass123!", "Alice", "owner")
-
-    owner_headers = auth_headers(client, user_id="owner", password="OwnerPass123!")
-    alice_headers = auth_headers(client, user_id="alice", password="AlicePass123!")
-
-    payload = build_zip()
-    response = client.post(
-        "/api/autotest/run",
-        headers=owner_headers,
-        files={"file": ("demo.zip", payload, "application/zip")},
-    )
+    response = client.post("/api/login", json={"user_id": "alice", "password": "AlicePass123!"})
     assert response.status_code == 200, response.text
-    run_id = response.json()["id"]
+    alice_headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
 
-    owner_runs = client.get("/api/autotest/runs", headers=owner_headers)
+    run_response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(), "application/zip")},
+    )
+    assert run_response.status_code == 200, run_response.text
+    run_id = run_response.json()["id"]
+
+    owner_runs = client.get("/api/autotest/runs", headers=auth_headers)
     assert owner_runs.status_code == 200
-    assert any(item["id"] == run_id for item in owner_runs.json())
+    assert owner_runs.json()[0]["id"] == run_id
 
     alice_runs = client.get("/api/autotest/runs", headers=alice_headers)
     assert alice_runs.status_code == 200
-    assert all(item["id"] != run_id for item in alice_runs.json())
+    assert alice_runs.json() == []
 
     alice_detail = client.get(f"/api/autotest/runs/{run_id}", headers=alice_headers)
     assert alice_detail.status_code == 404
 
 
-def test_autotest_run_detail_includes_timeline_for_failed_runs(monkeypatch, tmp_path):
-    main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
-
-    payload = build_zip(marker_fail_step="test")
-    response = client.post(
-        "/api/autotest/run",
-        headers=headers,
-        files={"file": ("demo.zip", payload, "application/zip")},
-    )
-    assert response.status_code == 200, response.text
-    data = response.json()
-
-    assert isinstance(data.get("timeline"), list)
-    assert len(data["timeline"]) >= 1
-    assert [item["key"] for item in data["timeline"]] == [
-        "uploaded",
-        "extracted",
-        "detected_stack",
-        "ran_tests",
-        "generated_report",
-        "failed_reason",
-    ]
-    assert all(set(item.keys()) == {"key", "label", "status", "timestamp", "message"} for item in data["timeline"])
-    assert all(item["status"] in {"done", "running", "failed", "pending"} for item in data["timeline"])
-    failed_reason = next(item for item in data["timeline"] if item["key"] == "failed_reason")
-    assert failed_reason["status"] == "failed"
-    assert failed_reason["message"]
-
-
-def test_autotest_run_detail_derives_timeline_for_legacy_sparse_runs(monkeypatch, tmp_path):
-    main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
-
+def test_autotest_run_detail_derives_timeline_for_legacy_sparse_runs(app_module, client: TestClient, auth_headers: dict[str, str]):
     run_id = "legacy-run"
-    assert main.db.add_autotest_run(
+    assert app_module.db.add_autotest_run(
         run_id=run_id,
         source_type="github_repo",
         source_ref="https://github.com/example/repo",
@@ -199,23 +117,80 @@ def test_autotest_run_detail_derives_timeline_for_legacy_sparse_runs(monkeypatch
         summary="",
         suggestion="",
         prompt_output="",
+        failed_reason="",
+        timeline_json="",
         created_by="owner",
     )
 
-    response = client.get(f"/api/autotest/runs/{run_id}", headers=headers)
+    response = client.get(f"/api/autotest/runs/{run_id}", headers=auth_headers)
     assert response.status_code == 200, response.text
-    data = response.json()
-
-    assert isinstance(data.get("timeline"), list)
-    assert [item["key"] for item in data["timeline"]] == [
+    payload = response.json()
+    assert [item["key"] for item in payload["timeline"]] == [
         "uploaded",
         "extracted",
         "detected_stack",
+        "prepared_environment",
         "ran_tests",
         "generated_report",
         "failed_reason",
     ]
-    uploaded = next(item for item in data["timeline"] if item["key"] == "uploaded")
-    assert uploaded["status"] == "done"
-    for item in data["timeline"]:
-        assert item["status"] in {"done", "pending", "running", "failed"}
+    assert all(
+        set(item.keys()) == {"key", "label", "name", "status", "started_at", "finished_at", "duration_ms", "message"}
+        for item in payload["timeline"]
+    )
+
+
+def test_autotest_zip_extract_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
+    monkeypatch.setattr(app_module.legacy_main, "safe_extract_zip", lambda zip_path, dest_dir: (_ for _ in ()).throw(ValueError("zip explode failed")))
+    app_module.legacy_main.settings.AUTOTEST_MODE = "real"
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(), "application/zip")},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] == "failed"
+    assert payload["failed_reason"]
+
+
+def test_autotest_stack_detection_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
+    monkeypatch.setattr(app_module.legacy_main, "find_project_root_on_disk", lambda extracted_dir: (_ for _ in ()).throw(RuntimeError("stack detect failed")))
+    app_module.legacy_main.settings.AUTOTEST_MODE = "real"
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(), "application/zip")},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] == "failed"
+    assert payload["failed_reason"]
+
+
+def test_autotest_test_command_failure_sets_failed(client: TestClient, auth_headers: dict[str, str]):
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(marker_fail_step="test"), "application/zip")},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] == "failed"
+    assert payload["failed_reason"]
+
+
+def test_autotest_report_generation_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
+    monkeypatch.setattr(app_module.legacy_main, "index_knowledge_entry", lambda entry: (_ for _ in ()).throw(RuntimeError("report generation failed")))
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(), "application/zip")},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] == "failed"
+    assert payload["failed_reason"]

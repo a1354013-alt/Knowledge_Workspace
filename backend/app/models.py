@@ -70,6 +70,9 @@ class DocumentResponse(StrictModel):
     updated_at: str
     file_size: int
     uploaded_by: str | None = None
+    index_status: Literal["pending", "indexed", "failed"] = "pending"
+    index_error: str = ""
+    indexed_at: str = ""
 
 
 class UploadDocumentResponse(DocumentResponse):
@@ -106,8 +109,8 @@ class DashboardDocumentMetrics(StrictModel):
     total: int
     indexed: int
     pending: int
-    failedDocuments: int
-    archivedDocuments: int
+    failed_documents: int
+    archived_documents: int
 
 
 class DashboardRecentActivity(StrictModel):
@@ -125,11 +128,14 @@ class DashboardRecentActivity(StrictModel):
 
 
 class SettingsLLMResponse(StrictModel):
-    provider: str
+    primary_provider: str
+    active_provider: str
     model: str
     base_url: str
-    healthy: bool
-    fallback_mode: bool
+    primary_healthy: bool
+    fallback_enabled: bool
+    llm_ready_for_generation: bool
+    error_message: str = ""
 
 
 class SettingsOCRResponse(StrictModel):
@@ -322,8 +328,11 @@ class AutoTestRunListItemResponse(StrictModel):
 class AutoTestTimelineItemResponse(StrictModel):
     key: str
     label: str
-    status: Literal["done", "running", "failed", "pending"]
-    timestamp: str | None = None
+    name: str
+    status: Literal["pending", "running", "success", "failed", "skipped"]
+    started_at: str | None = None
+    finished_at: str | None = None
+    duration_ms: int | None = None
     message: str | None = None
 
 
@@ -349,6 +358,7 @@ class AutoTestRunResponse(StrictModel):
     summary: str
     suggestion: str
     prompt_output: str
+    failed_reason: str = ""
     problem_entry_id: str = ""
     solution_entry_id: str = ""
     created_at: str

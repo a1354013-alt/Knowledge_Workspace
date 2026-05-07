@@ -18,10 +18,16 @@
           />
           <div class="kv">
             <div class="key">
-              Provider
+              Primary provider
             </div>
             <div class="value">
-              {{ status.provider || '-' }}
+              {{ status.primary_provider || '-' }}
+            </div>
+            <div class="key">
+              Active provider
+            </div>
+            <div class="value">
+              {{ status.active_provider || '-' }}
             </div>
             <div class="key">
               Model
@@ -36,16 +42,28 @@
               {{ status.base_url || '-' }}
             </div>
             <div class="key">
-              Healthy
+              Primary healthy
             </div>
             <div class="value">
-              {{ status.healthy ? 'yes' : 'no' }}
+              {{ status.primary_healthy ? 'yes' : 'no' }}
             </div>
             <div class="key">
               Fallback
             </div>
             <div class="value">
-              {{ status.fallback_mode ? 'enabled' : 'disabled' }}
+              {{ status.fallback_enabled ? 'enabled' : 'disabled' }}
+            </div>
+            <div class="key">
+              Ready
+            </div>
+            <div class="value">
+              {{ status.llm_ready_for_generation ? 'yes' : 'no' }}
+            </div>
+            <div class="key">
+              Error
+            </div>
+            <div class="value">
+              {{ status.error_message || '-' }}
             </div>
           </div>
           <p class="muted">
@@ -168,11 +186,14 @@ const loadingTemplates = ref(false)
 const loadingOcr = ref(false)
 const toast = useToast()
 const status = ref<SettingsLLMResponse>({
-  provider: '',
+  primary_provider: '',
+  active_provider: '',
   model: '',
   base_url: '',
-  healthy: false,
-  fallback_mode: true,
+  primary_healthy: false,
+  fallback_enabled: true,
+  llm_ready_for_generation: false,
+  error_message: '',
 })
 const templates = ref<TemplateMetaItem[]>([])
 const ocr = ref<SettingsOCRResponse>({ enabled: false, available: false, tesseract_cmd: '', tesseract_version: '', details: '' })
@@ -182,7 +203,16 @@ async function loadStatus() {
   try {
     status.value = await get<SettingsLLMResponse>('/api/settings/llm')
   } catch (error: unknown) {
-    status.value = { provider: 'unknown', model: '', base_url: '', healthy: false, fallback_mode: true }
+    status.value = {
+      primary_provider: 'unknown',
+      active_provider: 'unknown',
+      model: '',
+      base_url: '',
+      primary_healthy: false,
+      fallback_enabled: true,
+      llm_ready_for_generation: false,
+      error_message: 'Unable to load LLM status.',
+    }
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: 'LLM status failed', detail: apiError?.message || 'Request failed.', life: 3500 })
   } finally {

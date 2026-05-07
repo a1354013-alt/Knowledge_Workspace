@@ -96,6 +96,9 @@
               Mode: {{ selectedRun.execution_mode || '-' }}
             </p>
             <p class="muted">
+              Failed reason: {{ selectedRun.failed_reason || '-' }}
+            </p>
+            <p class="muted">
               Project type detected: {{ selectedRun.project_type_detected || selectedRun.project_type || '-' }}
             </p>
             <p class="muted">
@@ -139,16 +142,22 @@
                     <span :class="badgeClass(item.status)">{{ item.status }}</span>
                   </div>
                   <p
-                    v-if="item.timestamp"
+                    v-if="item.finished_at || item.started_at"
                     class="timeline-time"
                   >
-                    {{ formatTimelineTimestamp(item.timestamp) }}
+                    {{ formatTimelineTimestamp(item.finished_at || item.started_at || '') }}
                   </p>
                   <p
                     v-if="item.message"
                     class="timeline-message"
                   >
                     {{ item.message }}
+                  </p>
+                  <p
+                    v-if="item.duration_ms !== null"
+                    class="timeline-time"
+                  >
+                    {{ item.duration_ms }} ms
                   </p>
                 </div>
               </article>
@@ -258,12 +267,13 @@ const runs = ref<AutoTestRunListItemResponse[]>([])
 const selectedRun = ref<AutoTestRunResponse | null>(null)
 const store = useWorkspaceStore()
 
-const allowedTimelineStatuses = new Set(['done', 'running', 'failed', 'pending'])
+const allowedTimelineStatuses = new Set(['pending', 'running', 'success', 'failed', 'skipped'])
 
 const fallbackTimelineKeys = [
   ['uploaded', 'Uploaded'],
   ['extracted', 'Extracted'],
   ['detected_stack', 'Detected stack'],
+  ['prepared_environment', 'Installed dependencies / Prepared environment'],
   ['ran_tests', 'Ran tests'],
   ['generated_report', 'Generated report'],
   ['failed_reason', 'Failed reason'],
@@ -273,7 +283,7 @@ const timelineItems = computed<AutoTestTimelineItemResponse[]>(() => buildTimeli
 
 function badgeClass(status: string) {
   const value = String(status || '').toLowerCase()
-  if (value === 'passed' || value === 'done') return 'badge badge-ok'
+  if (value === 'passed' || value === 'done' || value === 'success') return 'badge badge-ok'
   if (value === 'failed') return 'badge badge-bad'
   if (value === 'skipped') return 'badge badge-skip'
   if (value === 'unavailable') return 'badge badge-unavail'
@@ -306,8 +316,11 @@ function normalizeTimelineItem(
   return {
     key,
     label,
+    name: String(raw?.name || label).trim(),
     status: status as AutoTestTimelineItemResponse['status'],
-    timestamp: raw?.timestamp ? String(raw.timestamp) : null,
+    started_at: raw?.started_at ? String(raw.started_at) : null,
+    finished_at: raw?.finished_at ? String(raw.finished_at) : null,
+    duration_ms: typeof raw?.duration_ms === 'number' ? raw.duration_ms : null,
     message: raw?.message ? String(raw.message) : null,
   }
 }
@@ -330,26 +343,29 @@ function buildTimeline(run: AutoTestRunResponse | null): AutoTestTimelineItemRes
   return fallbackTimelineKeys.map(([key, label]) => ({
     key,
     label,
+    name: label,
     status:
       key === 'uploaded'
-        ? 'done'
+        ? 'success'
         : key === 'failed_reason' && run.status === 'failed'
           ? 'failed'
           : key === 'generated_report' && (run.summary || run.prompt_output)
-            ? 'done'
+            ? 'success'
             : key === 'ran_tests' && run.status === 'running'
               ? 'running'
               : key === 'ran_tests' && (run.status === 'passed' || run.status === 'failed')
                 ? run.status === 'failed'
                   ? 'failed'
-                  : 'done'
+                  : 'success'
                 : 'pending',
-    timestamp: key === 'uploaded' ? run.created_at || null : null,
+    started_at: key === 'uploaded' ? run.created_at || null : null,
+    finished_at: key === 'uploaded' ? run.created_at || null : null,
+    duration_ms: key === 'uploaded' ? 0 : null,
     message:
       key === 'uploaded'
         ? run.source_ref || null
         : key === 'failed_reason' && run.status === 'failed'
-          ? failedMessage
+          ? run.failed_reason || failedMessage
           : key === 'generated_report' && run.summary
             ? run.summary
             : null,

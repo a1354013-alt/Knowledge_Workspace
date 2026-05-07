@@ -28,6 +28,11 @@ jobs:
           cd backend
           python -m ruff check .
 
+      - name: Backend compile
+        run: |
+          cd backend
+          python -m compileall app
+
       - name: Backend pytest
         env:
           JWT_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-1234
@@ -40,7 +45,7 @@ jobs:
           AUTOTEST_MODE: simulated
         run: |
           cd backend
-          python -m pytest
+          python -m pytest -q
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -57,7 +62,7 @@ jobs:
       - name: Frontend tests
         run: |
           cd frontend
-          npm test
+          npm run test:run
 
       - name: Frontend lint (eslint)
         run: |

@@ -160,6 +160,9 @@ export interface DocumentResponse {
   updated_at: string;
   file_size: number;
   uploaded_by: string | null;
+  index_status: 'pending' | 'indexed' | 'failed';
+  index_error: string;
+  indexed_at: string;
 }
 
 export interface DocumentUpdateRequest {
@@ -224,13 +227,16 @@ export interface AutoTestRunListItemResponse {
   summary: string;
 }
 
-export type AutoTestTimelineStatus = 'done' | 'running' | 'failed' | 'pending';
+export type AutoTestTimelineStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped';
 
 export interface AutoTestTimelineItemResponse {
   key: string;
   label: string;
+  name: string;
   status: AutoTestTimelineStatus;
-  timestamp: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
   message: string | null;
 }
 
@@ -247,6 +253,7 @@ export interface AutoTestRunResponse {
   summary: string;
   suggestion: string;
   prompt_output: string;
+  failed_reason: string;
   problem_entry_id: string;
   solution_entry_id: string;
   created_at: string;
@@ -330,8 +337,8 @@ export interface DashboardDocumentMetrics {
   total: number;
   indexed: number;
   pending: number;
-  failedDocuments: number;
-  archivedDocuments: number;
+  failed_documents: number;
+  archived_documents: number;
 }
 
 export interface DashboardRecentActivity {
@@ -360,11 +367,14 @@ export interface HealthResponse {
 }
 
 export interface SettingsLLMResponse {
-  provider: string;
+  primary_provider: string;
+  active_provider: string;
   model: string;
   base_url: string;
-  healthy: boolean;
-  fallback_mode: boolean;
+  primary_healthy: boolean;
+  fallback_enabled: boolean;
+  llm_ready_for_generation: boolean;
+  error_message: string;
 }
 
 export interface SettingsOCRResponse {

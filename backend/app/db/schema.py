@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS documents (
     file_size INTEGER NOT NULL DEFAULT 0,
     approved INTEGER NOT NULL DEFAULT 1,
     is_active INTEGER NOT NULL DEFAULT 1,
+    index_status TEXT NOT NULL DEFAULT 'pending',
+    index_error TEXT NOT NULL DEFAULT '',
+    indexed_at TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL
 )
 """
@@ -136,6 +139,8 @@ CREATE TABLE IF NOT EXISTS autotest_runs (
     summary TEXT NOT NULL DEFAULT '',
     suggestion TEXT NOT NULL DEFAULT '',
     prompt_output TEXT NOT NULL DEFAULT '',
+    failed_reason TEXT NOT NULL DEFAULT '',
+    timeline_json TEXT NOT NULL DEFAULT '',
     problem_entry_id TEXT NOT NULL DEFAULT '',
     solution_entry_id TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL DEFAULT '',

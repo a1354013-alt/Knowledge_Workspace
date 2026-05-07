@@ -48,17 +48,28 @@ def get_llm_provider() -> tuple[LLMProvider, dict[str, object]]:
     settings = get_settings()
     provider_name = (settings.LLM_PROVIDER or "ollama").strip().lower()
 
+    primary_provider: LLMProvider
+    fallback_provider: LLMProvider | None = None
+
     if provider_name == "mock":
-        provider: LLMProvider = MockProvider()
+        primary_provider = MockProvider()
+        provider = primary_provider
     elif provider_name == "fallback":
-        provider = FallbackProvider([OllamaProvider(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL), NoopProvider()])
+        primary_provider = OllamaProvider(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL)
+        fallback_provider = NoopProvider()
+        provider = FallbackProvider([primary_provider, fallback_provider])
     else:
-        provider = FallbackProvider([OllamaProvider(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL), NoopProvider()])
+        primary_provider = OllamaProvider(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL)
+        fallback_provider = NoopProvider()
+        provider = FallbackProvider([primary_provider, fallback_provider])
 
     status = {
-        "provider": getattr(provider, "name", "unknown"),
-        "model": getattr(provider, "model", ""),
-        "base_url": getattr(provider, "base_url", ""),
-        "fallback_mode": isinstance(provider, FallbackProvider),
+        "primary_provider": getattr(primary_provider, "name", "unknown"),
+        "primary_provider_instance": primary_provider,
+        "fallback_provider": getattr(fallback_provider, "name", "") if fallback_provider else "",
+        "model": getattr(primary_provider, "model", getattr(provider, "model", "")),
+        "base_url": getattr(primary_provider, "base_url", ""),
+        "fallback_enabled": fallback_provider is not None,
+        "primary_error_message": "",
     }
     return provider, status

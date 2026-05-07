@@ -9,6 +9,7 @@ import tempfile
 import uuid
 import zipfile
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -101,6 +102,9 @@ def serialize_document(document: dict) -> DocumentResponse:
         updated_at=str(document.get("updated_at") or document["uploaded_at"]),
         file_size=int(document.get("file_size", 0)),
         uploaded_by=document.get("uploaded_by"),
+        index_status=str(document.get("index_status", "") or "pending"),
+        index_error=str(document.get("index_error", "") or ""),
+        indexed_at=str(document.get("indexed_at", "") or ""),
     )
 
 
@@ -144,10 +148,105 @@ TIMELINE_LABELS: tuple[tuple[str, str], ...] = (
     ("uploaded", "Uploaded"),
     ("extracted", "Extracted"),
     ("detected_stack", "Detected stack"),
+    ("prepared_environment", "Installed dependencies / Prepared environment"),
     ("ran_tests", "Ran tests"),
     ("generated_report", "Generated report"),
     ("failed_reason", "Failed reason"),
 )
+
+TIMELINE_KEYS = {key for key, _label in TIMELINE_LABELS}
+
+
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _duration_ms(started_at: str | None, finished_at: str | None) -> int | None:
+    start = _parse_iso_datetime(started_at)
+    end = _parse_iso_datetime(finished_at)
+    if not start or not end:
+        return None
+    return max(int((end - start).total_seconds() * 1000), 0)
+
+
+def _normalize_timeline_status(value: str) -> str:
+    normalized = str(value or "").strip().lower()
+    if normalized in {"passed", "done", "success"}:
+        return "success"
+    if normalized in {"failed"}:
+        return "failed"
+    if normalized in {"skipped", "unavailable"}:
+        return "skipped"
+    if normalized in {"running"}:
+        return "running"
+    return "pending"
+
+
+def _new_timeline_item(key: str, label: str, *, status: str = "pending", message: str | None = None, started_at: str | None = None, finished_at: str | None = None) -> dict[str, object]:
+    return {
+        "key": key,
+        "label": label,
+        "name": label,
+        "status": _normalize_timeline_status(status),
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "duration_ms": _duration_ms(started_at, finished_at),
+        "message": message,
+    }
+
+
+def _initial_autotest_timeline(*, source_ref: str, created_at: str) -> list[dict[str, object]]:
+    items = [_new_timeline_item(key, label) for key, label in TIMELINE_LABELS]
+    items[0] = _new_timeline_item(
+        "uploaded",
+        "Uploaded",
+        status="success",
+        message=source_ref or None,
+        started_at=created_at,
+        finished_at=created_at,
+    )
+    return items
+
+
+def _save_run_timeline(run_id: str, timeline: list[dict[str, object]]) -> None:
+    db.update_autotest_run(run_id, timeline_json=json.dumps(timeline, ensure_ascii=True))
+
+
+def _set_timeline_item(
+    timeline: list[dict[str, object]],
+    key: str,
+    *,
+    status: str | None = None,
+    message: str | None = None,
+    started_at: str | None = None,
+    finished_at: str | None = None,
+) -> list[dict[str, object]]:
+    updated: list[dict[str, object]] = []
+    for item in timeline:
+        if str(item.get("key")) != key:
+            updated.append(item)
+            continue
+        next_item = dict(item)
+        if status is not None:
+            next_item["status"] = _normalize_timeline_status(status)
+        if message is not None:
+            next_item["message"] = message
+        if started_at is not None:
+            next_item["started_at"] = started_at
+        if finished_at is not None:
+            next_item["finished_at"] = finished_at
+        next_item["duration_ms"] = _duration_ms(
+            str(next_item.get("started_at") or "") or None,
+            str(next_item.get("finished_at") or "") or None,
+        )
+        updated.append(next_item)
+    return updated
 
 
 def serialize_autotest_step(step: dict) -> dict[str, object]:
@@ -169,6 +268,41 @@ def serialize_autotest_step(step: dict) -> dict[str, object]:
 
 
 def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTestTimelineItemResponse]:
+    timeline_json = str(run_row.get("timeline_json", "") or "").strip()
+    if timeline_json:
+        try:
+            items = json.loads(timeline_json)
+            if isinstance(items, list):
+                normalized: list[AutoTestTimelineItemResponse] = []
+                for raw in items:
+                    if not isinstance(raw, dict):
+                        continue
+                    key = str(raw.get("key", "") or "")
+                    label = str(raw.get("label", "") or raw.get("name", "") or "")
+                    if not key or not label:
+                        continue
+                    status = _normalize_timeline_status(str(raw.get("status", "") or "pending"))
+                    normalized.append(
+                        AutoTestTimelineItemResponse(
+                            key=key,
+                            label=label,
+                            name=str(raw.get("name", "") or label),
+                            status=status,
+                            started_at=str(raw.get("started_at", "") or "") or None,
+                            finished_at=str(raw.get("finished_at", "") or "") or None,
+                            duration_ms=(
+                                int(raw["duration_ms"])
+                                if raw.get("duration_ms") is not None
+                                else _duration_ms(raw.get("started_at"), raw.get("finished_at"))
+                            ),
+                            message=str(raw.get("message", "") or "") or None,
+                        )
+                    )
+                if normalized:
+                    return normalized
+        except json.JSONDecodeError:
+            logger.warning("Invalid timeline_json for AutoTest run %s", run_row.get("run_id", ""))
+
     run_status = str(run_row.get("status", "") or "").lower()
     created_at = str(run_row.get("created_at", "") or "") or None
     has_workdir = bool(str(run_row.get("working_directory", "") or "").strip())
@@ -206,53 +340,80 @@ def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTe
         failed_message = str(
             failed_step.get("stderr_summary")
             or failed_step.get("output")
+            or run_row.get("failed_reason")
             or run_row.get("summary")
             or "AutoTest run failed."
         )
     elif run_status == "failed":
-        failed_message = str(run_row.get("summary") or "AutoTest run failed.")
+        failed_message = str(run_row.get("failed_reason") or run_row.get("summary") or "AutoTest run failed.")
+
+    def build_item(key: str, label: str, *, status: str, started_at: str | None = None, finished_at: str | None = None, message: str | None = None) -> AutoTestTimelineItemResponse:
+        return AutoTestTimelineItemResponse(
+            key=key,
+            label=label,
+            name=label,
+            status=_normalize_timeline_status(status),
+            started_at=started_at,
+            finished_at=finished_at,
+            duration_ms=_duration_ms(started_at, finished_at),
+            message=message,
+        )
 
     items = {
-        "uploaded": AutoTestTimelineItemResponse(
-            key="uploaded",
-            label="Uploaded",
-            status="done",
-            timestamp=created_at,
+        "uploaded": build_item(
+            "uploaded",
+            "Uploaded",
+            status="success",
+            started_at=created_at,
+            finished_at=created_at,
             message=str(run_row.get("source_ref", "") or "") or None,
         ),
-        "extracted": AutoTestTimelineItemResponse(
-            key="extracted",
-            label="Extracted",
+        "extracted": build_item(
+            "extracted",
+            "Extracted",
             status=extracted_status,
-            timestamp=created_at if has_workdir else None,
+            started_at=created_at if has_workdir else None,
+            finished_at=created_at if has_workdir else None,
             message=str(run_row.get("working_directory", "") or "") or None,
         ),
-        "detected_stack": AutoTestTimelineItemResponse(
-            key="detected_stack",
-            label="Detected stack",
+        "detected_stack": build_item(
+            "detected_stack",
+            "Detected stack",
             status=detected_status,
-            timestamp=created_at if detected_stack else None,
+            started_at=created_at if detected_stack else None,
+            finished_at=created_at if detected_stack else None,
             message=detected_stack or None,
         ),
-        "ran_tests": AutoTestTimelineItemResponse(
-            key="ran_tests",
-            label="Ran tests",
+        "prepared_environment": build_item(
+            "prepared_environment",
+            "Installed dependencies / Prepared environment",
+            status="success" if step_rows else ("running" if run_status == "running" else "pending"),
+            started_at=str((step_rows[0] if step_rows else {}).get("started_at", "") or "") or None,
+            finished_at=str((step_rows[0] if step_rows else {}).get("finished_at", "") or "") or None,
+            message=str((step_rows[0] if step_rows else {}).get("name", "") or "") or None,
+        ),
+        "ran_tests": build_item(
+            "ran_tests",
+            "Ran tests",
             status=ran_tests_status,
-            timestamp=str((failed_step or latest_step or {}).get("finished_at") or (latest_step or {}).get("started_at") or "") or None,
+            started_at=str((step_rows[0] if step_rows else {}).get("started_at", "") or "") or None,
+            finished_at=str((failed_step or latest_step or {}).get("finished_at") or (latest_step or {}).get("started_at") or "") or None,
             message=str((failed_step or latest_step or {}).get("name", "") or "") or None,
         ),
-        "generated_report": AutoTestTimelineItemResponse(
-            key="generated_report",
-            label="Generated report",
+        "generated_report": build_item(
+            "generated_report",
+            "Generated report",
             status=generated_report_status,
-            timestamp=created_at if has_report else None,
+            started_at=created_at if has_report else None,
+            finished_at=created_at if has_report else None,
             message=str(run_row.get("summary", "") or "") or None,
         ),
-        "failed_reason": AutoTestTimelineItemResponse(
-            key="failed_reason",
-            label="Failed reason",
+        "failed_reason": build_item(
+            "failed_reason",
+            "Failed reason",
             status=failed_reason_status,
-            timestamp=str((failed_step or {}).get("finished_at", "") or "") or created_at if run_status == "failed" else None,
+            started_at=str((failed_step or {}).get("finished_at", "") or "") or created_at if run_status == "failed" else None,
+            finished_at=str((failed_step or {}).get("finished_at", "") or "") or created_at if run_status == "failed" else None,
             message=failed_message,
         ),
     }
@@ -273,10 +434,11 @@ def serialize_autotest_run(run_row: dict, step_rows: list[dict]) -> AutoTestRunR
         summary=run_row.get("summary", ""),
         suggestion=run_row.get("suggestion", ""),
         prompt_output=run_row.get("prompt_output", ""),
+        failed_reason=run_row.get("failed_reason", "") or "",
         problem_entry_id=run_row.get("problem_entry_id", "") or "",
         solution_entry_id=run_row.get("solution_entry_id", "") or "",
         created_at=run_row.get("created_at", ""),
-        steps=[serialize_autotest_step(step) for step in step_rows],
+        steps=[serialize_autotest_step(step) for step in step_rows if str(step.get("name", "")) not in TIMELINE_KEYS],
         timeline=build_autotest_timeline(run_row, step_rows),
     )
 
@@ -578,6 +740,12 @@ def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[i
     if not argv:
         raise ValueError("Missing command argv.")
     env = os.environ.copy()
+    if str(settings.AUTOTEST_MODE or "").strip().lower() == "real":
+        sensitive_tokens = ("TOKEN", "KEY", "SECRET", "PASSWORD", "DATABASE_URL")
+        for key in list(env):
+            normalized = key.upper()
+            if any(token in normalized for token in sensitive_tokens):
+                env.pop(key, None)
     env.setdefault("CI", "true")
     env.setdefault("PYTHONUNBUFFERED", "1")
     env.setdefault("PIP_DISABLE_PIP_VERSION_CHECK", "1")
@@ -611,6 +779,42 @@ def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[i
     stdout = completed.stdout or ""
     stderr = completed.stderr or ""
     return int(completed.returncode), stdout, stderr
+
+
+def _finalize_autotest_timeline_failure(
+    *,
+    timeline: list[dict[str, object]],
+    failed_phase: str,
+    failed_reason: str,
+) -> list[dict[str, object]]:
+    output = timeline
+    phase_found = False
+    for key, _label in TIMELINE_LABELS:
+        if key == failed_phase:
+            phase_found = True
+            output = _set_timeline_item(
+                output,
+                key,
+                status="failed",
+                finished_at=utc_now_iso(),
+                message=failed_reason,
+            )
+            continue
+        current_item = next((item for item in output if str(item.get("key")) == key), None)
+        if not current_item:
+            continue
+        current_status = str(current_item.get("status", "") or "")
+        if phase_found and current_status == "pending":
+            output = _set_timeline_item(output, key, status="skipped")
+    output = _set_timeline_item(
+        output,
+        "failed_reason",
+        status="failed",
+        started_at=utc_now_iso(),
+        finished_at=utc_now_iso(),
+        message=failed_reason,
+    )
+    return output
 
 
 def _walk_dirs_for_markers(base_dir: Path) -> list[tuple[str, Path]]:
@@ -778,21 +982,50 @@ def _guess_media_type(filename: str, default: str = "application/octet-stream") 
 async def sync_document_index(document: dict) -> None:
     delete_from_vector_db(document["doc_id"])
     if int(document.get("is_active", 1)) != 1 or str(document.get("status", "")) == "archived":
+        db.update_document(
+            document["doc_id"],
+            index_status="pending",
+            index_error="",
+            indexed_at="",
+        )
         return
 
     file_path = UPLOAD_DIR / document["saved_filename"]
     if not file_path.exists():
-        raise FileNotFoundError(f"Document file is missing: {file_path}")
+        message = f"Document file is missing: {file_path}"
+        db.update_document(
+            document["doc_id"],
+            index_status="failed",
+            index_error=message,
+            indexed_at="",
+        )
+        raise FileNotFoundError(message)
 
-    await asyncio.to_thread(
-        process_file,
-        document["doc_id"],
-        str(file_path),
-        document["filename"],
-        str(document.get("uploaded_by") or ""),
-        str(document.get("status") or "reviewed"),
-        int(document["is_active"]),
-    )
+    try:
+        await asyncio.to_thread(
+            process_file,
+            document["doc_id"],
+            str(file_path),
+            document["filename"],
+            str(document.get("uploaded_by") or ""),
+            str(document.get("status") or "reviewed"),
+            int(document["is_active"]),
+        )
+    except Exception as exc:
+        db.update_document(
+            document["doc_id"],
+            index_status="failed",
+            index_error=str(exc),
+            indexed_at="",
+        )
+        raise
+    else:
+        db.update_document(
+            document["doc_id"],
+            index_status="indexed",
+            index_error="",
+            indexed_at=utc_now_iso(),
+        )
 
 
 @asynccontextmanager
@@ -812,9 +1045,9 @@ async def lifespan(app: FastAPI):
         from app.llm import get_llm_provider
         provider, status_info = get_llm_provider()
         logger.info("LLM Provider: %s (model: %s, fallback: %s)", 
-                   status_info["provider"], 
+                   status_info["primary_provider"], 
                    status_info["model"],
-                   status_info["fallback_mode"])
+                   status_info["fallback_enabled"])
     except Exception as exc:
         logger.warning("Failed to initialize LLM provider: %s", exc)
     
@@ -962,13 +1195,26 @@ async def dashboard_health(current_user: dict = Depends(get_current_user)) -> Da
 async def llm_settings(current_user: dict = Depends(get_current_user)) -> SettingsLLMResponse:
     _ = current_user
     provider, status_payload = get_llm_provider()
-    healthy = await provider.healthcheck()
+    primary_healthy = bool(await status_payload["primary_provider_instance"].healthcheck())
+    fallback_enabled = bool(status_payload.get("fallback_enabled", False))
+    active_provider = str(status_payload.get("primary_provider", "") or "")
+    error_message = ""
+    if primary_healthy:
+        active_provider = str(status_payload.get("primary_provider", "") or "")
+    elif fallback_enabled:
+        active_provider = str(status_payload.get("fallback_provider", "") or "none")
+        error_message = str(status_payload.get("primary_error_message", "") or "Primary provider is unavailable; fallback mode is active.")
+    else:
+        error_message = str(status_payload.get("primary_error_message", "") or "Primary provider is unavailable.")
     return SettingsLLMResponse(
-        provider=str(status_payload.get("provider", "")),
+        primary_provider=str(status_payload.get("primary_provider", "")),
+        active_provider=active_provider,
         model=str(status_payload.get("model", "")),
         base_url=str(status_payload.get("base_url", "")),
-        healthy=bool(healthy),
-        fallback_mode=bool(status_payload.get("fallback_mode", False)),
+        primary_healthy=primary_healthy,
+        fallback_enabled=fallback_enabled,
+        llm_ready_for_generation=primary_healthy or fallback_enabled,
+        error_message=error_message,
     )
 
 
@@ -1019,17 +1265,26 @@ async def upload_document(
         category=str(category or ""),
         tags=str(tags or ""),
         status="reviewed",
+        index_status="pending",
+        index_error="",
+        indexed_at="",
     ):
         safe_unlink(file_path)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to persist document.")
 
     document = db.get_document(doc_id)
+    message = "Document uploaded and indexed."
     if document:
-        await sync_document_index(document)
+        try:
+            await sync_document_index(document)
+        except Exception as exc:
+            logger.warning("Document indexing failed for %s: %s", doc_id, exc)
+            message = "Document uploaded, but indexing failed."
+        document = db.get_document(doc_id) or document
     logger.info("Uploaded document %s by %s", doc_id, current_user["sub"])
     return UploadDocumentResponse(
         **serialize_document(document).model_dump(),
-        message="Document uploaded and indexed.",
+        message=message,
     )
 
 
@@ -1399,7 +1654,9 @@ async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depen
     if not ok:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to promote to knowledge.")
 
-    # Link: knowledge <-> logbook + carry existing references
+    # Canonical promote contract: logbook -> knowledge is the produced direction.
+    db.add_link(f"logbook:{entry_id}", f"knowledge:{knowledge_id}", link_type="produced")
+    # Keep the reverse relation for traceability and backwards compatibility.
     db.add_link(f"knowledge:{knowledge_id}", f"logbook:{entry_id}", link_type="derived_from")
     for related in db.list_related_item_ids(f"logbook:{entry_id}"):
         db.add_link(f"knowledge:{knowledge_id}", related, link_type="references")
@@ -1724,11 +1981,11 @@ async def run_autotest(
     await stream_write_file(file, zip_path, max_size=200 * 1024 * 1024)
 
     project_name = file.filename
-    project_type = detect_project_type(zip_path)
-    fail_step = detect_fail_step(zip_path)
-    commands = autotest_commands(project_type)
     requested_mode = settings.AUTOTEST_MODE
     timeout_seconds = int(settings.AUTOTEST_TIMEOUT_SECONDS)
+    project_type = "unknown"
+    fail_step: str | None = None
+    commands = autotest_commands(project_type)
 
     if not db.add_autotest_run(
         run_id=run_id,
@@ -1743,47 +2000,117 @@ async def run_autotest(
         summary="",
         suggestion="",
         prompt_output="",
+        failed_reason="",
+        timeline_json="",
         created_by=user_id,
     ):
         safe_unlink(zip_path)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create autotest run.")
 
-    steps_def: list[tuple[str, list[str]]] = [
-        ("install", commands["install"]),
-        ("build", commands["build"]),
-        ("test", commands["test"]),
-        ("lint", commands["lint"]),
-    ]
-    commands_by_step = {name: " ".join(argv) for name, argv in steps_def}
-    step_ids: dict[str, str] = {}
-    for name, argv in steps_def:
-        step_id = str(uuid.uuid4())
-        step_ids[name] = step_id
-        db.add_autotest_step(
-            step_id=step_id,
-            run_id=run_id,
-            name=name,
-            command=" ".join(argv),
-            status="queued",
-        )
+    run_row = db.get_autotest_run(run_id=run_id, created_by=user_id) or {}
+    created_at = str(run_row.get("created_at", "") or "") or utc_now_iso()
+    timeline = _initial_autotest_timeline(source_ref=file.filename, created_at=created_at)
+    _save_run_timeline(run_id, timeline)
 
-    db.update_autotest_run(run_id, status="running")
+    steps_def: list[tuple[str, list[str]]] = []
+    commands_by_step: dict[str, str] = {}
+    step_ids: dict[str, str] = {}
 
     overall_ok = True
     failed_step_name: str | None = None
+    failed_reason = ""
     outputs: dict[str, str] = {}
     work_dir = Path(tempfile.mkdtemp(prefix=f"autotest_{run_id}_", dir=str(autotest_dir)))
     extracted_dir = work_dir / "src"
     working_dir = extracted_dir
     project_type_detected = project_type
     execution_mode = "real" if requested_mode == "real" else "simulated"
+
+    def mark_unfinished_command_steps(*, current_failed_step: str | None = None) -> None:
+        for name, _argv in steps_def:
+            step_id = step_ids[name]
+            row = next((item for item in db.list_autotest_steps(run_id) if item.get("step_id") == step_id), None)
+            step_status = str((row or {}).get("status", "") or "queued")
+            if step_status == "running":
+                db.update_autotest_step(
+                    step_id,
+                    status="failed" if name == current_failed_step else "skipped",
+                    finished_at=utc_now_iso(),
+                    error_type="exception" if name == current_failed_step else "skipped",
+                )
+            elif step_status == "queued":
+                db.update_autotest_step(
+                    step_id,
+                    status="skipped",
+                    started_at="",
+                    finished_at="",
+                    output=(outputs.get(name, "") or "Skipped because an earlier stage failed."),
+                    success=0,
+                    exit_code=0,
+                    stdout_summary="",
+                    stderr_summary="",
+                    error_type="skipped",
+                )
+
     try:
+        project_type = detect_project_type(zip_path)
+        fail_step = detect_fail_step(zip_path)
+        commands = autotest_commands(project_type)
+        steps_def = [
+            ("install", commands["install"]),
+            ("build", commands["build"]),
+            ("test", commands["test"]),
+            ("lint", commands["lint"]),
+        ]
+        commands_by_step = {name: " ".join(argv) for name, argv in steps_def}
+        for name, argv in steps_def:
+            step_id = str(uuid.uuid4())
+            step_ids[name] = step_id
+            db.add_autotest_step(
+                step_id=step_id,
+                run_id=run_id,
+                name=name,
+                command=" ".join(argv),
+                status="queued",
+            )
+        db.update_autotest_run(run_id, status="running", project_type=project_type, project_type_detected=project_type)
+
+        extracted_started = utc_now_iso()
+        timeline = _set_timeline_item(timeline, "extracted", status="running", started_at=extracted_started)
+        _save_run_timeline(run_id, timeline)
         if requested_mode == "real":
             safe_extract_zip(zip_path, extracted_dir)
+            timeline = _set_timeline_item(
+                timeline,
+                "extracted",
+                status="success",
+                finished_at=utc_now_iso(),
+                message=str(extracted_dir),
+            )
+            _save_run_timeline(run_id, timeline)
+            detected_started = utc_now_iso()
+            timeline = _set_timeline_item(timeline, "detected_stack", status="running", started_at=detected_started)
+            _save_run_timeline(run_id, timeline)
             project_type_detected, working_dir = find_project_root_on_disk(extracted_dir)
             execution_mode = "real" if project_type_detected in {"node", "python"} else "simulated"
         else:
             execution_mode = "simulated"
+            timeline = _set_timeline_item(
+                timeline,
+                "extracted",
+                status="success",
+                finished_at=utc_now_iso(),
+                message="Simulated mode skips archive extraction.",
+            )
+            timeline = _set_timeline_item(
+                timeline,
+                "detected_stack",
+                status="success",
+                started_at=utc_now_iso(),
+                finished_at=utc_now_iso(),
+                message=project_type,
+            )
+            _save_run_timeline(run_id, timeline)
 
         working_dir_rel = "."
         try:
@@ -1798,8 +2125,18 @@ async def run_autotest(
             working_directory=working_dir_rel,
             project_type=project_type_detected,
         )
+        timeline = _set_timeline_item(
+            timeline,
+            "detected_stack",
+            status="success",
+            finished_at=utc_now_iso(),
+            message=project_type_detected,
+        )
+        timeline = _set_timeline_item(timeline, "prepared_environment", status="running", started_at=utc_now_iso())
+        _save_run_timeline(run_id, timeline)
 
         skipped_steps: list[str] = []
+        ran_tests_started_at: str | None = None
         for name, argv in steps_def:
             step_id = step_ids[name]
             ok = True
@@ -1810,6 +2147,10 @@ async def run_autotest(
             stderr = ""
 
             command = " ".join(argv)
+            if ran_tests_started_at is None:
+                ran_tests_started_at = utc_now_iso()
+                timeline = _set_timeline_item(timeline, "ran_tests", status="running", started_at=ran_tests_started_at)
+                _save_run_timeline(run_id, timeline)
             if fail_step and fail_step == name:
                 started_at = utc_now_iso()
                 db.update_autotest_step(step_id, status="running", started_at=started_at)
@@ -1917,9 +2258,37 @@ async def run_autotest(
             if not ok:
                 overall_ok = False
                 failed_step_name = name
+                failed_reason = failed_output = output_text or f"AutoTest {name} step failed."
+                timeline = _set_timeline_item(
+                    timeline,
+                    "prepared_environment",
+                    status="failed" if name == "install" else "success",
+                    finished_at=finished_at,
+                    message=name,
+                )
+                timeline = _set_timeline_item(
+                    timeline,
+                    "ran_tests",
+                    status="failed",
+                    finished_at=finished_at,
+                    message=name,
+                )
+                _save_run_timeline(run_id, timeline)
                 break
+            if name == "install":
+                timeline = _set_timeline_item(
+                    timeline,
+                    "prepared_environment",
+                    status="success",
+                    finished_at=finished_at,
+                    message=name,
+                )
+                _save_run_timeline(run_id, timeline)
 
         if overall_ok:
+            report_started_at = utc_now_iso()
+            timeline = _set_timeline_item(timeline, "generated_report", status="running", started_at=report_started_at)
+            _save_run_timeline(run_id, timeline)
             skipped_suffix = f"; skipped: {', '.join(skipped_steps)}" if skipped_steps else ""
             summary = f"Acceptance pipeline passed ({project_type_detected}){skipped_suffix}."
             prompt_output = (
@@ -1930,7 +2299,13 @@ async def run_autotest(
             if skipped_steps:
                 prompt_output += f"Skipped: {', '.join(skipped_steps)}\n"
             prompt_output += "Next: capture any useful learnings into a Knowledge entry."
-            db.update_autotest_run(run_id, status="passed", summary=summary, prompt_output=prompt_output)
+            db.update_autotest_run(
+                run_id,
+                status="passed",
+                summary=summary,
+                prompt_output=prompt_output,
+                failed_reason="",
+            )
 
             knowledge_id = str(uuid.uuid4())
             candidate_ok = db.add_knowledge_entry(
@@ -1953,10 +2328,29 @@ async def run_autotest(
                 entry = db.get_knowledge_entry(knowledge_id)
                 if entry:
                     index_knowledge_entry(entry)
+            timeline = _set_timeline_item(
+                timeline,
+                "ran_tests",
+                status="success",
+                finished_at=utc_now_iso(),
+                message="install/build/test/lint completed",
+            )
+            timeline = _set_timeline_item(
+                timeline,
+                "generated_report",
+                status="success",
+                finished_at=utc_now_iso(),
+                message=summary,
+            )
+            timeline = _set_timeline_item(timeline, "failed_reason", status="skipped", message=None)
+            _save_run_timeline(run_id, timeline)
         else:
             failed_step = failed_step_name or "unknown"
             summary = f"Acceptance pipeline failed at step '{failed_step}' ({project_type_detected})."
             failed_output = outputs.get(failed_step, "")
+            report_started_at = utc_now_iso()
+            timeline = _set_timeline_item(timeline, "generated_report", status="running", started_at=report_started_at)
+            _save_run_timeline(run_id, timeline)
             suggestion = await suggest_fix_from_autotest(
                 project_type=project_type_detected,
                 failed_step=failed_step,
@@ -1971,7 +2365,15 @@ async def run_autotest(
                 f"{failed_output}\n\n"
                 "Please fix the failure, then re-run AutoTest."
             )
-            db.update_autotest_run(run_id, status="failed", summary=summary, prompt_output=prompt_output, suggestion=suggestion)
+            failed_reason = failed_output or summary
+            db.update_autotest_run(
+                run_id,
+                status="failed",
+                summary=summary,
+                prompt_output=prompt_output,
+                suggestion=suggestion,
+                failed_reason=failed_reason,
+            )
 
             logbook_id = str(uuid.uuid4())
             created = db.add_logbook_entry(
@@ -1994,6 +2396,49 @@ async def run_autotest(
                 entry = db.get_logbook_entry(logbook_id)
                 if entry:
                     index_logbook_entry(entry)
+            timeline = _set_timeline_item(
+                timeline,
+                "generated_report",
+                status="success",
+                finished_at=utc_now_iso(),
+                message=summary,
+            )
+            timeline = _finalize_autotest_timeline_failure(
+                timeline=timeline,
+                failed_phase="ran_tests",
+                failed_reason=failed_reason,
+            )
+            _save_run_timeline(run_id, timeline)
+    except Exception as exc:
+        overall_ok = False
+        failed_reason = str(exc) or "AutoTest run failed unexpectedly."
+        logger.exception("AutoTest run %s failed unexpectedly", run_id)
+        db.update_autotest_run(
+            run_id,
+            status="failed",
+            summary=f"AutoTest run failed: {failed_reason}",
+            prompt_output="",
+            suggestion="",
+            failed_reason=failed_reason,
+        )
+        current_phase = "generated_report" if "report" in failed_reason.lower() else "detected_stack"
+        if str(next((item for item in timeline if str(item.get("key")) == "generated_report"), {}).get("status", "")) == "running":
+            current_phase = "generated_report"
+        elif str(next((item for item in timeline if str(item.get("key")) == "ran_tests"), {}).get("status", "")) == "running":
+            current_phase = "ran_tests"
+        elif str(next((item for item in timeline if str(item.get("key")) == "prepared_environment"), {}).get("status", "")) == "running":
+            current_phase = "prepared_environment"
+        elif str(next((item for item in timeline if str(item.get("key")) == "detected_stack"), {}).get("status", "")) == "running":
+            current_phase = "detected_stack"
+        elif str(next((item for item in timeline if str(item.get("key")) == "extracted"), {}).get("status", "")) == "running":
+            current_phase = "extracted"
+        timeline = _finalize_autotest_timeline_failure(
+            timeline=timeline,
+            failed_phase=current_phase,
+            failed_reason=failed_reason,
+        )
+        _save_run_timeline(run_id, timeline)
+        mark_unfinished_command_steps(current_failed_step=failed_step_name)
 
     finally:
         # Ensure zip file is always cleaned up, even on exception (security: prevent temp file accumulation)
@@ -2094,6 +2539,8 @@ async def analyze_github_repo(
         summary=summary,
         suggestion="",
         prompt_output="",
+        failed_reason="",
+        timeline_json="",
         created_by=current_user["sub"],
     )
     if not created:

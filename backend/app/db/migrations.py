@@ -24,6 +24,37 @@ def migrate_item_links_table(cursor: sqlite3.Cursor) -> None:
         WHERE link_type IN ('related', 'reference', 'ref', '')
         """
     )
+    cursor.execute(
+        """
+        INSERT INTO item_links (link_id, from_item_id, to_item_id, link_type, created_at)
+        SELECT
+            lower(hex(randomblob(16))),
+            normalized_from,
+            normalized_to,
+            'produced',
+            created_at
+        FROM (
+            SELECT
+                link_id,
+                from_item_id,
+                to_item_id,
+                created_at,
+                to_item_id AS normalized_from,
+                from_item_id AS normalized_to
+            FROM item_links
+            WHERE from_item_id LIKE 'knowledge:%'
+              AND to_item_id LIKE 'logbook:%'
+              AND link_type IN ('derived_from', 'produced')
+        ) AS legacy_links
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM item_links AS existing
+            WHERE existing.from_item_id = legacy_links.normalized_from
+              AND existing.to_item_id = legacy_links.normalized_to
+              AND existing.link_type = 'produced'
+        )
+        """
+    )
 
 
 def migrate_users_table(cursor: sqlite3.Cursor) -> None:
@@ -42,6 +73,9 @@ def migrate_documents_table(cursor: sqlite3.Cursor) -> None:
         "category": "ALTER TABLE documents ADD COLUMN category TEXT NOT NULL DEFAULT ''",
         "tags": "ALTER TABLE documents ADD COLUMN tags TEXT NOT NULL DEFAULT ''",
         "status": "ALTER TABLE documents ADD COLUMN status TEXT NOT NULL DEFAULT 'reviewed'",
+        "index_status": "ALTER TABLE documents ADD COLUMN index_status TEXT NOT NULL DEFAULT 'pending'",
+        "index_error": "ALTER TABLE documents ADD COLUMN index_error TEXT NOT NULL DEFAULT ''",
+        "indexed_at": "ALTER TABLE documents ADD COLUMN indexed_at TEXT NOT NULL DEFAULT ''",
     }
     for column, sql in migrations.items():
         if column not in columns:
@@ -52,6 +86,24 @@ def migrate_documents_table(cursor: sqlite3.Cursor) -> None:
     cursor.execute("UPDATE documents SET status = 'archived' WHERE is_active = 0 AND status != 'archived'")
     cursor.execute("UPDATE documents SET status = 'reviewed' WHERE is_active = 1 AND status = ''")
     cursor.execute("UPDATE documents SET uploaded_by = 'owner' WHERE uploaded_by IS NULL OR uploaded_by = ''")
+    cursor.execute(
+        """
+        UPDATE documents
+        SET index_status = CASE
+            WHEN status IN ('reviewed', 'verified') THEN 'indexed'
+            WHEN status = 'draft' THEN 'pending'
+            ELSE 'failed'
+        END
+        WHERE index_status IS NULL OR index_status = ''
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE documents
+        SET indexed_at = uploaded_at
+        WHERE index_status = 'indexed' AND (indexed_at IS NULL OR indexed_at = '')
+        """
+    )
 
 
 def migrate_photos_table(cursor: sqlite3.Cursor) -> None:
@@ -157,6 +209,8 @@ def migrate_autotest_tables(cursor: sqlite3.Cursor) -> None:
         "summary": "ALTER TABLE autotest_runs ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
         "suggestion": "ALTER TABLE autotest_runs ADD COLUMN suggestion TEXT NOT NULL DEFAULT ''",
         "prompt_output": "ALTER TABLE autotest_runs ADD COLUMN prompt_output TEXT NOT NULL DEFAULT ''",
+        "failed_reason": "ALTER TABLE autotest_runs ADD COLUMN failed_reason TEXT NOT NULL DEFAULT ''",
+        "timeline_json": "ALTER TABLE autotest_runs ADD COLUMN timeline_json TEXT NOT NULL DEFAULT ''",
         "problem_entry_id": "ALTER TABLE autotest_runs ADD COLUMN problem_entry_id TEXT NOT NULL DEFAULT ''",
         "solution_entry_id": "ALTER TABLE autotest_runs ADD COLUMN solution_entry_id TEXT NOT NULL DEFAULT ''",
         "created_by": "ALTER TABLE autotest_runs ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",

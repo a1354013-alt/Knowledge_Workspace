@@ -130,20 +130,20 @@
                     <div class="status-bar">
                       <div
                         class="status-fill status-failed"
-                        :style="{ width: calculateStatusWidth(data.documents.failedDocuments, data.documents.total) }"
+                        :style="{ width: calculateStatusWidth(data.documents.failed_documents, data.documents.total) }"
                       />
                     </div>
-                    <span class="status-count">{{ data.documents.failedDocuments }}</span>
+                    <span class="status-count">{{ data.documents.failed_documents }}</span>
                   </div>
                   <div class="status-item">
                     <span class="status-name">Archived</span>
                     <div class="status-bar">
                       <div
                         class="status-fill status-archived"
-                        :style="{ width: calculateStatusWidth(data.documents.archivedDocuments, data.documents.total + data.documents.archivedDocuments) }"
+                        :style="{ width: calculateStatusWidth(data.documents.archived_documents, data.documents.total + data.documents.archived_documents) }"
                       />
                     </div>
-                    <span class="status-count">{{ data.documents.archivedDocuments }}</span>
+                    <span class="status-count">{{ data.documents.archived_documents }}</span>
                   </div>
                 </div>
               </div>
