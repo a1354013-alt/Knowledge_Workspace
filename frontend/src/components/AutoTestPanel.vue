@@ -5,7 +5,7 @@
         Run acceptance (install / build / test / lint)
       </template>
       <template #subtitle>
-        Guarded runner for supported project zips (smoke/build/test only). Not a fully isolated sandbox — use trusted inputs and a constrained stack.
+        Guarded runner for supported project zips (smoke/build/test only). Not a fully isolated sandbox; use trusted inputs and a constrained stack.
       </template>
       <template #content>
         <div class="stack-md">
@@ -108,6 +108,60 @@
             <pre class="mono">{{ selectedRun.summary || '-' }}</pre>
           </div>
 
+          <div class="result-box">
+            <div class="timeline-header">
+              <div>
+                <h3>Run timeline</h3>
+                <p class="muted">
+                  Uploaded to report generation, with a safe fallback for older runs that have sparse metadata.
+                </p>
+              </div>
+            </div>
+
+            <div
+              v-if="selectedRun.timeline?.length"
+              class="timeline"
+            >
+              <article
+                v-for="item in selectedRun.timeline"
+                :key="item.key"
+                class="timeline-item"
+              >
+                <div
+                  class="timeline-marker"
+                  :class="`timeline-${item.status}`"
+                >
+                  <span />
+                </div>
+                <div class="timeline-body">
+                  <div class="timeline-row">
+                    <strong>{{ item.label }}</strong>
+                    <span :class="badgeClass(item.status)">{{ item.status }}</span>
+                  </div>
+                  <p
+                    v-if="item.timestamp"
+                    class="timeline-time"
+                  >
+                    {{ formatTimelineTimestamp(item.timestamp) }}
+                  </p>
+                  <p
+                    v-if="item.message"
+                    class="timeline-message"
+                  >
+                    {{ item.message }}
+                  </p>
+                </div>
+              </article>
+            </div>
+
+            <div
+              v-else
+              class="timeline-empty"
+            >
+              No timeline is available for this run yet.
+            </div>
+          </div>
+
           <div
             v-if="selectedRun.suggestion"
             class="result-box"
@@ -132,7 +186,7 @@
               class="row"
             >
               <Button
-                label="Promote problem → verified solution"
+                label="Promote problem to verified solution"
                 icon="pi pi-check"
                 @click="promoteProblem"
               />
@@ -176,16 +230,20 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
+import { useToast } from 'primevue/usetoast'
+import { onMounted, ref } from 'vue'
 
 import { get, post } from '../api'
+import type {
+  AutoTestRunListItemResponse,
+  AutoTestRunResponse,
+  PromoteToKnowledgeResponse,
+} from '../types'
 import { useWorkspaceStore } from '../workspace-store'
-import type { AutoTestRunListItemResponse, AutoTestRunResponse, PromoteToKnowledgeResponse } from '../types'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 
 const toast = useToast()
@@ -201,12 +259,25 @@ const store = useWorkspaceStore()
 
 function badgeClass(status: string) {
   const value = String(status || '').toLowerCase()
-  if (value === 'passed') return 'badge badge-ok'
+  if (value === 'passed' || value === 'done') return 'badge badge-ok'
   if (value === 'failed') return 'badge badge-bad'
   if (value === 'skipped') return 'badge badge-skip'
   if (value === 'unavailable') return 'badge badge-unavail'
   if (value === 'running') return 'badge badge-run'
   return 'badge badge-neutral'
+}
+
+function formatTimelineTimestamp(value: string) {
+  try {
+    return new Date(value).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return value
+  }
 }
 
 function openZipPicker() {
@@ -328,6 +399,102 @@ onMounted(loadRuns)
   padding: 16px;
   border-radius: 14px;
   background: #f7fafc;
+}
+
+.timeline-header h3 {
+  margin: 0 0 4px;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 12px;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 14px;
+}
+
+.timeline-item:not(:last-child) .timeline-marker::after {
+  content: '';
+  position: absolute;
+  top: 22px;
+  bottom: -12px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: #d8e1e8;
+}
+
+.timeline-marker {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.timeline-marker span {
+  width: 14px;
+  height: 14px;
+  margin-top: 4px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: #d8e1e8;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.9);
+}
+
+.timeline-done span {
+  background: #0f6b3a;
+  border-color: #bfead0;
+}
+
+.timeline-running span {
+  background: #1e4e8c;
+  border-color: #cfe6ff;
+}
+
+.timeline-failed span {
+  background: #a11919;
+  border-color: #ffd0d0;
+}
+
+.timeline-pending span {
+  background: #b0bcc8;
+  border-color: #e5edf4;
+}
+
+.timeline-body {
+  padding: 0 0 18px;
+}
+
+.timeline-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.timeline-time,
+.timeline-message,
+.timeline-empty {
+  margin: 6px 0 0;
+  color: #51606f;
+  font-size: 13px;
+}
+
+.timeline-message {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.timeline-empty {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px dashed #d8e1e8;
 }
 
 .step-card {

@@ -187,6 +187,27 @@ def migrate_autotest_tables(cursor: sqlite3.Cursor) -> None:
         cursor.execute("ALTER TABLE autotest_steps ADD COLUMN error_type TEXT NOT NULL DEFAULT ''")
 
 
+def migrate_knowledge_revisions_table(cursor: sqlite3.Cursor) -> None:
+    cursor.execute("PRAGMA table_info(knowledge_revisions)")
+    columns = {row[1] for row in cursor.fetchall()}
+    migrations = {
+        "title": "ALTER TABLE knowledge_revisions ADD COLUMN title TEXT NOT NULL DEFAULT ''",
+        "status": "ALTER TABLE knowledge_revisions ADD COLUMN status TEXT NOT NULL DEFAULT 'draft'",
+        "problem": "ALTER TABLE knowledge_revisions ADD COLUMN problem TEXT NOT NULL DEFAULT ''",
+        "root_cause": "ALTER TABLE knowledge_revisions ADD COLUMN root_cause TEXT NOT NULL DEFAULT ''",
+        "solution": "ALTER TABLE knowledge_revisions ADD COLUMN solution TEXT NOT NULL DEFAULT ''",
+        "tags": "ALTER TABLE knowledge_revisions ADD COLUMN tags TEXT NOT NULL DEFAULT ''",
+        "notes": "ALTER TABLE knowledge_revisions ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+        "source_type": "ALTER TABLE knowledge_revisions ADD COLUMN source_type TEXT NOT NULL DEFAULT 'manual'",
+        "source_ref": "ALTER TABLE knowledge_revisions ADD COLUMN source_ref TEXT NOT NULL DEFAULT ''",
+        "change_note": "ALTER TABLE knowledge_revisions ADD COLUMN change_note TEXT NOT NULL DEFAULT ''",
+        "created_by": "ALTER TABLE knowledge_revisions ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
+    }
+    for column, sql in migrations.items():
+        if column not in columns:
+            cursor.execute(sql)
+
+
 def seed_owner_user(cursor: sqlite3.Cursor) -> None:
     settings = get_settings()
     password = str(settings.DEFAULT_OWNER_PASSWORD or "").strip()

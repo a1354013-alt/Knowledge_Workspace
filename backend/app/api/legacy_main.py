@@ -10,11 +10,12 @@ import uuid
 import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -28,10 +29,15 @@ from app.llm import get_llm_provider, validate_env_vars
 from app.models import (
     AutoTestRunListItemResponse,
     AutoTestRunResponse,
+    AutoTestTimelineItemResponse,
+    DashboardHealthResponse,
     DocumentResponse,
     DocumentUpdateRequest,
     GenerateRequest,
     GenerateResponse,
+    GitHubAnalyzeRequest,
+    GitHubAnalyzeResponse,
+    GitHubRepoInfoResponse,
     HealthResponse,
     ItemLinkResolved,
     ItemLinksResponse,
@@ -39,6 +45,8 @@ from app.models import (
     KnowledgeEntryCreateRequest,
     KnowledgeEntryResponse,
     KnowledgeEntryUpdateRequest,
+    KnowledgeRevisionDiffResponse,
+    KnowledgeRevisionResponse,
     LogbookEntryCreateRequest,
     LogbookEntryResponse,
     LogbookEntryUpdateRequest,
@@ -59,10 +67,10 @@ from app.models import (
     SettingsOCRResponse,
     UploadDocumentResponse,
     UploadPhotoResponse,
-    DashboardHealthResponse,
 )
 from app.ocr_service import extract_text_from_image, get_ocr_status
 from app.services import FORM_TEMPLATES, generate_form, perform_qa, process_file
+from app.services.report_generator import ReportGenerator
 from app.utils import (
     generate_safe_filename,
     stream_write_file,
@@ -94,6 +102,227 @@ def serialize_document(document: dict) -> DocumentResponse:
         file_size=int(document.get("file_size", 0)),
         uploaded_by=document.get("uploaded_by"),
     )
+
+
+KNOWLEDGE_REVISION_FIELDS: tuple[str, ...] = (
+    "title",
+    "status",
+    "problem",
+    "root_cause",
+    "solution",
+    "tags",
+    "notes",
+    "source_type",
+    "source_ref",
+)
+
+
+def knowledge_revision_snapshot(entry: dict) -> dict[str, str]:
+    return {field: str(entry.get(field, "") or "") for field in KNOWLEDGE_REVISION_FIELDS}
+
+
+def serialize_knowledge_revision(row: dict) -> KnowledgeRevisionResponse:
+    return KnowledgeRevisionResponse(
+        revision_id=str(row.get("revision_id", "")),
+        entry_id=str(row.get("entry_id", "")),
+        version_number=int(row.get("version_number", 0)),
+        title=str(row.get("title", "")),
+        status=str(row.get("status", "draft") or "draft"),
+        problem=str(row.get("problem", "")),
+        root_cause=str(row.get("root_cause", "")),
+        solution=str(row.get("solution", "")),
+        tags=str(row.get("tags", "")),
+        notes=str(row.get("notes", "")),
+        source_type=str(row.get("source_type", "manual") or "manual"),
+        source_ref=str(row.get("source_ref", "") or ""),
+        change_note=str(row.get("change_note", "") or ""),
+        created_at=str(row.get("created_at", "") or ""),
+    )
+
+
+TIMELINE_LABELS: tuple[tuple[str, str], ...] = (
+    ("uploaded", "Uploaded"),
+    ("extracted", "Extracted"),
+    ("detected_stack", "Detected stack"),
+    ("ran_tests", "Ran tests"),
+    ("generated_report", "Generated report"),
+    ("failed_reason", "Failed reason"),
+)
+
+
+def serialize_autotest_step(step: dict) -> dict[str, object]:
+    return {
+        "step_id": step.get("step_id", ""),
+        "name": step.get("name", ""),
+        "command": step.get("command", ""),
+        "status": step.get("status", ""),
+        "started_at": step.get("started_at", ""),
+        "finished_at": step.get("finished_at", ""),
+        "output": step.get("output", ""),
+        "success": int(step.get("success", 0)),
+        "exit_code": int(step.get("exit_code", 0)),
+        "stdout_summary": step.get("stdout_summary", ""),
+        "stderr_summary": step.get("stderr_summary", ""),
+        "error_type": step.get("error_type", ""),
+        "created_at": step.get("created_at", ""),
+    }
+
+
+def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTestTimelineItemResponse]:
+    run_status = str(run_row.get("status", "") or "").lower()
+    created_at = str(run_row.get("created_at", "") or "") or None
+    has_workdir = bool(str(run_row.get("working_directory", "") or "").strip())
+    detected_stack = str(run_row.get("project_type_detected", "") or run_row.get("project_type", "") or "").strip()
+    has_report = any(
+        str(run_row.get(field, "") or "").strip()
+        for field in ("summary", "suggestion", "prompt_output")
+    )
+    has_started_steps = any(str(step.get("status", "") or "").lower() not in {"queued", "pending", ""} for step in step_rows)
+    failed_step = next((step for step in step_rows if str(step.get("status", "")).lower() == "failed"), None)
+    latest_step = step_rows[-1] if step_rows else None
+
+    ran_tests_status = "pending"
+    if failed_step:
+        ran_tests_status = "failed"
+    elif run_status == "running" or any(str(step.get("status", "")).lower() == "running" for step in step_rows):
+        ran_tests_status = "running"
+    elif step_rows and all(str(step.get("status", "")).lower() in {"passed", "skipped", "unavailable"} for step in step_rows):
+        ran_tests_status = "done"
+    elif has_started_steps:
+        ran_tests_status = "running"
+
+    generated_report_status = "pending"
+    if run_status == "running" and has_report:
+        generated_report_status = "running"
+    elif run_status in {"passed", "failed"} and has_report:
+        generated_report_status = "done"
+
+    extracted_status = "done" if has_workdir else ("running" if run_status == "running" else "pending")
+    detected_status = "done" if detected_stack else ("running" if extracted_status in {"done", "running"} and run_status == "running" else "pending")
+    failed_reason_status = "failed" if run_status == "failed" else "pending"
+
+    failed_message = None
+    if failed_step:
+        failed_message = str(
+            failed_step.get("stderr_summary")
+            or failed_step.get("output")
+            or run_row.get("summary")
+            or "AutoTest run failed."
+        )
+    elif run_status == "failed":
+        failed_message = str(run_row.get("summary") or "AutoTest run failed.")
+
+    items = {
+        "uploaded": AutoTestTimelineItemResponse(
+            key="uploaded",
+            label="Uploaded",
+            status="done",
+            timestamp=created_at,
+            message=str(run_row.get("source_ref", "") or "") or None,
+        ),
+        "extracted": AutoTestTimelineItemResponse(
+            key="extracted",
+            label="Extracted",
+            status=extracted_status,
+            timestamp=created_at if has_workdir else None,
+            message=str(run_row.get("working_directory", "") or "") or None,
+        ),
+        "detected_stack": AutoTestTimelineItemResponse(
+            key="detected_stack",
+            label="Detected stack",
+            status=detected_status,
+            timestamp=created_at if detected_stack else None,
+            message=detected_stack or None,
+        ),
+        "ran_tests": AutoTestTimelineItemResponse(
+            key="ran_tests",
+            label="Ran tests",
+            status=ran_tests_status,
+            timestamp=str((failed_step or latest_step or {}).get("finished_at") or (latest_step or {}).get("started_at") or "") or None,
+            message=str((failed_step or latest_step or {}).get("name", "") or "") or None,
+        ),
+        "generated_report": AutoTestTimelineItemResponse(
+            key="generated_report",
+            label="Generated report",
+            status=generated_report_status,
+            timestamp=created_at if has_report else None,
+            message=str(run_row.get("summary", "") or "") or None,
+        ),
+        "failed_reason": AutoTestTimelineItemResponse(
+            key="failed_reason",
+            label="Failed reason",
+            status=failed_reason_status,
+            timestamp=str((failed_step or {}).get("finished_at", "") or "") or created_at if run_status == "failed" else None,
+            message=failed_message,
+        ),
+    }
+    return [items[key] for key, _label in TIMELINE_LABELS]
+
+
+def serialize_autotest_run(run_row: dict, step_rows: list[dict]) -> AutoTestRunResponse:
+    return AutoTestRunResponse(
+        id=run_row.get("run_id", ""),
+        source_type=run_row.get("source_type", ""),
+        source_ref=run_row.get("source_ref", ""),
+        execution_mode=run_row.get("execution_mode", "real") or "real",
+        project_type_detected=run_row.get("project_type_detected", "") or run_row.get("project_type", "") or "",
+        working_directory=run_row.get("working_directory", "") or "",
+        project_name=run_row.get("project_name", "") or run_row.get("source_ref", ""),
+        project_type=run_row.get("project_type", ""),
+        status=run_row.get("status", ""),
+        summary=run_row.get("summary", ""),
+        suggestion=run_row.get("suggestion", ""),
+        prompt_output=run_row.get("prompt_output", ""),
+        problem_entry_id=run_row.get("problem_entry_id", "") or "",
+        solution_entry_id=run_row.get("solution_entry_id", "") or "",
+        created_at=run_row.get("created_at", ""),
+        steps=[serialize_autotest_step(step) for step in step_rows],
+        timeline=build_autotest_timeline(run_row, step_rows),
+    )
+
+
+def validate_github_url(repo_url: str) -> bool:
+    try:
+        parsed = urlparse(str(repo_url or "").strip())
+    except ValueError:
+        return False
+
+    if parsed.scheme != "https" or parsed.netloc != "github.com":
+        return False
+    if parsed.params or parsed.query or parsed.fragment:
+        return False
+
+    cleaned_path = parsed.path.strip("/")
+    parts = [part for part in cleaned_path.split("/") if part]
+    if len(parts) != 2:
+        return False
+
+    owner, repo = parts
+    if not owner or not repo:
+        return False
+    if any(token in repo_url for token in (";", "\\", "..", "%00")):
+        return False
+
+    repo_name = repo.removesuffix(".git")
+    allowed_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
+    return set(owner) <= allowed_chars and set(repo_name) <= allowed_chars and bool(repo_name)
+
+
+def get_repo_info(repo_url: str) -> dict[str, object]:
+    if not validate_github_url(repo_url):
+        raise ValueError("Invalid GitHub URL.")
+    parsed = urlparse(repo_url.strip())
+    owner, repo = [part for part in parsed.path.strip("/").split("/") if part]
+    normalized_repo = repo.removesuffix(".git")
+    normalized_url = f"https://github.com/{owner}/{normalized_repo}"
+    return {
+        "owner": owner,
+        "repo": normalized_repo,
+        "url": normalized_url,
+        "default_branch": "",
+        "provider": "github",
+        "clone_supported": False,
+    }
 
 
 def safe_unlink(path: Path) -> None:
@@ -925,6 +1154,12 @@ async def create_knowledge_entry(
 
     entry = db.get_knowledge_entry(entry_id)
     if entry:
+        db.add_knowledge_revision(
+            entry_id=entry_id,
+            snapshot=knowledge_revision_snapshot(entry),
+            change_note="Initial version",
+            created_by=user_id,
+        )
         db.set_reference_links(item_id_from_parts("knowledge", entry_id), normalize_related_item_ids(request.related_item_ids))
         maybe_link_source_item(
             from_item_id=item_id_from_parts("knowledge", entry_id),
@@ -950,8 +1185,16 @@ async def update_knowledge_entry(
 
     updates = request.model_dump(exclude_none=True)
     related = updates.pop("related_item_ids", None)
+    change_note = str(updates.pop("change_note", "") or "").strip()
     if not updates and related is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No knowledge fields provided.")
+    if updates:
+        db.add_knowledge_revision(
+            entry_id=entry_id,
+            snapshot=knowledge_revision_snapshot(existing),
+            change_note=change_note or "Updated knowledge entry",
+            created_by=user_id,
+        )
     if updates and not db.update_knowledge_entry(entry_id, **updates):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update knowledge entry.")
     if related is not None:
@@ -969,6 +1212,71 @@ async def update_knowledge_entry(
     updated = db.get_knowledge_entry(entry_id) or existing
     index_knowledge_entry(updated)
     return MessageResponse(message="Knowledge entry updated.")
+
+
+@app.get("/api/knowledge/{entry_id}/revisions", response_model=list[KnowledgeRevisionResponse])
+async def list_knowledge_revisions(entry_id: str, current_user: dict = Depends(get_current_user)) -> list[KnowledgeRevisionResponse]:
+    entry = db.get_knowledge_entry(entry_id)
+    if not entry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge entry not found.")
+    if entry.get("created_by") != current_user["sub"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot access these revisions.")
+    return [serialize_knowledge_revision(row) for row in db.list_knowledge_revisions(entry_id, created_by=current_user["sub"])]
+
+
+@app.get("/api/knowledge/{entry_id}/revisions/{revision_id}/diff", response_model=KnowledgeRevisionDiffResponse)
+async def get_knowledge_revision_diff(
+    entry_id: str,
+    revision_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> KnowledgeRevisionDiffResponse:
+    entry = db.get_knowledge_entry(entry_id)
+    if not entry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge entry not found.")
+    revision = db.get_knowledge_revision(revision_id, entry_id=entry_id, created_by=current_user["sub"])
+    if not revision:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge revision not found.")
+
+    changed = []
+    for field in KNOWLEDGE_REVISION_FIELDS:
+        old_value = str(revision.get(field, "") or "")
+        new_value = str(entry.get(field, "") or "")
+        if old_value != new_value:
+            changed.append({"field": field, "old_value": old_value, "new_value": new_value})
+    return KnowledgeRevisionDiffResponse(revision_id=revision_id, entry_id=entry_id, changed=changed)
+
+
+@app.post("/api/knowledge/{entry_id}/revisions/{revision_id}/restore", response_model=MessageResponse)
+async def restore_knowledge_revision(
+    entry_id: str,
+    revision_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> MessageResponse:
+    user_id = current_user["sub"]
+    entry = db.get_knowledge_entry(entry_id)
+    if not entry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge entry not found.")
+    if entry.get("created_by") != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot restore this knowledge entry.")
+
+    revision = db.get_knowledge_revision(revision_id, entry_id=entry_id, created_by=user_id)
+    if not revision:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge revision not found.")
+
+    db.add_knowledge_revision(
+        entry_id=entry_id,
+        snapshot=knowledge_revision_snapshot(entry),
+        change_note=f"Pre-restore snapshot before restoring revision {revision.get('version_number', '')}",
+        created_by=user_id,
+    )
+
+    restore_payload = {field: revision.get(field, entry.get(field, "")) for field in KNOWLEDGE_REVISION_FIELDS}
+    if not db.update_knowledge_entry(entry_id, **restore_payload):
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to restore knowledge revision.")
+
+    restored = db.get_knowledge_entry(entry_id) or entry
+    index_knowledge_entry(restored)
+    return MessageResponse(message="Knowledge revision restored.")
 
 
 @app.get("/api/logbook/entries", response_model=list[LogbookEntryResponse])
@@ -1697,41 +2005,7 @@ async def run_autotest(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Autotest run missing after creation.")
     step_rows = db.list_autotest_steps(run_id)
 
-    return AutoTestRunResponse(
-        id=run_row["run_id"],
-        source_type=run_row.get("source_type", ""),
-        source_ref=run_row.get("source_ref", ""),
-        execution_mode=run_row.get("execution_mode", "real") or "real",
-        project_type_detected=run_row.get("project_type_detected", "") or run_row.get("project_type", "") or "",
-        working_directory=run_row.get("working_directory", "") or "",
-        project_name=run_row.get("project_name", "") or run_row.get("source_ref", ""),
-        project_type=run_row.get("project_type", ""),
-        status=run_row.get("status", ""),
-        summary=run_row.get("summary", ""),
-        suggestion=run_row.get("suggestion", ""),
-        prompt_output=run_row.get("prompt_output", ""),
-        problem_entry_id=run_row.get("problem_entry_id", "") or "",
-        solution_entry_id=run_row.get("solution_entry_id", "") or "",
-        created_at=run_row.get("created_at", ""),
-        steps=[
-            {
-                "step_id": step.get("step_id", ""),
-                "name": step.get("name", ""),
-                "command": step.get("command", ""),
-                "status": step.get("status", ""),
-                "started_at": step.get("started_at", ""),
-                "finished_at": step.get("finished_at", ""),
-                "output": step.get("output", ""),
-                "success": int(step.get("success", 0)),
-                "exit_code": int(step.get("exit_code", 0)),
-                "stdout_summary": step.get("stdout_summary", ""),
-                "stderr_summary": step.get("stderr_summary", ""),
-                "error_type": step.get("error_type", ""),
-                "created_at": step.get("created_at", ""),
-            }
-            for step in step_rows
-        ],
-    )
+    return serialize_autotest_run(run_row, step_rows)
 
 
 @app.get("/api/autotest/runs", response_model=list[AutoTestRunListItemResponse])
@@ -1756,41 +2030,77 @@ async def get_autotest_run(run_id: str, current_user: dict = Depends(get_current
     if not run_row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Autotest run not found.")
     step_rows = db.list_autotest_steps(run_id)
-    return AutoTestRunResponse(
-        id=run_row.get("run_id", ""),
-        source_type=run_row.get("source_type", ""),
-        source_ref=run_row.get("source_ref", ""),
-        execution_mode=run_row.get("execution_mode", "real") or "real",
-        project_type_detected=run_row.get("project_type_detected", "") or run_row.get("project_type", "") or "",
-        working_directory=run_row.get("working_directory", "") or "",
-        project_name=run_row.get("project_name", "") or run_row.get("source_ref", ""),
-        project_type=run_row.get("project_type", ""),
-        status=run_row.get("status", ""),
-        summary=run_row.get("summary", ""),
-        suggestion=run_row.get("suggestion", ""),
-        prompt_output=run_row.get("prompt_output", ""),
-        problem_entry_id=run_row.get("problem_entry_id", "") or "",
-        solution_entry_id=run_row.get("solution_entry_id", "") or "",
-        created_at=run_row.get("created_at", ""),
-        steps=[
-            {
-                "step_id": step.get("step_id", ""),
-                "name": step.get("name", ""),
-                "command": step.get("command", ""),
-                "status": step.get("status", ""),
-                "started_at": step.get("started_at", ""),
-                "finished_at": step.get("finished_at", ""),
-                "output": step.get("output", ""),
-                "success": int(step.get("success", 0)),
-                "exit_code": int(step.get("exit_code", 0)),
-                "stdout_summary": step.get("stdout_summary", ""),
-                "stderr_summary": step.get("stderr_summary", ""),
-                "error_type": step.get("error_type", ""),
-                "created_at": step.get("created_at", ""),
-            }
-            for step in step_rows
-        ],
+    return serialize_autotest_run(run_row, step_rows)
+
+
+@app.get("/api/autotest/{run_id}/export", response_model=None)
+async def export_autotest_report(
+    run_id: str,
+    format: str,
+    current_user: dict = Depends(get_current_user),
+) -> Response:
+    requested_format = str(format or "").strip().lower()
+    if requested_format not in {"md", "html"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid export format. Use 'md' or 'html'.")
+
+    run_row = db.get_autotest_run(run_id=run_id, created_by=current_user["sub"])
+    if not run_row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Autotest run not found.")
+
+    step_rows = db.list_autotest_steps(run_id)
+    markdown_report = ReportGenerator.generate_markdown(run_row, step_rows)
+    filename_base = _safe_download_filename(run_row.get("project_name", "") or run_id or "autotest-report")
+
+    if requested_format == "md":
+        return PlainTextResponse(
+            content=markdown_report,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f'attachment; filename="{filename_base}.md"'},
+        )
+
+    html_report = ReportGenerator.convert_to_html(markdown_report)
+    return HTMLResponse(
+        content=html_report,
+        headers={"Content-Disposition": f'attachment; filename="{filename_base}.html"'},
     )
+
+
+@app.post("/api/autotest/github/analyze", response_model=GitHubAnalyzeResponse)
+async def analyze_github_repo(
+    payload: GitHubAnalyzeRequest,
+    current_user: dict = Depends(get_current_user),
+) -> GitHubAnalyzeResponse:
+    repo_url = str(payload.repo_url or "").strip()
+    if not validate_github_url(repo_url):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid GitHub URL. Use https://github.com/{owner}/{repo}.")
+
+    repo_info_data = get_repo_info(repo_url)
+    repo = str(repo_info_data["repo"])
+    normalized_url = str(repo_info_data["url"])
+    run_id = str(uuid.uuid4())
+    project_name = repo
+    summary = "GitHub repository accepted for AutoTest analysis. Clone and execution are not started yet."
+
+    created = db.add_autotest_run(
+        run_id=run_id,
+        source_type="github_repo",
+        source_ref=normalized_url,
+        execution_mode="simulated",
+        project_type_detected="",
+        working_directory="",
+        project_name=project_name,
+        project_type="github",
+        status="queued",
+        summary=summary,
+        suggestion="",
+        prompt_output="",
+        created_by=current_user["sub"],
+    )
+    if not created:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create AutoTest run.")
+
+    repo_info = GitHubRepoInfoResponse(**repo_info_data)
+    return GitHubAnalyzeResponse(run_id=run_id, status="queued", repo_info=repo_info)
 
 
 @app.get("/api/meta/templates")

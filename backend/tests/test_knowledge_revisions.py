@@ -1,9 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
+
+from app.core.security import create_token
 from app.main import app
-from app.context import db
-import os
-import uuid
+
 
 @pytest.fixture
 def client():
@@ -11,11 +11,8 @@ def client():
 
 @pytest.fixture
 def auth_headers(client):
-    # Setup env for test if needed, but assuming load_app handles it
-    # For simplicity in this test, we assume the owner user exists
-    password = os.getenv("DEFAULT_OWNER_PASSWORD", "testpass123")
-    resp = client.post("/api/login", json={"user_id": "owner", "password": password})
-    token = resp.json()["access_token"]
+    _ = client
+    token = create_token(user_id="owner", role="owner", display_name="Owner")
     return {"Authorization": f"Bearer {token}"}
 
 def test_knowledge_revision_flow(client, auth_headers):

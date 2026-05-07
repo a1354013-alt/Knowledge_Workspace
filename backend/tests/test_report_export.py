@@ -1,8 +1,11 @@
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
+
+from app.core.security import create_token
 from app.main import app
 from app.services.report_generator import ReportGenerator
-import uuid
 
 client = TestClient(app)
 
@@ -36,10 +39,20 @@ def mock_autotest_data(monkeypatch):
     
     # Mock database calls
     from app.context import db
+    from app.api import legacy_main
+
     monkeypatch.setattr(db, "get_autotest_run", lambda run_id, created_by: run_data)
     monkeypatch.setattr(db, "list_autotest_steps", lambda run_id: steps_data)
+    monkeypatch.setattr(legacy_main.db, "get_autotest_run", lambda run_id, created_by: run_data)
+    monkeypatch.setattr(legacy_main.db, "list_autotest_steps", lambda run_id: steps_data)
     
     return run_id
+
+
+@pytest.fixture
+def auth_headers():
+    token = create_token(user_id="owner", role="owner", display_name="Owner")
+    return {"Authorization": f"Bearer {token}"}
 
 def test_report_generator_markdown():
     run_data = {
@@ -59,39 +72,31 @@ def test_report_generator_html():
     assert "<!DOCTYPE html>" in html
     assert "Title" in html
 
-def test_export_api_md(mock_autotest_data):
-    # Mock current user
-    headers = {"Authorization": "Bearer test-token"}
-    # We need to mock get_current_user dependency
-    from app.dependencies import get_current_user
-    app.dependency_overrides[get_current_user] = lambda: {"sub": "owner", "role": "owner"}
-    
-    response = client.get(f"/api/autotest/{mock_autotest_data}/export?format=md", headers=headers)
+def test_export_api_md(mock_autotest_data, auth_headers):
+    response = client.get(f"/api/autotest/{mock_autotest_data}/export?format=md", headers=auth_headers)
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/markdown; charset=utf-8"
     assert "Project AutoTest Report" in response.text
-    
-    app.dependency_overrides.clear()
 
-def test_export_api_html(mock_autotest_data):
-    from app.dependencies import get_current_user
-    app.dependency_overrides[get_current_user] = lambda: {"sub": "owner", "role": "owner"}
-    
-    response = client.get(f"/api/autotest/{mock_autotest_data}/export?format=html", headers={"Authorization": "Bearer test-token"})
+def test_export_api_html(mock_autotest_data, auth_headers):
+    response = client.get(f"/api/autotest/{mock_autotest_data}/export?format=html", headers=auth_headers)
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/html; charset=utf-8"
     assert "<!DOCTYPE html>" in response.text
-    
-    app.dependency_overrides.clear()
 
-def test_export_api_404(monkeypatch):
+def test_export_api_404(monkeypatch, auth_headers):
     from app.context import db
+    from app.api import legacy_main
+
     monkeypatch.setattr(db, "get_autotest_run", lambda run_id, created_by: None)
-    
-    from app.dependencies import get_current_user
-    app.dependency_overrides[get_current_user] = lambda: {"sub": "owner", "role": "owner"}
-    
-    response = client.get("/api/autotest/nonexistent/export?format=md", headers={"Authorization": "Bearer test-token"})
+    monkeypatch.setattr(legacy_main.db, "get_autotest_run", lambda run_id, created_by: None)
+
+    response = client.get("/api/autotest/nonexistent/export?format=md", headers=auth_headers)
     assert response.status_code == 404
-    
-    app.dependency_overrides.clear()
+
+def test_export_api_invalid_format(mock_autotest_data, auth_headers):
+    response = client.get(
+        f"/api/autotest/{mock_autotest_data}/export?format=pdf",
+        headers=auth_headers,
+    )
+    assert response.status_code == 400

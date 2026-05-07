@@ -1,7 +1,11 @@
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
+
 from app.context import db
+from app.main import app
+
 
 @pytest.fixture
 def client():
@@ -32,6 +36,8 @@ def test_dashboard_health_no_data(client, auth_headers):
     # Check resolution_rate and pass_rate are numbers
     assert isinstance(data["logbook"]["resolution_rate"], (int, float))
     assert isinstance(data["autotest"]["pass_rate"], (int, float))
+    assert "failedDocuments" in data["documents"]
+    assert "archivedDocuments" in data["documents"]
 
 def test_dashboard_health_calculation_logic(client, auth_headers):
     """Test dashboard API calculation logic with some seeded data."""
@@ -88,3 +94,58 @@ def test_dashboard_health_calculation_logic(client, auth_headers):
     # Note: since other tests might have seeded data, we check if the rate is calculated correctly
     expected_rate = round((data["logbook"]["with_solution"] / data["logbook"]["total"]) * 100, 2)
     assert data["logbook"]["resolution_rate"] == expected_rate
+
+
+def test_dashboard_health_promoted_and_document_status_metrics(client, auth_headers):
+    user_id = "owner"
+    unique_suffix = uuid.uuid4().hex
+    knowledge_id = f"test_promoted_knowledge_{unique_suffix}"
+    logbook_id = f"test_promoted_logbook_{unique_suffix}"
+    archived_doc_id = f"test_archived_doc_{unique_suffix}"
+
+    before = client.get("/api/dashboard/health", headers=auth_headers)
+    assert before.status_code == 200
+    before_data = before.json()
+
+    db.add_knowledge_entry(
+        entry_id=knowledge_id,
+        title="Promoted Knowledge",
+        problem="Problem",
+        solution="Solution",
+        root_cause="",
+        tags="",
+        notes="",
+        created_by=user_id,
+        status="verified",
+    )
+    db.add_logbook_entry(
+        entry_id=logbook_id,
+        title="Promoted Logbook",
+        problem="Problem",
+        solution="Solution",
+        root_cause="",
+        tags="",
+        run_id="",
+        source_type="manual",
+        created_by=user_id,
+        status="reviewed",
+    )
+    assert db.add_link(f"logbook:{logbook_id}", f"knowledge:{knowledge_id}", link_type="produced")
+    db.add_document(
+        doc_id=archived_doc_id,
+        filename="archived.txt",
+        saved_filename="archived.txt",
+        file_size=10,
+        uploaded_by=user_id,
+        category="notes",
+        tags="",
+        status="archived",
+    )
+
+    response = client.get("/api/dashboard/health", headers=auth_headers)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["logbook"]["promoted_to_knowledge"] >= before_data["logbook"]["promoted_to_knowledge"] + 1
+    assert data["documents"]["archivedDocuments"] >= before_data["documents"]["archivedDocuments"] + 1
+    assert data["documents"]["failedDocuments"] == 0

@@ -224,6 +224,16 @@ export interface AutoTestRunListItemResponse {
   summary: string;
 }
 
+export type AutoTestTimelineStatus = 'done' | 'running' | 'failed' | 'pending';
+
+export interface AutoTestTimelineItemResponse {
+  key: string;
+  label: string;
+  status: AutoTestTimelineStatus;
+  timestamp: string | null;
+  message: string | null;
+}
+
 export interface AutoTestRunResponse {
   id: string;
   source_type: string;
@@ -241,6 +251,7 @@ export interface AutoTestRunResponse {
   solution_entry_id: string;
   created_at: string;
   steps: AutoTestStepResponse[];
+  timeline: AutoTestTimelineItemResponse[];
 }
 
 // Saved Prompt
@@ -318,8 +329,9 @@ export interface DashboardAutoTestMetrics {
 export interface DashboardDocumentMetrics {
   total: number;
   indexed: number;
-  failed: number;
   pending: number;
+  failedDocuments: number;
+  archivedDocuments: number;
 }
 
 export interface DashboardRecentActivity {

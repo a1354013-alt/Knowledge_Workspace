@@ -1,19 +1,20 @@
-import markdown
 from datetime import datetime
-from typing import Any, Dict, List
-import os
+from typing import Any
+
+import markdown
+
 
 class ReportGenerator:
     @staticmethod
-    def generate_markdown(run_data: Dict[str, Any], steps_data: List[Dict[str, Any]]) -> str:
+    def generate_markdown(run_data: dict[str, Any], steps_data: list[dict[str, Any]]) -> str:
         project_name = run_data.get("project_name", "Unknown Project")
         repo_name = run_data.get("source_ref", "N/A")
         scan_time = run_data.get("created_at", "N/A")
         report_time = datetime.now().isoformat()
         
         # 1. Project Information
-        md = f"# Project AutoTest Report\n\n"
-        md += f"## 1. Project Information\n\n"
+        md = "# Project AutoTest Report\n\n"
+        md += "## 1. Project Information\n\n"
         md += f"- **Project Name**: {project_name}\n"
         md += f"- **Repo Name**: {repo_name}\n"
         md += f"- **Scan Time**: {scan_time}\n"
@@ -21,13 +22,13 @@ class ReportGenerator:
         
         # 2. Detected Tech Stack
         project_type = run_data.get("project_type_detected") or run_data.get("project_type", "Unknown")
-        md += f"## 2. Detected Tech Stack\n\n"
+        md += "## 2. Detected Tech Stack\n\n"
         md += f"- **Language/Framework**: {project_type.capitalize()}\n"
         md += f"- **Execution Mode**: {run_data.get('execution_mode', 'N/A')}\n"
         md += f"- **Working Directory**: {run_data.get('working_directory', 'N/A')}\n\n"
         
         # 3. Execution Results
-        md += f"## 3. Execution Results\n\n"
+        md += "## 3. Execution Results\n\n"
         md += "| Step | Status | Exit Code | Duration |\n"
         md += "|------|--------|-----------|----------|\n"
         
@@ -57,22 +58,22 @@ class ReportGenerator:
         
         # 4. Failed Steps Summary
         if failed_steps:
-            md += f"## 4. Failed Steps Summary\n\n"
+            md += "## 4. Failed Steps Summary\n\n"
             for step in failed_steps:
                 error_msg = step.get("stderr_summary") or step.get("output", "No error message")
                 error_type = step.get("error_type", "unknown")
                 md += f"### Step: {step.get('name')}\n"
-                md += f"- **Status**: Failed\n"
+                md += "- **Status**: Failed\n"
                 md += f"- **Category**: {error_type}\n"
                 md += f"- **Error Message**:\n```\n{error_msg}\n```\n\n"
         
         # 5. Error Summary
-        md += f"## 5. Error Summary\n\n"
+        md += "## 5. Error Summary\n\n"
         summary = run_data.get("summary", "No summary available")
         md += f"**Summary**: {summary}\n\n"
         
         # 6. AI Suggestions
-        md += f"## 6. AI Suggestions\n\n"
+        md += "## 6. AI Suggestions\n\n"
         suggestion = run_data.get("suggestion")
         if suggestion:
             md += f"### Fix Suggestion\n{suggestion}\n\n"
@@ -80,7 +81,7 @@ class ReportGenerator:
             md += "No specific AI suggestions available.\n\n"
             
         # 7. Codex / Copilot Prompt
-        md += f"## 7. Codex / Copilot Prompt\n\n"
+        md += "## 7. Codex / Copilot Prompt\n\n"
         prompt_output = run_data.get("prompt_output")
         if prompt_output:
             md += "```\n" + prompt_output + "\n```\n"
@@ -122,10 +123,11 @@ class ReportGenerator:
         return full_html
 
     @staticmethod
-    def convert_to_pdf(html_content: str, output_path: str):
+    def convert_to_pdf(html_content: str, output_path: str) -> bool:
         # Using weasyprint if available, otherwise fallback or error
         try:
             from weasyprint import HTML
+
             HTML(string=html_content).write_pdf(output_path)
             return True
         except ImportError:

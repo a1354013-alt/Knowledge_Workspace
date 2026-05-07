@@ -105,8 +105,9 @@ class DashboardLogbookMetrics(StrictModel):
 class DashboardDocumentMetrics(StrictModel):
     total: int
     indexed: int
-    failed: int
     pending: int
+    failedDocuments: int
+    archivedDocuments: int
 
 
 class DashboardRecentActivity(StrictModel):
@@ -179,6 +180,36 @@ class KnowledgeEntryUpdateRequest(StrictModel):
     source_type: Literal["manual", "document-derived", "autotest-derived"] | None = None
     source_ref: str | None = Field(default=None, max_length=2000)
     related_item_ids: list[str] | None = None
+    change_note: str | None = Field(default=None, max_length=500)
+
+
+class KnowledgeRevisionResponse(StrictModel):
+    revision_id: str
+    entry_id: str
+    version_number: int
+    title: str
+    status: Literal["draft", "reviewed", "verified", "archived"] = "draft"
+    problem: str
+    root_cause: str
+    solution: str
+    tags: str
+    notes: str
+    source_type: Literal["manual", "document-derived", "autotest-derived"] = "manual"
+    source_ref: str = ""
+    change_note: str
+    created_at: str
+
+
+class KnowledgeRevisionDiffItem(StrictModel):
+    field: str
+    old_value: str
+    new_value: str
+
+
+class KnowledgeRevisionDiffResponse(StrictModel):
+    revision_id: str
+    entry_id: str
+    changed: list[KnowledgeRevisionDiffItem] = Field(default_factory=list)
 
 
 class LogbookEntryCreateRequest(StrictModel):
@@ -288,6 +319,14 @@ class AutoTestRunListItemResponse(StrictModel):
     summary: str
 
 
+class AutoTestTimelineItemResponse(StrictModel):
+    key: str
+    label: str
+    status: Literal["done", "running", "failed", "pending"]
+    timestamp: str | None = None
+    message: str | None = None
+
+
 class DashboardAutoTestMetrics(StrictModel):
     total_runs: int
     passed: int
@@ -314,6 +353,26 @@ class AutoTestRunResponse(StrictModel):
     solution_entry_id: str = ""
     created_at: str
     steps: list[AutoTestStepResponse] = Field(default_factory=list)
+    timeline: list[AutoTestTimelineItemResponse] = Field(default_factory=list)
+
+
+class GitHubAnalyzeRequest(StrictModel):
+    repo_url: str = Field(min_length=1, max_length=2000)
+
+
+class GitHubRepoInfoResponse(StrictModel):
+    owner: str
+    repo: str
+    url: str
+    default_branch: str = ""
+    provider: str = "github"
+    clone_supported: bool = False
+
+
+class GitHubAnalyzeResponse(StrictModel):
+    run_id: str
+    status: Literal["queued", "pending"]
+    repo_info: GitHubRepoInfoResponse
 
 
 class ItemSummary(StrictModel):

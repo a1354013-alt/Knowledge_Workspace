@@ -84,6 +84,27 @@ CREATE TABLE IF NOT EXISTS logbook_entries (
 )
 """
 
+CREATE_KNOWLEDGE_REVISIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS knowledge_revisions (
+    revision_id TEXT PRIMARY KEY,
+    entry_id TEXT NOT NULL,
+    version_number INTEGER NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'draft',
+    problem TEXT NOT NULL DEFAULT '',
+    root_cause TEXT NOT NULL DEFAULT '',
+    solution TEXT NOT NULL DEFAULT '',
+    tags TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    source_type TEXT NOT NULL DEFAULT 'manual',
+    source_ref TEXT NOT NULL DEFAULT '',
+    change_note TEXT NOT NULL DEFAULT '',
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(entry_id) REFERENCES knowledge_entries(entry_id)
+)
+"""
+
 CREATE_PHOTOS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS photos (
     photo_id TEXT PRIMARY KEY,
