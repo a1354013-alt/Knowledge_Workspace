@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app.api.app_factory import create_app
 from app.api import legacy_main
+from app.api.app_factory import create_app
 from app.api.legacy_main import (
     APP_VERSION,
     UPLOAD_DIR,

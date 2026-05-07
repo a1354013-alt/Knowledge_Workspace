@@ -67,6 +67,7 @@ def get_llm_provider() -> tuple[LLMProvider, dict[str, object]]:
         "primary_provider": getattr(primary_provider, "name", "unknown"),
         "primary_provider_instance": primary_provider,
         "fallback_provider": getattr(fallback_provider, "name", "") if fallback_provider else "",
+        "fallback_provider_instance": fallback_provider,
         "model": getattr(primary_provider, "model", getattr(provider, "model", "")),
         "base_url": getattr(primary_provider, "base_url", ""),
         "fallback_enabled": fallback_provider is not None,

@@ -3,23 +3,25 @@ from __future__ import annotations
 import importlib
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+BOOTSTRAP_DIR = Path(tempfile.mkdtemp(prefix="kw-pytest-bootstrap-"))
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 os.environ.setdefault("JWT_SECRET", "test-secret-test-secret-test-secret-1234")
 os.environ.setdefault("DEFAULT_OWNER_PASSWORD", "OwnerPass123!")
-os.environ.setdefault("DATABASE_PATH", str(BACKEND_DIR / ".pytest-import.db"))
-os.environ.setdefault("UPLOAD_DIR", str(BACKEND_DIR / ".pytest-import-uploads"))
-os.environ.setdefault("PHOTO_DIR", str(BACKEND_DIR / ".pytest-import-photos"))
-os.environ.setdefault("AUTOTEST_DIR", str(BACKEND_DIR / ".pytest-import-autotest"))
+os.environ.setdefault("DATABASE_PATH", str(BOOTSTRAP_DIR / "bootstrap.db"))
+os.environ.setdefault("UPLOAD_DIR", str(BOOTSTRAP_DIR / "uploads"))
+os.environ.setdefault("PHOTO_DIR", str(BOOTSTRAP_DIR / "photos"))
+os.environ.setdefault("AUTOTEST_DIR", str(BOOTSTRAP_DIR / "autotest"))
 os.environ.setdefault("AUTOTEST_MODE", "simulated")
-os.environ.setdefault("CHROMA_DB_PATH", str(BACKEND_DIR / ".pytest-import-chroma"))
+os.environ.setdefault("CHROMA_DB_PATH", str(BOOTSTRAP_DIR / "chroma"))
 os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:5173")
 
 

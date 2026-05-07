@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import mimetypes
 import os
 import shutil
 import subprocess
@@ -17,7 +16,6 @@ from fastapi import HTTPException, UploadFile, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
 from app.context import db, settings
-from app.database import delete_from_kb_vector_db
 from app.kb_index import index_knowledge_entry, index_logbook_entry
 from app.llm import get_llm_provider
 from app.models import (

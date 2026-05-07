@@ -10,8 +10,38 @@ class DashboardRepository:
     def __init__(self, database):
         self._db = database
 
-    def fetch_knowledge_metrics(self, user_id: str) -> dict[str, Any]:
+    def get_document_index_counts(self, user_id: str) -> dict[str, int]:
         with self._db._connection() as conn:  # noqa: SLF001 - repository owns DB query details
+            total = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1",
+                (user_id,),
+            ).fetchone()[0]
+            indexed = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status = 'indexed'",
+                (user_id,),
+            ).fetchone()[0]
+            pending = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status = 'pending'",
+                (user_id,),
+            ).fetchone()[0]
+            failed_documents = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status = 'failed'",
+                (user_id,),
+            ).fetchone()[0]
+            archived_documents = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND status = 'archived'",
+                (user_id,),
+            ).fetchone()[0]
+        return {
+            "total": total,
+            "indexed": indexed,
+            "pending": pending,
+            "failed_documents": failed_documents,
+            "archived_documents": archived_documents,
+        }
+
+    def get_knowledge_counts(self, user_id: str) -> dict[str, Any]:
+        with self._db._connection() as conn:  # noqa: SLF001
             total = conn.execute(
                 "SELECT COUNT(*) FROM knowledge_entries WHERE created_by = ? AND is_active = 1",
                 (user_id,),
@@ -25,7 +55,7 @@ class DashboardRepository:
             by_status.setdefault(status, 0)
         return {"total": total, "by_status": by_status}
 
-    def fetch_logbook_metrics(self, user_id: str) -> dict[str, Any]:
+    def get_logbook_counts(self, user_id: str) -> dict[str, int | float]:
         with self._db._connection() as conn:  # noqa: SLF001
             total = conn.execute(
                 "SELECT COUNT(*) FROM logbook_entries WHERE created_by = ? AND is_active = 1",
@@ -35,7 +65,16 @@ class DashboardRepository:
                 "SELECT COUNT(*) FROM logbook_entries WHERE created_by = ? AND is_active = 1 AND solution != ''",
                 (user_id,),
             ).fetchone()[0]
-            promoted_to_knowledge = conn.execute(
+        resolution_rate = (with_solution / total * 100) if total > 0 else 0.0
+        return {
+            "total": total,
+            "with_solution": with_solution,
+            "resolution_rate": round(resolution_rate, 2),
+        }
+
+    def get_promoted_logbook_count(self, user_id: str) -> int:
+        with self._db._connection() as conn:  # noqa: SLF001
+            return conn.execute(
                 """
                 SELECT COUNT(DISTINCT le.entry_id)
                 FROM logbook_entries AS le
@@ -53,15 +92,8 @@ class DashboardRepository:
                 """,
                 (user_id, user_id),
             ).fetchone()[0]
-        resolution_rate = (with_solution / total * 100) if total > 0 else 0.0
-        return {
-            "total": total,
-            "with_solution": with_solution,
-            "promoted_to_knowledge": promoted_to_knowledge,
-            "resolution_rate": round(resolution_rate, 2),
-        }
 
-    def fetch_autotest_metrics(self, user_id: str) -> dict[str, Any]:
+    def get_autotest_metrics(self, user_id: str) -> dict[str, Any]:
         with self._db._connection() as conn:  # noqa: SLF001
             total_runs = conn.execute(
                 "SELECT COUNT(*) FROM autotest_runs WHERE created_by = ?",
@@ -99,37 +131,7 @@ class DashboardRepository:
             "recent_runs": [dict(row) for row in recent_runs_rows],
         }
 
-    def fetch_document_metrics(self, user_id: str) -> dict[str, Any]:
-        with self._db._connection() as conn:  # noqa: SLF001
-            total = conn.execute(
-                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1",
-                (user_id,),
-            ).fetchone()[0]
-            indexed = conn.execute(
-                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status = 'indexed'",
-                (user_id,),
-            ).fetchone()[0]
-            pending = conn.execute(
-                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status = 'pending'",
-                (user_id,),
-            ).fetchone()[0]
-            failed_documents = conn.execute(
-                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status = 'failed'",
-                (user_id,),
-            ).fetchone()[0]
-            archived_documents = conn.execute(
-                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND status = 'archived'",
-                (user_id,),
-            ).fetchone()[0]
-        return {
-            "total": total,
-            "indexed": indexed,
-            "pending": pending,
-            "failed_documents": failed_documents,
-            "archived_documents": archived_documents,
-        }
-
-    def fetch_recent_activity(self, user_id: str, *, days: int = 7) -> dict[str, Any]:
+    def get_recent_activity_rows(self, user_id: str, *, days: int = 7) -> dict[str, int]:
         now = datetime.now(timezone.utc)
         since = (now - timedelta(days=days)).isoformat()
         with self._db._connection() as conn:  # noqa: SLF001
@@ -158,11 +160,9 @@ class DashboardRepository:
                 (user_id, since),
             ).fetchone()[0]
         return {
-            "days": days,
             "documents_added": documents_added,
             "knowledge_added": knowledge_added,
             "logbook_added": logbook_added,
-            "qa_count": 0,
             "autotest_runs": autotest_runs,
             "autotest_passed": autotest_passed,
             "autotest_failed": autotest_failed,

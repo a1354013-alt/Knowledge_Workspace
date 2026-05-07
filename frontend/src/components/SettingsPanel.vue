@@ -5,7 +5,7 @@
         Local AI provider
       </template>
       <template #subtitle>
-        Ollama is the default provider. If it is down, the workspace keeps working in fallback mode.
+        Ollama is the default provider. A noop fallback keeps retrieval endpoints alive, but it does not make generation ready.
       </template>
       <template #content>
         <div class="stack-md">
@@ -67,7 +67,7 @@
             </div>
           </div>
           <p class="muted">
-            Start Ollama: `ollama serve` and pull a model: `ollama pull llama3.1`.
+            Start Ollama: `ollama serve` and pull a model: `ollama pull llama3.1`. If the active provider is `none`, generation is unavailable until a real provider is healthy.
           </p>
         </div>
       </template>

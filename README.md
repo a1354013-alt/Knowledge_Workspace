@@ -146,6 +146,7 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 ```bash
 cd backend
+python -m ruff check .
 python -m compileall app
 python -m pytest -q
 ```
@@ -156,6 +157,7 @@ python -m pytest -q
 cd frontend
 npm ci
 npm run lint
+npm run typecheck
 npm run build
 npm run test:run
 ```
@@ -164,7 +166,7 @@ If your local default Node runtime is newer than `20`, use a Node 20 runtime for
 
 ## CI
 
-CI lives in [.github/workflows/ci.yml](/D:/git/Knowledge_Workspace/.github/workflows/ci.yml) and currently runs:
+CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently runs:
 
 1. backend dependency install
 2. `ruff`
@@ -240,7 +242,7 @@ Status meanings:
 
 ## Portfolio Case Study
 
-See [docs/PORTFOLIO_CASE_STUDY.md](/D:/git/Knowledge_Workspace/docs/PORTFOLIO_CASE_STUDY.md) for:
+See [docs/PORTFOLIO_CASE_STUDY.md](docs/PORTFOLIO_CASE_STUDY.md) for:
 
 - problem framing
 - architecture choices
