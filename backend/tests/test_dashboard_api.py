@@ -1,3 +1,4 @@
+import os
 import uuid
 
 import pytest
@@ -15,7 +16,9 @@ def client():
 def auth_headers(client):
     # Seed owner user if not exists (usually handled by app init)
     # Login to get token
-    response = client.post("/api/login", json={"user_id": "owner", "password": "password123"})
+    password = os.environ.get("DEFAULT_OWNER_PASSWORD", "password123")
+    response = client.post("/api/login", json={"user_id": "owner", "password": password})
+    assert response.status_code == 200, response.text
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 

@@ -9,8 +9,8 @@ from app.main import app
 client = TestClient(app)
 
 # Set environment variables for tests
-os.environ["JWT_SECRET"] = "0123456789abcdef0123456789abcdef"
-os.environ["DEFAULT_OWNER_PASSWORD"] = "password123"
+os.environ.setdefault("JWT_SECRET", "0123456789abcdef0123456789abcdef")
+os.environ.setdefault("DEFAULT_OWNER_PASSWORD", "OwnerPass123!")
 
 @pytest.fixture
 def auth_headers():
