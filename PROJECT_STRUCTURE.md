@@ -8,7 +8,7 @@ Knowledge_Workspace/
       main.py
       models.py
       database.py
-      services.py
+      services/
       utils.py
       text_files.py
       kb_index.py

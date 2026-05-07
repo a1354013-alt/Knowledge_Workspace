@@ -103,6 +103,13 @@ jobs:
               bad.append(name)
           if bad:
             raise SystemExit("Forbidden paths in zip:\n" + "\n".join(sorted(set(bad))[:200]))
+          required = {
+            "knowledge_workspace/docs/AUTOTEST.md",
+            "knowledge_workspace/docs/PORTFOLIO_CASE_STUDY.md",
+          }
+          missing = sorted(required - set(names))
+          if missing:
+            raise SystemExit("Missing required docs in zip:\n" + "\n".join(missing))
           print("OK: zip exclusions")
           PY
 

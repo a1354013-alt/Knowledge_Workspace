@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.database import add_to_kb_vector_db, delete_from_kb_vector_db
-from app.services import split_text
+from app.services.core import split_text
 
 
 def _build_metadata(

@@ -80,6 +80,12 @@ graph TD
   - `failed`
   - `archived`
 
+## Current Backend Boundaries
+
+- AutoTest request flow: `api/routes/autotest.py -> services/autotest_service.py -> repositories/autotest_repository.py`
+- Dashboard request flow: `api/routes/dashboard.py -> services/dashboard_service.py -> repositories/dashboard_repository.py`
+- `legacy_main.py` remains the compatibility surface for document, knowledge, logbook, photo, prompt, auth, and file-serving endpoints that have not yet been fully moved into dedicated route/service modules
+
 ## Security Boundary
 
 AutoTest is intentionally constrained, but it is not a sandbox.
@@ -173,10 +179,10 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 3. `python -m compileall app`
 4. `python -m pytest -q`
 5. frontend `npm ci`
-6. frontend `npm run test:run`
-7. frontend `npm run lint`
-8. frontend `npm run typecheck`
-9. frontend `npm run build`
+6. frontend `npm run lint`
+7. frontend `npm run typecheck`
+8. frontend `npm run build`
+9. frontend `npm run test:run`
 10. release packaging and smoke checks
 
 ## Dashboard Metric Contract
@@ -234,13 +240,15 @@ Status meanings:
 
 ## Known Limitations
 
-- AutoTest is not containerized or VM-isolated
-- frontend lint is green in CI/Node 20, but still emits Vue formatting warnings in `ProjectHealthDashboard.vue`
+- `legacy_main.py` still owns part of the document, knowledge, logbook, photo, prompt, and system surface while the migration continues
+- AutoTest real mode is constrained subprocess execution, not a full container or VM sandbox
+- GitHub analyze is currently a validated URL intake plus queued analysis flow, not a remote clone-and-run executor
 - Chroma emits third-party deprecation warnings in tests
-- GitHub analyze is still an intake flow, not a full remote clone-and-run executor
-- local Node 24/npm resolution on this machine is less stable than CI's Node 20 path for Vite/Vitest/ESLint
+- frontend verification should be run with Node `20` to match CI
 
 ## Portfolio Case Study
+
+See [docs/AUTOTEST.md](docs/AUTOTEST.md) for the AutoTest architecture, modes, timeline contract, and safety boundary.
 
 See [docs/PORTFOLIO_CASE_STUDY.md](docs/PORTFOLIO_CASE_STUDY.md) for:
 

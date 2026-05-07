@@ -10,14 +10,22 @@
       <template #content>
         <div class="stack-lg">
           <!-- Loading State -->
-          <div v-if="loading" class="loading-state">
+          <div
+            v-if="loading"
+            class="loading-state"
+          >
             <div class="spinner" />
             <p>Loading dashboard metrics...</p>
           </div>
 
           <!-- Error State -->
-          <div v-else-if="error" class="error-state">
-            <p class="error-message">{{ error }}</p>
+          <div
+            v-else-if="error"
+            class="error-state"
+          >
+            <p class="error-message">
+              {{ error }}
+            </p>
             <Button
               label="Retry"
               icon="pi pi-refresh"
@@ -26,12 +34,18 @@
           </div>
 
           <!-- Empty State -->
-          <div v-else-if="!data" class="empty-state">
+          <div
+            v-else-if="!data"
+            class="empty-state"
+          >
             <p>No data available yet. Start by uploading documents or creating knowledge entries.</p>
           </div>
 
           <!-- Dashboard Content -->
-          <div v-else class="dashboard-content">
+          <div
+            v-else
+            class="dashboard-content"
+          >
             <!-- Summary Cards Row -->
             <div class="cards-row">
               <div class="summary-card">
@@ -39,9 +53,15 @@
                   <span class="card-label">Knowledge Total</span>
                   <i class="pi pi-book" />
                 </div>
-                <div class="card-value">{{ data.knowledge.total }}</div>
+                <div class="card-value">
+                  {{ data.knowledge.total }}
+                </div>
                 <div class="card-detail">
-                  <span v-for="(count, status) in data.knowledge.by_status" :key="status" class="status-badge">
+                  <span
+                    v-for="(count, status) in data.knowledge.by_status"
+                    :key="status"
+                    class="status-badge"
+                  >
                     {{ status }}: {{ count }}
                   </span>
                 </div>
@@ -52,7 +72,9 @@
                   <span class="card-label">Logbook Resolution Rate</span>
                   <i class="pi pi-list" />
                 </div>
-                <div class="card-value">{{ formatPercentage(data.logbook.resolution_rate) }}</div>
+                <div class="card-value">
+                  {{ formatPercentage(data.logbook.resolution_rate) }}
+                </div>
                 <div class="card-detail">
                   {{ data.logbook.with_solution }} / {{ data.logbook.total }} with solution
                 </div>
@@ -63,7 +85,9 @@
                   <span class="card-label">AutoTest Pass Rate</span>
                   <i class="pi pi-check-circle" />
                 </div>
-                <div class="card-value">{{ formatPercentage(data.autotest.pass_rate) }}</div>
+                <div class="card-value">
+                  {{ formatPercentage(data.autotest.pass_rate) }}
+                </div>
                 <div class="card-detail">
                   {{ data.autotest.passed }} / {{ data.autotest.total_runs }} passed
                 </div>
@@ -74,7 +98,9 @@
                   <span class="card-label">Document Index Rate</span>
                   <i class="pi pi-file" />
                 </div>
-                <div class="card-value">{{ formatPercentage(calculateDocumentIndexRate()) }}</div>
+                <div class="card-value">
+                  {{ formatPercentage(calculateDocumentIndexRate()) }}
+                </div>
                 <div class="card-detail">
                   {{ data.documents.indexed }} / {{ data.documents.total }} indexed
                 </div>
@@ -87,7 +113,11 @@
               <div class="status-block">
                 <h3>Knowledge by Status</h3>
                 <div class="status-list">
-                  <div v-for="(count, status) in data.knowledge.by_status" :key="status" class="status-item">
+                  <div
+                    v-for="(count, status) in data.knowledge.by_status"
+                    :key="status"
+                    class="status-item"
+                  >
                     <span class="status-name">{{ capitalizeStatus(status) }}</span>
                     <div class="status-bar">
                       <div
@@ -152,11 +182,22 @@
             <!-- AutoTest Recent Runs -->
             <div class="autotest-block">
               <h3>Recent AutoTest Runs</h3>
-              <div v-if="data.autotest.recent_runs.length > 0" class="recent-runs-table">
-                <div v-for="run in data.autotest.recent_runs" :key="run.id" class="run-row">
+              <div
+                v-if="data.autotest.recent_runs.length > 0"
+                class="recent-runs-table"
+              >
+                <div
+                  v-for="run in data.autotest.recent_runs"
+                  :key="run.id"
+                  class="run-row"
+                >
                   <div class="run-info">
-                    <div class="run-name">{{ run.project_name }}</div>
-                    <div class="run-time">{{ formatDateTime(run.created_at) }}</div>
+                    <div class="run-name">
+                      {{ run.project_name }}
+                    </div>
+                    <div class="run-time">
+                      {{ formatDateTime(run.created_at) }}
+                    </div>
                   </div>
                   <div class="run-status">
                     <span :class="`badge badge-${run.status}`">
@@ -165,7 +206,10 @@
                   </div>
                 </div>
               </div>
-              <div v-else class="empty-runs">
+              <div
+                v-else
+                class="empty-runs"
+              >
                 <p>No recent AutoTest runs</p>
               </div>
             </div>
@@ -175,32 +219,60 @@
               <h3>Last 7 Days Activity</h3>
               <div class="activity-grid">
                 <div class="activity-item">
-                  <div class="activity-label">Documents Added</div>
-                  <div class="activity-value">{{ data.recent_activity.documents_added }}</div>
+                  <div class="activity-label">
+                    Documents Added
+                  </div>
+                  <div class="activity-value">
+                    {{ data.recent_activity.documents_added }}
+                  </div>
                 </div>
                 <div class="activity-item">
-                  <div class="activity-label">Knowledge Added</div>
-                  <div class="activity-value">{{ data.recent_activity.knowledge_added }}</div>
+                  <div class="activity-label">
+                    Knowledge Added
+                  </div>
+                  <div class="activity-value">
+                    {{ data.recent_activity.knowledge_added }}
+                  </div>
                 </div>
                 <div class="activity-item">
-                  <div class="activity-label">Logbook Added</div>
-                  <div class="activity-value">{{ data.recent_activity.logbook_added }}</div>
+                  <div class="activity-label">
+                    Logbook Added
+                  </div>
+                  <div class="activity-value">
+                    {{ data.recent_activity.logbook_added }}
+                  </div>
                 </div>
                 <div class="activity-item">
-                  <div class="activity-label">QA Count</div>
-                  <div class="activity-value">{{ data.recent_activity.qa_count }}</div>
+                  <div class="activity-label">
+                    QA Count
+                  </div>
+                  <div class="activity-value">
+                    {{ data.recent_activity.qa_count }}
+                  </div>
                 </div>
                 <div class="activity-item">
-                  <div class="activity-label">AutoTest Runs</div>
-                  <div class="activity-value">{{ data.recent_activity.autotest_runs }}</div>
+                  <div class="activity-label">
+                    AutoTest Runs
+                  </div>
+                  <div class="activity-value">
+                    {{ data.recent_activity.autotest_runs }}
+                  </div>
                 </div>
                 <div class="activity-item">
-                  <div class="activity-label">AutoTest Passed</div>
-                  <div class="activity-value success">{{ data.recent_activity.autotest_passed }}</div>
+                  <div class="activity-label">
+                    AutoTest Passed
+                  </div>
+                  <div class="activity-value success">
+                    {{ data.recent_activity.autotest_passed }}
+                  </div>
                 </div>
                 <div class="activity-item">
-                  <div class="activity-label">AutoTest Failed</div>
-                  <div class="activity-value error">{{ data.recent_activity.autotest_failed }}</div>
+                  <div class="activity-label">
+                    AutoTest Failed
+                  </div>
+                  <div class="activity-value error">
+                    {{ data.recent_activity.autotest_failed }}
+                  </div>
                 </div>
               </div>
             </div>

@@ -121,7 +121,7 @@ It should not infer success/failure from missing fields or command text alone.
 ## Known Limitations
 
 - no container or VM isolation
-- GitHub analyze is still intake-only
+- GitHub analyze is still URL intake and queued analysis, not a full remote clone-and-run path
 - report export is generated on demand rather than persisted as a versioned artifact
 
 ## Interview Demo Flow

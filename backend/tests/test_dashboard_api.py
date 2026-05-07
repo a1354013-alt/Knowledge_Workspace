@@ -57,6 +57,21 @@ def test_dashboard_promote_counts_canonical_logbook_to_knowledge_link(
     ]
     assert len(produced) == 1
     assert produced[0]["to_item_id"].startswith("knowledge:")
+    knowledge_id = produced[0]["to_item_id"].split(":", maxsplit=1)[1]
+
+    reverse_links = app_module.db.list_links(f"knowledge:{knowledge_id}")
+    derived_from = [
+        link
+        for link in reverse_links
+        if link["from_item_id"] == f"knowledge:{knowledge_id}"
+        and link["to_item_id"] == f"logbook:{entry_id}"
+        and link["link_type"] == "derived_from"
+    ]
+    assert len(derived_from) == 1
+
+    dashboard_after_reverse = client.get("/api/dashboard/health", headers=auth_headers)
+    assert dashboard_after_reverse.status_code == 200, dashboard_after_reverse.text
+    assert dashboard_after_reverse.json()["logbook"]["promoted_to_knowledge"] == 1
 
 
 def test_dashboard_document_index_metrics_are_based_on_index_status(

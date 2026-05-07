@@ -2,14 +2,14 @@
 
 ## Problem Background
 
-Engineering teams accumulate troubleshooting notes, half-finished fixes, ad hoc prompts, uploaded docs, screenshots, and local test results in disconnected tools. The result is predictable:
+Engineering teams accumulate troubleshooting notes, half-finished fixes, prompts, uploaded documents, screenshots, and local test results across disconnected tools. The predictable result is:
 
-- the same incidents are rediscovered repeatedly
-- dashboards drift away from reality because metrics come from inference rather than persisted state
-- “background” workflows get stuck in `queued` or `running`
-- promotion flows create knowledge, but linked analytics do not reflect what actually happened
+- the same incidents get rediscovered
+- dashboards drift away from reality because they rely on inference instead of persisted state
+- workflow-style features get stuck in `queued` or `running`
+- promotion flows create knowledge, but linked analytics do not reflect what really happened
 
-This project treats those gaps as the product problem, not just implementation details.
+This project treats those gaps as the product problem, not just an implementation detail.
 
 ## System Goals
 
@@ -26,10 +26,10 @@ This project treats those gaps as the product problem, not just implementation d
 - FastAPI application with router-based app factory
 - SQLite for authoritative metadata
 - Chroma for vector retrieval
-- phase-2 service/repository split for AutoTest and Dashboard
+- service/repository split for AutoTest and Dashboard
 - compatibility-preserving legacy logic gradually replaced by thin routers
 
-Key backend split after phase 2:
+Key backend split after hardening:
 
 - `api/routes/*`: thin transport layer
 - `services/autotest_service.py`: workflow orchestration
@@ -48,20 +48,16 @@ Key backend split after phase 2:
 1. user uploads a ZIP or registers a GitHub repo
 2. backend creates an AutoTest run immediately
 3. timeline state is initialized and persisted
-4. ZIP extraction / stack detection / command execution proceed stage by stage
-5. every failure path writes:
-   - `run.status = failed`
-   - `failed_reason`
-   - stable timeline state
-   - non-running terminal step states
+4. ZIP extraction, stack detection, and command execution proceed stage by stage
+5. every failure path writes `run.status = failed`, `failed_reason`, and a stable timeline state
 6. successful runs create a draft knowledge item
 7. failed runs create a draft logbook item
 
-The key phase-2 improvement is that this workflow no longer lives primarily in `legacy_main.py`; it is orchestrated in `autotest_service.py` and persisted through `autotest_repository.py`.
+The key hardening improvement is that this workflow no longer depends on `legacy_main.py` for the main orchestration path; it is driven by `autotest_service.py` and persisted through `autotest_repository.py`.
 
 ## Project Health Dashboard Design
 
-The dashboard was explicitly redesigned around persisted truth:
+The dashboard was redesigned around persisted truth:
 
 - logbook promotion counts come from canonical `logbook -> knowledge` `produced` links
 - document indexing counts come from persisted `index_status`
@@ -77,29 +73,29 @@ The project originally had reverse promote links in some paths. Dashboard analyt
 Fix:
 
 - promotion now always writes canonical `logbook:{id} -> knowledge:{id}` `produced`
-- reverse `derived_from` is kept for traceability
-- migration backfills canonical links for old reverse-only rows
-- dashboard counts promoted logbooks from the canonical direction only, without double-counting reverse links
+- reverse `derived_from` remains for traceability
+- compatibility migration keeps old reverse-only data readable
+- dashboard counts canonical promotion links without double-counting reverse links
 
 ### 2. AutoTest stuck states
 
-A partially failing AutoTest flow is one of the fastest ways to make a dashboard untrustworthy.
+A partially failing AutoTest flow quickly makes a dashboard untrustworthy.
 
 Fix:
 
 - run creation happens first
-- exception handling forces terminal `failed`
-- `failed_reason` is stored in DB
-- timeline state is persisted, not inferred only at render time
-- temporary ZIP/work directories are always cleaned in `finally`
+- exception handling forces a terminal `failed`
+- `failed_reason` is stored in the DB
+- timeline state is persisted instead of inferred only at render time
+- temporary ZIP and work directories are always cleaned in `finally`
 
 ### 3. Fake document indexing metrics
 
-Counting “reviewed” documents as indexed made the dashboard look healthy without proof.
+Counting documents by workflow status instead of index status made the dashboard look healthier than it was.
 
 Fix:
 
-- documents now store `index_status`, `index_error`, `indexed_at`
+- documents now store `index_status`, `index_error`, and `indexed_at`
 - upload starts with `pending`
 - success writes `indexed`
 - failure writes `failed` with error detail
@@ -111,23 +107,32 @@ Mixed test styles made it too easy to pass locally because of shared state.
 Fix:
 
 - function-scoped temp DB and app fixtures
-- isolated TestClient setup per test
-- precise assertions for dashboard/autotest/report paths
+- isolated `TestClient` setup per test
+- precise assertions for dashboard, AutoTest, release packaging, and report flows
+
+## What I Improved In The Hardening Phase
+
+- fixed CI-facing Ruff issues instead of suppressing them
+- improved test isolation so backend tests do not leak DB or filesystem state
+- corrected LLM health so primary-unhealthy plus noop fallback no longer reports generation-ready
+- converged AutoTest and Dashboard logic onto the router -> service -> repository path instead of leaving duplicate legacy branches
+- completed release package documentation integrity so `docs/AUTOTEST.md` and `docs/PORTFOLIO_CASE_STUDY.md` ship inside the release zip
 
 ## Resolved Issues
 
 - dashboard promoted count inconsistency
 - AutoTest exception paths stuck in non-terminal states
 - document index metrics based on guesswork
-- misleading LLM readiness signal when fallback/noop was active
-- oversized backend entrypoint and route sprawl
-- AutoTest and dashboard business logic trapped in `legacy_main.py`
+- misleading LLM readiness signal when fallback was noop-only
+- release zip missing referenced documentation
+- oversized backend entrypoint and route sprawl on the AutoTest and Dashboard paths
 
 ## Known Limitations
 
-- AutoTest real mode is still process-constrained rather than sandbox-isolated
-- frontend lint output still includes stylistic Vue warnings
-- GitHub analyze stops at validated intake and queued run creation
+- `legacy_main.py` still owns part of the document, knowledge, logbook, photo, prompt, and system surface
+- AutoTest real mode is process-constrained rather than sandbox-isolated
+- GitHub analyze is a validated URL intake plus queued flow, not a full remote clone-and-run executor
+- Chroma still emits third-party deprecation warnings in tests
 
 ## Future Work
 
@@ -138,10 +143,10 @@ Fix:
 
 ## Interview Demo Script
 
-1. open the dashboard and explain that all metrics are user-scoped and DB-backed
-2. upload a document and show `pending -> indexed/failed`
-3. create a logbook entry, promote it, and show the promoted count increment
-4. run AutoTest in simulated mode and inspect the timeline
-5. trigger a failure case and show `failed_reason`, logbook draft creation, and dashboard impact
-6. open the architecture notes and show the router -> service -> repository split
-7. explain the safety boundary between simulated and real mode
+1. Open the dashboard and explain that the metrics are user-scoped and DB-backed.
+2. Upload a document and show `pending -> indexed/failed`.
+3. Create a logbook entry, promote it, and show the promoted count increment.
+4. Run AutoTest in simulated mode and inspect the timeline.
+5. Trigger a failure case and show `failed_reason`, logbook draft creation, and dashboard impact.
+6. Open the architecture notes and show the router -> service -> repository split.
+7. Explain the safety boundary between simulated and real mode.
