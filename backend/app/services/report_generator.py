@@ -1,136 +1,145 @@
+from __future__ import annotations
+
 from datetime import datetime
+from html import escape
 from typing import Any
 
 import markdown
 
 
+def _safe_text(value: Any) -> str:
+    return escape(str(value or ""), quote=False)
+
+
+def _safe_inline(value: Any, fallback: str = "N/A") -> str:
+    text = str(value or "").strip()
+    return _safe_text(text or fallback)
+
+
+def _safe_code_block(value: Any, fallback: str = "No details available.") -> str:
+    text = str(value or "").strip()
+    return _safe_text(text or fallback)
+
+
+def _duration_text(step: dict[str, Any]) -> str:
+    started = step.get("started_at")
+    finished = step.get("finished_at")
+    if not started or not finished:
+        return "N/A"
+    try:
+        start_dt = datetime.fromisoformat(str(started).replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(str(finished).replace("Z", "+00:00"))
+    except ValueError:
+        return "N/A"
+    return f"{(end_dt - start_dt).total_seconds():.2f}s"
+
+
 class ReportGenerator:
     @staticmethod
     def generate_markdown(run_data: dict[str, Any], steps_data: list[dict[str, Any]]) -> str:
-        project_name = run_data.get("project_name", "Unknown Project")
-        repo_name = run_data.get("source_ref", "N/A")
-        scan_time = run_data.get("created_at", "N/A")
-        report_time = datetime.now().isoformat()
-        
-        # 1. Project Information
-        md = "# Project AutoTest Report\n\n"
-        md += "## 1. Project Information\n\n"
-        md += f"- **Project Name**: {project_name}\n"
-        md += f"- **Repo Name**: {repo_name}\n"
-        md += f"- **Scan Time**: {scan_time}\n"
-        md += f"- **Report Generated Time**: {report_time}\n\n"
-        
-        # 2. Detected Tech Stack
-        project_type = run_data.get("project_type_detected") or run_data.get("project_type", "Unknown")
-        md += "## 2. Detected Tech Stack\n\n"
-        md += f"- **Language/Framework**: {project_type.capitalize()}\n"
-        md += f"- **Execution Mode**: {run_data.get('execution_mode', 'N/A')}\n"
-        md += f"- **Working Directory**: {run_data.get('working_directory', 'N/A')}\n\n"
-        
-        # 3. Execution Results
-        md += "## 3. Execution Results\n\n"
-        md += "| Step | Status | Exit Code | Duration |\n"
-        md += "|------|--------|-----------|----------|\n"
-        
-        failed_steps = []
+        project_name = _safe_inline(run_data.get("project_name"), "Unknown Project")
+        repo_name = _safe_inline(run_data.get("source_ref"))
+        scan_time = _safe_inline(run_data.get("created_at"))
+        report_time = _safe_inline(datetime.now().isoformat())
+        project_type = _safe_inline(run_data.get("project_type_detected") or run_data.get("project_type"), "Unknown")
+        execution_mode = _safe_inline(run_data.get("execution_mode"))
+        working_directory = _safe_inline(run_data.get("working_directory"))
+
+        lines = [
+            "# Project AutoTest Report",
+            "",
+            "## 1. Project Information",
+            "",
+            f"- **Project Name**: {project_name}",
+            f"- **Repo Name**: {repo_name}",
+            f"- **Scan Time**: {scan_time}",
+            f"- **Report Generated Time**: {report_time}",
+            "",
+            "## 2. Detected Tech Stack",
+            "",
+            f"- **Language/Framework**: {project_type}",
+            f"- **Execution Mode**: {execution_mode}",
+            f"- **Working Directory**: {working_directory}",
+            "",
+            "## 3. Execution Results",
+            "",
+            "| Step | Status | Exit Code | Duration |",
+            "|------|--------|-----------|----------|",
+        ]
+
+        failed_steps: list[dict[str, Any]] = []
         for step in steps_data:
-            name = step.get("name", "N/A")
-            status = step.get("status", "N/A")
-            exit_code = step.get("exit_code", "N/A")
-            
-            # Duration calculation
-            started = step.get("started_at")
-            finished = step.get("finished_at")
-            duration = "N/A"
-            if started and finished:
-                try:
-                    start_dt = datetime.fromisoformat(started.replace('Z', '+00:00'))
-                    end_dt = datetime.fromisoformat(finished.replace('Z', '+00:00'))
-                    duration = f"{(end_dt - start_dt).total_seconds():.2f}s"
-                except Exception:
-                    pass
-            
-            md += f"| {name} | {status} | {exit_code} | {duration} |\n"
-            
-            if status == "failed":
+            name = _safe_inline(step.get("name"))
+            status = _safe_inline(step.get("status"))
+            exit_code = _safe_inline(step.get("exit_code"))
+            lines.append(f"| {name} | {status} | {exit_code} | {_duration_text(step)} |")
+            if str(step.get("status", "")).lower() == "failed":
                 failed_steps.append(step)
-        md += "\n"
-        
-        # 4. Failed Steps Summary
+        lines.append("")
+
         if failed_steps:
-            md += "## 4. Failed Steps Summary\n\n"
+            lines.extend(["## 4. Failed Steps Summary", ""])
             for step in failed_steps:
-                error_msg = step.get("stderr_summary") or step.get("output", "No error message")
-                error_type = step.get("error_type", "unknown")
-                md += f"### Step: {step.get('name')}\n"
-                md += "- **Status**: Failed\n"
-                md += f"- **Category**: {error_type}\n"
-                md += f"- **Error Message**:\n```\n{error_msg}\n```\n\n"
-        
-        # 5. Error Summary
-        md += "## 5. Error Summary\n\n"
-        summary = run_data.get("summary", "No summary available")
-        md += f"**Summary**: {summary}\n\n"
-        
-        # 6. AI Suggestions
-        md += "## 6. AI Suggestions\n\n"
-        suggestion = run_data.get("suggestion")
+                lines.extend(
+                    [
+                        f"### Step: {_safe_inline(step.get('name'))}",
+                        "- **Status**: Failed",
+                        f"- **Category**: {_safe_inline(step.get('error_type'), 'unknown')}",
+                        "- **Error Message**:",
+                        "```text",
+                        _safe_code_block(step.get("stderr_summary") or step.get("output"), "No error message"),
+                        "```",
+                        "",
+                    ]
+                )
+
+        summary = _safe_inline(run_data.get("summary"), "No summary available")
+        lines.extend(["## 5. Error Summary", "", f"**Summary**: {summary}", "", "## 6. AI Suggestions", ""])
+
+        suggestion = str(run_data.get("suggestion") or "").strip()
         if suggestion:
-            md += f"### Fix Suggestion\n{suggestion}\n\n"
+            lines.extend(["### Fix Suggestion", _safe_text(suggestion), ""])
         else:
-            md += "No specific AI suggestions available.\n\n"
-            
-        # 7. Codex / Copilot Prompt
-        md += "## 7. Codex / Copilot Prompt\n\n"
-        prompt_output = run_data.get("prompt_output")
+            lines.extend(["No specific AI suggestions available.", ""])
+
+        prompt_output = str(run_data.get("prompt_output") or "").strip()
         if prompt_output:
-            md += "```\n" + prompt_output + "\n```\n"
+            prompt_text = _safe_code_block(prompt_output)
         else:
-            # Fallback prompt generation
-            fallback_prompt = f"Fix failing {project_type} project build."
+            fallback_prompt = f"Fix failing {project_type.lower()} project build."
             if failed_steps:
-                fallback_prompt = f"Fix failing {failed_steps[0].get('name')} step in {project_type} project."
-            md += "```\n" + fallback_prompt + "\n```\n"
-            
-        return md
+                failed_step_name = _safe_inline(failed_steps[0].get("name"), "unknown")
+                fallback_prompt = f"Fix failing {failed_step_name} step in {project_type.lower()} project."
+            prompt_text = _safe_code_block(fallback_prompt)
+        lines.extend(["## 7. Codex / Copilot Prompt", "", "```text", prompt_text, "```", ""])
+
+        return "\n".join(lines)
 
     @staticmethod
     def convert_to_html(markdown_content: str) -> str:
-        html_body = markdown.markdown(markdown_content, extensions=['tables', 'fenced_code'])
-        
-        full_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>AutoTest Report</title>
-            <style>
-                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }}
-                h1, h2, h3 {{ color: #1a202c; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }}
-                table {{ border-collapse: collapse; width: 100%; margin-bottom: 1rem; }}
-                th, td {{ border: 1px solid #e2e8f0; padding: 8px; text-align: left; }}
-                th {{ background-color: #f7fafc; }}
-                pre {{ background-color: #f7fafc; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; border: 1px solid #e2e8f0; }}
-                code {{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.9em; }}
-                .badge {{ padding: 2px 8px; border-radius: 999px; font-size: 0.8em; font-weight: bold; }}
-            </style>
-        </head>
-        <body>
-            {html_body}
-        </body>
-        </html>
-        """
-        return full_html
-
-    @staticmethod
-    def convert_to_pdf(html_content: str, output_path: str) -> bool:
-        # Using weasyprint if available, otherwise fallback or error
-        try:
-            from weasyprint import HTML
-
-            HTML(string=html_content).write_pdf(output_path)
-            return True
-        except ImportError:
-            # If weasyprint is not available, we might need to install it or use another tool
-            # For this sandbox, we'll try to use manus-md-to-pdf utility if we can save to file
-            return False
+        html_body = markdown.markdown(markdown_content, extensions=["tables", "fenced_code"], output_format="html5")
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AutoTest Report</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2933; max-width: 880px; margin: 0 auto; padding: 24px; background: #f8fafc; }}
+    main {{ background: #fff; border: 1px solid #d9e2ec; border-radius: 16px; padding: 24px; }}
+    h1, h2, h3 {{ color: #102a43; }}
+    table {{ border-collapse: collapse; width: 100%; margin-bottom: 1rem; }}
+    th, td {{ border: 1px solid #d9e2ec; padding: 8px; text-align: left; vertical-align: top; }}
+    th {{ background-color: #f0f4f8; }}
+    pre {{ background-color: #f0f4f8; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; border: 1px solid #d9e2ec; white-space: pre-wrap; }}
+    code {{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.92em; }}
+  </style>
+</head>
+<body>
+  <main>
+    {html_body}
+  </main>
+</body>
+</html>
+"""

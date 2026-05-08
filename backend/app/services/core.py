@@ -82,7 +82,7 @@ def process_file(
         raise ValueError('No readable content found in document.')
 
     if not add_to_vector_db(doc_id, texts, metadatas):
-        logger.warning('Vector indexing skipped for %s.', doc_id)
+        raise RuntimeError(f'Vector indexing failed for {doc_id}.')
     return doc_id
 
 

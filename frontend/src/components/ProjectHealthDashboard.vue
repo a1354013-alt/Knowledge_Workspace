@@ -244,14 +244,6 @@
                 </div>
                 <div class="activity-item">
                   <div class="activity-label">
-                    QA Count
-                  </div>
-                  <div class="activity-value">
-                    {{ data.recent_activity.qa_count }}
-                  </div>
-                </div>
-                <div class="activity-item">
-                  <div class="activity-label">
                     AutoTest Runs
                   </div>
                   <div class="activity-value">

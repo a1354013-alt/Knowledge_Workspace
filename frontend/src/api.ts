@@ -108,3 +108,8 @@ export async function del<T>(url: string, config?: AxiosRequestConfig): Promise<
   const response = await apiClient.delete<T>(url, config)
   return response.data
 }
+
+export async function getBlob(url: string, config?: AxiosRequestConfig): Promise<Blob> {
+  const response = await apiClient.get(url, { ...config, responseType: 'blob' })
+  return response.data as Blob
+}

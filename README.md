@@ -80,18 +80,33 @@ graph TD
   - `failed`
   - `archived`
 
-## Current Backend Boundaries
+## Entry Points And Architecture
 
-- AutoTest request flow: `api/routes/autotest.py -> services/autotest_service.py -> repositories/autotest_repository.py`
-- Dashboard request flow: `api/routes/dashboard.py -> services/dashboard_service.py -> repositories/dashboard_repository.py`
-- `legacy_main.py` remains the compatibility surface for document, knowledge, logbook, photo, prompt, auth, and file-serving endpoints that have not yet been fully moved into dedicated route/service modules
+Primary runtime entrypoints:
 
-## Security Boundary
+- `backend/app/main.py`
+- `backend/app/api/app_factory.py`
+
+Transition compatibility layer:
+
+- `backend/app/api/legacy_main.py`
+  - still hosts stable document, knowledge, logbook, photo, prompt, auth, and file-serving handlers
+  - not the long-term architecture direction
+
+Responsibility split:
+
+- `api/routes/*`: HTTP layer and dependency wiring
+- `services/*`: workflow orchestration, safety checks, formatting, and side effects
+- `repositories/*`: focused persistence queries/updates
+- `db/schema.py` + `db/migrations.py`: database contract and schema evolution
+
+## AutoTest Safety Boundary
 
 AutoTest is intentionally constrained, but it is not a sandbox.
 
 - default mode is `AUTOTEST_MODE=simulated`
 - real mode must be explicitly enabled
+- real mode executes commands from uploaded projects
 - subprocess execution uses `shell=False`
 - command timeout is fixed via `AUTOTEST_TIMEOUT_SECONDS`
 - real mode strips env vars containing:
@@ -106,6 +121,11 @@ Recommended usage:
 
 - use `simulated` mode in CI, demos, and shared machines
 - use `real` mode only on a local or isolated environment you control
+- use `real` mode only with trusted local projects
+- recommended future hardening direction:
+  - Docker or VM sandboxing
+  - no-network execution
+  - tighter CPU / memory / file limits
 
 ## Local Startup
 
@@ -129,6 +149,9 @@ JWT_SECRET=<32+ chars>
 DEFAULT_OWNER_PASSWORD=<local password>
 ALLOWED_ORIGINS=http://localhost:5173
 AUTOTEST_MODE=simulated
+# optional: AUTOTEST_MODE=real
+# optional: AUTOTEST_TIMEOUT_SECONDS=300
+# optional: AUTOTEST_MAX_UNZIPPED_BYTES=262144000
 ```
 
 Run:
@@ -216,8 +239,19 @@ Metric sources:
 
 - extracts the ZIP
 - detects Node/Python project roots
-- runs project commands with constrained subprocess settings
+- runs project commands from the uploaded project with constrained subprocess settings
 - should only be used on trusted code in an isolated environment
+
+## AutoTest Report Export
+
+- backend endpoints:
+  - `GET /api/autotest/{run_id}/export?format=md`
+  - `GET /api/autotest/{run_id}/export?format=html`
+- frontend run detail exposes:
+  - `Download Markdown Report`
+  - `Download HTML Report`
+  - `Copy AI Fix Prompt`
+- HTML export escapes run output and adds a basic CSP meta policy
 
 ## AutoTest Timeline Statuses
 
@@ -241,8 +275,8 @@ Status meanings:
 ## Known Limitations
 
 - `legacy_main.py` still owns part of the document, knowledge, logbook, photo, prompt, and system surface while the migration continues
-- AutoTest real mode is constrained subprocess execution, not a full container or VM sandbox
-- GitHub analyze is currently a validated URL intake plus queued analysis flow, not a remote clone-and-run executor
+- AutoTest real mode is constrained subprocess execution, not a hardened sandbox
+- GitHub analyze is currently a register/queue flow only: validated URL intake plus queued analysis metadata, not a remote clone-and-run executor
 - Chroma emits third-party deprecation warnings in tests
 - frontend verification should be run with Node `20` to match CI
 

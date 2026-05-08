@@ -68,12 +68,39 @@ def test_report_generator_html():
     html = ReportGenerator.convert_to_html(markdown)
     assert "<!DOCTYPE html>" in html
     assert "Title" in html
+    assert "Content-Security-Policy" in html
+
+
+def test_report_generator_escapes_untrusted_output():
+    markdown_report = ReportGenerator.generate_markdown(
+        {
+            "project_name": "<script>alert(1)</script>",
+            "project_type_detected": "python",
+            "summary": "<img src=x onerror=alert(1)>",
+            "prompt_output": "<script>alert(1)</script>",
+        },
+        [
+            {
+                "name": "test",
+                "status": "failed",
+                "output": "<script>alert(1)</script>",
+                "error_type": "runtime",
+            }
+        ],
+    )
+    assert "<script>" not in markdown_report
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in markdown_report
+
+    html_report = ReportGenerator.convert_to_html(markdown_report)
+    assert "<script>alert(1)</script>" not in html_report
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html_report
 
 
 def test_export_api_md(client: TestClient, auth_headers: dict[str, str], mock_autotest_data: str):
     response = client.get(f"/api/autotest/{mock_autotest_data}/export?format=md", headers=auth_headers)
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/markdown; charset=utf-8"
+    assert f'autotest-report-{mock_autotest_data}.md' in response.headers["content-disposition"]
     assert "Project AutoTest Report" in response.text
 
 
@@ -81,6 +108,7 @@ def test_export_api_html(client: TestClient, auth_headers: dict[str, str], mock_
     response = client.get(f"/api/autotest/{mock_autotest_data}/export?format=html", headers=auth_headers)
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/html; charset=utf-8"
+    assert f'autotest-report-{mock_autotest_data}.html' in response.headers["content-disposition"]
     assert "<!DOCTYPE html>" in response.text
 
 

@@ -9,6 +9,13 @@ from pydantic import BaseModel, ConfigDict, Field
 ROLE_VALUES = ("owner",)
 WORKFLOW_STATUS_VALUES = ("draft", "reviewed", "verified", "archived")
 SOURCE_TYPE_VALUES = ("manual", "document-derived", "autotest-derived")
+AUTOTEST_RUN_STATUS_VALUES = ("queued", "running", "passed", "failed")
+AUTOTEST_STEP_STATUS_VALUES = ("queued", "running", "passed", "failed", "skipped", "unavailable")
+
+AutoTestRunStatus = Literal["queued", "running", "passed", "failed"]
+AutoTestStepStatus = Literal["queued", "running", "passed", "failed", "skipped", "unavailable"]
+AutoTestExecutionMode = Literal["real", "simulated"]
+AutoTestExportFormat = Literal["md", "html"]
 
 
 class StrictModel(BaseModel):
@@ -118,7 +125,6 @@ class DashboardRecentActivity(StrictModel):
     documents_added: int
     knowledge_added: int
     logbook_added: int
-    qa_count: int
     autotest_runs: int
     autotest_passed: int
     autotest_failed: int
@@ -276,6 +282,8 @@ class SavedPromptResponse(StrictModel):
     tags: str
     created_at: str
     updated_at: str
+    index_status: Literal["indexed", "failed"] = "indexed"
+    index_error: str = ""
 
 
 class PhotoResponse(StrictModel):
@@ -305,7 +313,7 @@ class AutoTestStepResponse(StrictModel):
     step_id: str
     name: str
     command: str
-    status: str
+    status: AutoTestStepStatus
     started_at: str = ""
     finished_at: str = ""
     output: str = ""
@@ -320,7 +328,7 @@ class AutoTestStepResponse(StrictModel):
 class AutoTestRunListItemResponse(StrictModel):
     id: str
     project_name: str
-    status: str
+    status: AutoTestRunStatus
     created_at: str
     summary: str
 
@@ -340,7 +348,6 @@ class DashboardAutoTestMetrics(StrictModel):
     total_runs: int
     passed: int
     failed: int
-    skipped: int
     pass_rate: float
     recent_runs: list[AutoTestRunListItemResponse] = Field(default_factory=list)
 
@@ -349,12 +356,12 @@ class AutoTestRunResponse(StrictModel):
     id: str
     source_type: str
     source_ref: str
-    execution_mode: Literal["real", "simulated"] = "real"
+    execution_mode: AutoTestExecutionMode = "real"
     project_type_detected: str = ""
     working_directory: str = ""
     project_name: str = ""
     project_type: str
-    status: str
+    status: AutoTestRunStatus
     summary: str
     suggestion: str
     prompt_output: str
@@ -381,7 +388,7 @@ class GitHubRepoInfoResponse(StrictModel):
 
 class GitHubAnalyzeResponse(StrictModel):
     run_id: str
-    status: Literal["queued", "pending"]
+    status: Literal["queued"]
     repo_info: GitHubRepoInfoResponse
 
 

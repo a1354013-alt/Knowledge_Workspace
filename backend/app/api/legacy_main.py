@@ -395,6 +395,37 @@ async def sync_document_index(document: dict) -> None:
         )
 
 
+def _side_effect_warning(base_message: str, warning: str | None) -> str:
+    detail = str(warning or "").strip()
+    if not detail:
+        return base_message
+    return f"{base_message} Warning: {detail}"
+
+
+def _run_index_side_effect(*, label: str, item_id: str, operation) -> str | None:
+    try:
+        result = operation()
+    except Exception as exc:
+        logger.warning("%s indexing failed for %s: %s", label, item_id, exc)
+        return f"{label} indexing failed."
+    if result is False:
+        logger.warning("%s indexing failed for %s without an exception", label, item_id)
+        return f"{label} indexing failed."
+    return None
+
+
+def _run_deindex_side_effect(*, label: str, item_id: str, operation) -> str | None:
+    try:
+        result = operation()
+    except Exception as exc:
+        logger.warning("%s de-index failed for %s: %s", label, item_id, exc)
+        return f"{label} de-index failed."
+    if result is False:
+        logger.warning("%s de-index failed for %s without an exception", label, item_id)
+        return f"{label} de-index failed."
+    return None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Validate environment variables at startup
@@ -653,8 +684,12 @@ async def update_document(doc_id: str, request: DocumentUpdateRequest, current_u
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update document.")
 
     updated = db.get_document(doc_id) or original
-    await sync_document_index(updated)
-    return MessageResponse(message="Document updated.")
+    warning = None
+    try:
+        await sync_document_index(updated)
+    except Exception:
+        warning = "Document indexing failed."
+    return MessageResponse(message=_side_effect_warning("Document updated.", warning))
 
 
 @app.delete("/api/docs/{doc_id}", response_model=MessageResponse)
@@ -666,12 +701,16 @@ async def delete_own_document(doc_id: str, current_user: dict = Depends(get_curr
     if document.get("uploaded_by") != current_user["sub"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot delete this document.")
 
-    delete_from_vector_db(doc_id)
+    warning = _run_deindex_side_effect(
+        label="Document",
+        item_id=doc_id,
+        operation=lambda: delete_from_vector_db(doc_id),
+    )
     safe_unlink(UPLOAD_DIR / document["saved_filename"])
     db.delete_links(from_item_id=item_id_from_parts("document", doc_id))
     db.delete_links(to_item_id=item_id_from_parts("document", doc_id))
     db.delete_document(doc_id)
-    return MessageResponse(message="Document deleted.")
+    return MessageResponse(message=_side_effect_warning("Document deleted.", warning))
 
 
 @app.get("/api/knowledge/entries", response_model=list[KnowledgeEntryResponse])
@@ -734,8 +773,14 @@ async def create_knowledge_entry(
             source_type=request.source_type,
             source_ref=request.source_ref,
         )
-        index_knowledge_entry(entry)
-    return MessageResponse(message="Knowledge entry created.")
+        warning = _run_index_side_effect(
+            label="Knowledge entry",
+            item_id=entry_id,
+            operation=lambda: index_knowledge_entry(entry),
+        )
+    else:
+        warning = None
+    return MessageResponse(message=_side_effect_warning("Knowledge entry created.", warning))
 
 
 @app.patch("/api/knowledge/entries/{entry_id}", response_model=MessageResponse)
@@ -778,8 +823,12 @@ async def update_knowledge_entry(
         )
 
     updated = db.get_knowledge_entry(entry_id) or existing
-    index_knowledge_entry(updated)
-    return MessageResponse(message="Knowledge entry updated.")
+    warning = _run_index_side_effect(
+        label="Knowledge entry",
+        item_id=entry_id,
+        operation=lambda: index_knowledge_entry(updated),
+    )
+    return MessageResponse(message=_side_effect_warning("Knowledge entry updated.", warning))
 
 
 @app.get("/api/knowledge/{entry_id}/revisions", response_model=list[KnowledgeRevisionResponse])
@@ -843,8 +892,12 @@ async def restore_knowledge_revision(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to restore knowledge revision.")
 
     restored = db.get_knowledge_entry(entry_id) or entry
-    index_knowledge_entry(restored)
-    return MessageResponse(message="Knowledge revision restored.")
+    warning = _run_index_side_effect(
+        label="Knowledge entry",
+        item_id=entry_id,
+        operation=lambda: index_knowledge_entry(restored),
+    )
+    return MessageResponse(message=_side_effect_warning("Knowledge revision restored.", warning))
 
 
 @app.get("/api/logbook/entries", response_model=list[LogbookEntryResponse])
@@ -901,8 +954,14 @@ async def create_logbook_entry(
             source_type=request.source_type,
             source_ref=request.source_ref,
         )
-        index_logbook_entry(entry)
-    return MessageResponse(message="Logbook entry created.")
+        warning = _run_index_side_effect(
+            label="Logbook entry",
+            item_id=entry_id,
+            operation=lambda: index_logbook_entry(entry),
+        )
+    else:
+        warning = None
+    return MessageResponse(message=_side_effect_warning("Logbook entry created.", warning))
 
 
 @app.patch("/api/logbook/entries/{entry_id}", response_model=MessageResponse)
@@ -937,8 +996,12 @@ async def update_logbook_entry(
         )
 
     updated = db.get_logbook_entry(entry_id) or existing
-    index_logbook_entry(updated)
-    return MessageResponse(message="Logbook entry updated.")
+    warning = _run_index_side_effect(
+        label="Logbook entry",
+        item_id=entry_id,
+        operation=lambda: index_logbook_entry(updated),
+    )
+    return MessageResponse(message=_side_effect_warning("Logbook entry updated.", warning))
 
 
 @app.post("/api/logbook/entries/{entry_id}/promote-to-knowledge", response_model=PromoteToKnowledgeResponse)
@@ -979,20 +1042,43 @@ async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depen
 
     # Delete the old logbook entry from vector index to prevent search pollution
     # (archived entries should not appear in search results)
-    delete_from_kb_vector_db(f"logbook:{entry_id}")
+    warnings: list[str] = []
+    logbook_warning = _run_deindex_side_effect(
+        label="Logbook entry",
+        item_id=entry_id,
+        operation=lambda: delete_from_kb_vector_db(f"logbook:{entry_id}"),
+    )
+    if logbook_warning:
+        warnings.append(logbook_warning)
 
     promoted = db.get_knowledge_entry(knowledge_id)
     if promoted:
-        index_knowledge_entry(promoted)
+        knowledge_warning = _run_index_side_effect(
+            label="Knowledge entry",
+            item_id=knowledge_id,
+            operation=lambda: index_knowledge_entry(promoted),
+        )
+        if knowledge_warning:
+            warnings.append(knowledge_warning)
     # Re-index the archived logbook (with updated status) for completeness
-    index_logbook_entry(db.get_logbook_entry(entry_id) or logbook)
+    archived_logbook = db.get_logbook_entry(entry_id) or logbook
+    archived_warning = _run_index_side_effect(
+        label="Logbook entry",
+        item_id=entry_id,
+        operation=lambda: index_logbook_entry(archived_logbook),
+    )
+    if archived_warning:
+        warnings.append(archived_warning)
 
     # If this logbook was derived from an AutoTest run, mark the run as having a solution.
     run_id = str(logbook.get("run_id") or "").strip()
     if run_id:
         db.update_autotest_run(run_id, solution_entry_id=knowledge_id)
 
-    return PromoteToKnowledgeResponse(message="Promoted to verified knowledge entry.", knowledge_entry_id=knowledge_id)
+    return PromoteToKnowledgeResponse(
+        message=_side_effect_warning("Promoted to verified knowledge entry.", " ".join(warnings)),
+        knowledge_entry_id=knowledge_id,
+    )
 
 
 @app.delete("/api/logbook/entries/{entry_id}", response_model=MessageResponse)
@@ -1004,12 +1090,16 @@ async def delete_logbook_entry(entry_id: str, current_user: dict = Depends(get_c
     if existing.get("created_by") != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot delete this logbook entry.")
     item_id = f"logbook:{entry_id}"
-    delete_from_kb_vector_db(item_id)
+    warning = _run_deindex_side_effect(
+        label="Logbook entry",
+        item_id=entry_id,
+        operation=lambda: delete_from_kb_vector_db(item_id),
+    )
     db.delete_links(from_item_id=item_id)
     db.delete_links(to_item_id=item_id)
     if not db.delete_logbook_entry(entry_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Logbook entry not found.")
-    return MessageResponse(message="Logbook entry deleted.")
+    return MessageResponse(message=_side_effect_warning("Logbook entry deleted.", warning))
 
 
 PHOTO_DIR = settings.PHOTO_DIR
@@ -1079,7 +1169,13 @@ async def upload_photo(
 
     photo = db.get_photo(photo_id)
     if photo:
-        index_photo(photo)
+        warning = _run_index_side_effect(
+            label="Photo",
+            item_id=photo_id,
+            operation=lambda: index_photo(photo),
+        )
+    else:
+        warning = None
 
     photo_row = db.get_photo(photo_id) or {}
     return UploadPhotoResponse(
@@ -1093,7 +1189,7 @@ async def upload_photo(
         file_size=int(photo_row.get("file_size", 0)),
         created_at=str(photo_row.get("created_at", "")),
         updated_at=str(photo_row.get("updated_at", "")),
-        message="Photo uploaded.",
+        message=_side_effect_warning("Photo uploaded.", warning),
     )
 
 
@@ -1153,8 +1249,12 @@ async def update_photo(photo_id: str, request: PhotoUpdateRequest, current_user:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update photo.")
 
     updated = db.get_photo(photo_id) or original
-    index_photo(updated)
-    return MessageResponse(message="Photo updated.")
+    warning = _run_index_side_effect(
+        label="Photo",
+        item_id=photo_id,
+        operation=lambda: index_photo(updated),
+    )
+    return MessageResponse(message=_side_effect_warning("Photo updated.", warning))
 
 
 @app.delete("/api/photos/{photo_id}", response_model=MessageResponse)
@@ -1164,12 +1264,16 @@ async def delete_photo(photo_id: str, current_user: dict = Depends(get_current_u
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found.")
     if photo.get("uploaded_by") != current_user["sub"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot delete this photo.")
-    delete_from_kb_vector_db(item_id_from_parts("photo", photo_id))
+    warning = _run_deindex_side_effect(
+        label="Photo",
+        item_id=photo_id,
+        operation=lambda: delete_from_kb_vector_db(item_id_from_parts("photo", photo_id)),
+    )
     safe_unlink(PHOTO_DIR / photo["saved_filename"])
     db.delete_links(from_item_id=item_id_from_parts("photo", photo_id))
     db.delete_links(to_item_id=item_id_from_parts("photo", photo_id))
     db.delete_photo(photo_id)
-    return MessageResponse(message="Photo deleted.")
+    return MessageResponse(message=_side_effect_warning("Photo deleted.", warning))
 
 
 @app.get("/api/photos/{photo_id}/references", response_model=ItemLinksResponse)
@@ -1224,6 +1328,8 @@ async def list_saved_prompts(current_user: dict = Depends(get_current_user)) -> 
             tags=row.get("tags", ""),
             created_at=row.get("created_at", ""),
             updated_at=row.get("updated_at", ""),
+            index_status="indexed",
+            index_error="",
         )
         for row in db.list_saved_prompts(user_id=user_id, limit=200)
     ]
@@ -1244,7 +1350,13 @@ async def create_saved_prompt(request: SavedPromptCreateRequest, current_user: d
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create prompt.")
     prompt = db.get_saved_prompt(prompt_id) or {}
     if prompt:
-        index_saved_prompt(prompt)
+        warning = _run_index_side_effect(
+            label="Prompt",
+            item_id=prompt_id,
+            operation=lambda: index_saved_prompt(prompt),
+        )
+    else:
+        warning = None
     return SavedPromptResponse(
         id=prompt_id,
         title=str(prompt.get("title", "")),
@@ -1252,6 +1364,8 @@ async def create_saved_prompt(request: SavedPromptCreateRequest, current_user: d
         tags=str(prompt.get("tags", "")),
         created_at=str(prompt.get("created_at", "")),
         updated_at=str(prompt.get("updated_at", "")),
+        index_status="failed" if warning else "indexed",
+        index_error=str(warning or ""),
     )
 
 
@@ -1263,12 +1377,16 @@ async def delete_saved_prompt(prompt_id: str, current_user: dict = Depends(get_c
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt not found.")
     if prompt.get("created_by") != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot delete this prompt.")
-    delete_from_kb_vector_db(f"prompt:{prompt_id}")
+    warning = _run_deindex_side_effect(
+        label="Prompt",
+        item_id=prompt_id,
+        operation=lambda: delete_from_kb_vector_db(f"prompt:{prompt_id}"),
+    )
     db.delete_links(from_item_id=item_id_from_parts("prompt", prompt_id))
     db.delete_links(to_item_id=item_id_from_parts("prompt", prompt_id))
     if not db.delete_saved_prompt(prompt_id):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete prompt.")
-    return MessageResponse(message="Prompt deleted.")
+    return MessageResponse(message=_side_effect_warning("Prompt deleted.", warning))
 
 
 @app.get("/api/meta/templates")

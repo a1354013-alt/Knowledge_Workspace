@@ -1,53 +1,88 @@
 # Quick Start
 
-Prereqs: Python 3.11 (matches CI) and Node.js 20.
+Recommended toolchain:
+
+- Python `3.11`
+- Node.js `20`
 
 ## 1. Install backend
 
 ```bash
 cd backend
 python -m pip install -r requirements.txt
-cp .env.example .env
+python -m pip install -r requirements-dev.txt
 ```
 
-Set at least:
+Required environment variables:
 
-- `JWT_SECRET` (min 32 characters)
-- `DEFAULT_OWNER_PASSWORD`
-- `ALLOWED_ORIGINS=http://localhost:5173`
+```env
+JWT_SECRET=<minimum 32 chars>
+DEFAULT_OWNER_PASSWORD=<local owner password>
+ALLOWED_ORIGINS=http://localhost:5173
+AUTOTEST_MODE=simulated
+```
+
+Notes:
+
+- keep `AUTOTEST_MODE=simulated` unless you intentionally want trusted local command execution
+- `AUTOTEST_MODE=real` is not a hardened sandbox
 
 ## 2. Start backend
 
 ```bash
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ## 3. Install frontend
 
 ```bash
-cd ../frontend
+cd frontend
 npm ci
 ```
 
 ## 4. Start frontend
 
 ```bash
-npm run dev -- --host 0.0.0.0 --port 5173
+cd frontend
+npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-## 5. Verify
+## 5. Verify the app
 
-- Open `http://localhost:5173`
-- Log in with `owner` and the password from `backend/.env`
-- Upload a document
-- Ask a QA question
-- Run `python scripts/smoke_check.py --password "<owner password>"`
+- open `http://localhost:5173`
+- sign in with `owner`
+- upload a document and confirm index status is visible
+- run AutoTest in `simulated` mode
+- open the run detail and verify:
+  - timeline is populated
+  - Markdown/HTML export works
+  - AI fix prompt copy works for failed runs
 
-Optional (recommended) validation:
+## 6. Run verification commands
+
+Backend:
+
+```bash
+cd backend
+python -m compileall -q app
+ruff check .
+python -m pytest -q
+```
+
+Frontend:
 
 ```bash
 cd frontend
-npm test
-npm run typecheck
+npm ci
+npm run lint
 npm run build
+npm run test:run
+```
+
+Repo-wide:
+
+```bash
+python scripts/check_version_consistency.py
+python scripts/package_release.py knowledge_workspace_release.zip
 ```

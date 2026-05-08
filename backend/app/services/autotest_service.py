@@ -19,6 +19,7 @@ from app.context import db, settings
 from app.kb_index import index_knowledge_entry, index_logbook_entry
 from app.llm import get_llm_provider
 from app.models import (
+    AutoTestExportFormat,
     AutoTestRunListItemResponse,
     AutoTestRunResponse,
     AutoTestTimelineItemResponse,
@@ -133,6 +134,7 @@ def set_timeline_item(
     *,
     status: str | None = None,
     message: str | None = None,
+    clear_message: bool = False,
     started_at: str | None = None,
     finished_at: str | None = None,
 ) -> list[dict[str, object]]:
@@ -144,7 +146,9 @@ def set_timeline_item(
         next_item = dict(item)
         if status is not None:
             next_item["status"] = _normalize_timeline_status(status)
-        if message is not None:
+        if clear_message:
+            next_item["message"] = None
+        elif message is not None:
             next_item["message"] = message
         if started_at is not None:
             next_item["started_at"] = started_at
@@ -275,7 +279,7 @@ def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTe
 
     extracted_status = "done" if has_workdir else ("running" if run_status == "running" else "pending")
     detected_status = "done" if detected_stack else ("running" if extracted_status in {"done", "running"} and run_status == "running" else "pending")
-    failed_reason_status = "failed" if run_status == "failed" else "pending"
+    failed_reason_status = "failed" if run_status == "failed" else ("skipped" if run_status == "passed" else "pending")
 
     failed_message = None
     if failed_step:
@@ -391,6 +395,31 @@ def serialize_autotest_run(run_row: dict, step_rows: list[dict]) -> AutoTestRunR
         steps=[serialize_autotest_step(step) for step in step_rows if str(step.get("name", "")) not in TIMELINE_KEYS],
         timeline=build_autotest_timeline(run_row, step_rows),
     )
+
+
+def _safe_autotest_index_entry(*, run_id: str, item_kind: str, item_id: str, entry: dict | None, indexer) -> bool:
+    if not entry:
+        return False
+    try:
+        result = indexer(entry)
+    except Exception as exc:
+        logger.warning(
+            "AutoTest run %s saved %s %s but indexing failed: %s",
+            run_id,
+            item_kind,
+            item_id,
+            exc,
+        )
+        return False
+    if result is False:
+        logger.warning(
+            "AutoTest run %s saved %s %s but indexing returned failure without an exception",
+            run_id,
+            item_kind,
+            item_id,
+        )
+        return False
+    return True
 
 
 def validate_github_url(repo_url: str) -> bool:
@@ -968,7 +997,13 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
                 db.add_link(f"knowledge:{knowledge_id}", f"autotest_run:{run_id}", link_type="derived_from")
                 entry = db.get_knowledge_entry(knowledge_id)
                 if entry:
-                    index_knowledge_entry(entry)
+                    _safe_autotest_index_entry(
+                        run_id=run_id,
+                        item_kind="knowledge",
+                        item_id=knowledge_id,
+                        entry=entry,
+                        indexer=index_knowledge_entry,
+                    )
             timeline = set_timeline_item(
                 timeline,
                 "ran_tests",
@@ -983,7 +1018,7 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
                 finished_at=utc_now_iso(),
                 message=summary,
             )
-            timeline = set_timeline_item(timeline, "failed_reason", status="skipped", message=None)
+            timeline = set_timeline_item(timeline, "failed_reason", status="skipped", clear_message=True)
             save_run_timeline(run_id, timeline)
         else:
             failed_step = failed_step_name or "unknown"
@@ -1035,7 +1070,13 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
                 db.add_link(f"logbook:{logbook_id}", f"autotest_run:{run_id}", link_type="derived_from")
                 entry = db.get_logbook_entry(logbook_id)
                 if entry:
-                    index_logbook_entry(entry)
+                    _safe_autotest_index_entry(
+                        run_id=run_id,
+                        item_kind="logbook",
+                        item_id=logbook_id,
+                        entry=entry,
+                        indexer=index_logbook_entry,
+                    )
             timeline = set_timeline_item(
                 timeline,
                 "generated_report",
@@ -1110,15 +1151,16 @@ def get_autotest_run(run_id: str, current_user: dict) -> AutoTestRunResponse:
 
 
 def export_autotest_report(run_id: str, requested_format: str, current_user: dict) -> Response:
-    export_format = str(requested_format or "").strip().lower()
-    if export_format not in {"md", "html"}:
+    export_format_value = str(requested_format or "").strip().lower()
+    if export_format_value not in {"md", "html"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid export format. Use 'md' or 'html'.")
+    export_format: AutoTestExportFormat = export_format_value
     run_row = autotest_repository.get_run(run_id=run_id, created_by=current_user["sub"])
     if not run_row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Autotest run not found.")
     step_rows = autotest_repository.list_steps(run_id)
     markdown_report = ReportGenerator.generate_markdown(run_row, step_rows)
-    filename_base = _safe_download_filename(run_row.get("project_name", "") or run_id or "autotest-report")
+    filename_base = _safe_download_filename(f"autotest-report-{run_id}")
     if export_format == "md":
         return PlainTextResponse(
             content=markdown_report,
@@ -1138,7 +1180,7 @@ def analyze_github_repo(payload: GitHubAnalyzeRequest, current_user: dict) -> Gi
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid GitHub URL. Use https://github.com/{owner}/{repo}.")
     repo_info_data = get_repo_info(repo_url)
     run_id = str(uuid.uuid4())
-    summary = "GitHub repository accepted for AutoTest analysis. Clone and execution are not started yet."
+    summary = "GitHub repository registered for queued analysis. Remote clone and remote test execution are not performed."
     created = autotest_repository.create_run(
         run_id=run_id,
         source_type="github_repo",

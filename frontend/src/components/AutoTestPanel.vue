@@ -9,6 +9,10 @@
       </template>
       <template #content>
         <div class="stack-md">
+          <div class="warning-banner">
+            <strong>Real mode warning</strong>
+            <p>Real mode executes commands from uploaded projects. Use only with trusted local projects.</p>
+          </div>
           <div class="row">
             <input
               ref="zipInput"
@@ -95,6 +99,12 @@
             <p class="muted">
               Mode: {{ selectedRun.execution_mode || '-' }}
             </p>
+            <p
+              v-if="selectedRun.execution_mode === 'real'"
+              class="warning-text"
+            >
+              Real mode executes commands from uploaded projects. Use only with trusted local projects.
+            </p>
             <p class="muted">
               Failed reason: {{ selectedRun.failed_reason || '-' }}
             </p>
@@ -109,6 +119,37 @@
           <div class="result-box">
             <h3>Summary</h3>
             <pre class="mono">{{ selectedRun.summary || '-' }}</pre>
+          </div>
+
+          <div class="result-box">
+            <h3>Reports</h3>
+            <div class="row">
+              <Button
+                label="Download Markdown Report"
+                icon="pi pi-download"
+                :disabled="!canExportSelectedRun"
+                :loading="downloadingFormat === 'md'"
+                @click="downloadReport('md')"
+              />
+              <Button
+                label="Download HTML Report"
+                icon="pi pi-download"
+                outlined
+                :disabled="!canExportSelectedRun"
+                :loading="downloadingFormat === 'html'"
+                @click="downloadReport('html')"
+              />
+              <Button
+                label="Copy AI Fix Prompt"
+                icon="pi pi-copy"
+                outlined
+                :disabled="!canCopyAiPrompt"
+                @click="copyAiFixPrompt"
+              />
+            </div>
+            <p class="muted">
+              {{ reportActionHint }}
+            </p>
           </div>
 
           <div class="result-box">
@@ -246,12 +287,17 @@ import DataTable from 'primevue/datatable'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 
-import { get, post } from '../api'
+import {
+  downloadAutoTestReport,
+  getAutoTestRun,
+  promoteAutoTestProblem,
+  startAutoTest,
+} from '../autotest-api'
 import type {
+  AutoTestExportFormat,
   AutoTestRunListItemResponse,
   AutoTestRunResponse,
   AutoTestTimelineItemResponse,
-  PromoteToKnowledgeResponse,
 } from '../types'
 import { useWorkspaceStore } from '../workspace-store'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
@@ -263,6 +309,7 @@ const selectedZip = ref<File | null>(null)
 
 const running = ref(false)
 const loadingRuns = ref(false)
+const downloadingFormat = ref<AutoTestExportFormat | null>(null)
 const runs = ref<AutoTestRunListItemResponse[]>([])
 const selectedRun = ref<AutoTestRunResponse | null>(null)
 const store = useWorkspaceStore()
@@ -280,6 +327,33 @@ const fallbackTimelineKeys = [
 ] as const
 
 const timelineItems = computed<AutoTestTimelineItemResponse[]>(() => buildTimeline(selectedRun.value))
+const canExportSelectedRun = computed(() => {
+  const status = selectedRun.value?.status
+  return status === 'passed' || status === 'failed'
+})
+const aiFixPromptText = computed(() => {
+  const run = selectedRun.value
+  if (!run) {
+    return ''
+  }
+  return [run.suggestion, run.prompt_output]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join('\n\n')
+})
+const canCopyAiPrompt = computed(() => canExportSelectedRun.value && !!aiFixPromptText.value)
+const reportActionHint = computed(() => {
+  if (!selectedRun.value) {
+    return 'Select a run to export reports or copy the generated AI fix prompt.'
+  }
+  if (!canExportSelectedRun.value) {
+    return `Run status is ${selectedRun.value.status}. Reports unlock after the run reaches passed or failed.`
+  }
+  if (!canCopyAiPrompt.value) {
+    return 'Report downloads are ready. AI fix prompt copy unlocks when the backend generated a suggestion or prompt output.'
+  }
+  return 'Exports use deterministic filenames and include the current run detail report.'
+})
 
 function badgeClass(status: string) {
   const value = String(status || '').toLowerCase()
@@ -403,9 +477,7 @@ async function runAutoTest() {
   try {
     const formData = new FormData()
     formData.append('file', selectedZip.value)
-    const response = await post<AutoTestRunResponse, FormData>('/api/autotest/run', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const response = await startAutoTest(formData)
     toast.add({ severity: 'success', summary: 'Run completed', detail: response.status || 'Done.', life: 3000 })
     selectedZip.value = null
     if (zipInput.value) {
@@ -427,7 +499,7 @@ async function onRunSelected(event: unknown) {
     return
   }
   try {
-    selectedRun.value = await get<AutoTestRunResponse>(`/api/autotest/runs/${item.id}`)
+    selectedRun.value = await getAutoTestRun(item.id)
   } catch {
     selectedRun.value = null
   }
@@ -442,15 +514,59 @@ async function promoteProblem() {
     return
   }
   try {
-    const response = await post<PromoteToKnowledgeResponse>(`/api/logbook/entries/${entryId}/promote-to-knowledge`)
+    const response = await promoteAutoTestProblem(entryId)
     toast.add({ severity: 'success', summary: 'Promoted', detail: `Knowledge entry: ${response.knowledge_entry_id}`, life: 4500 })
     if (selectedRun.value?.id) {
-      selectedRun.value = await get<AutoTestRunResponse>(`/api/autotest/runs/${selectedRun.value.id}`)
+      selectedRun.value = await getAutoTestRun(selectedRun.value.id)
     }
     await loadRuns()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: 'Promote failed', detail: apiError?.message || 'Request failed.', life: 5000 })
+  }
+}
+
+async function downloadReport(format: AutoTestExportFormat) {
+  if (!selectedRun.value?.id || !canExportSelectedRun.value) {
+    return
+  }
+  downloadingFormat.value = format
+  try {
+    await downloadAutoTestReport(selectedRun.value.id, format)
+    toast.add({
+      severity: 'success',
+      summary: 'Report downloaded',
+      detail: `autotest-report-${selectedRun.value.id}.${format}`,
+      life: 3000,
+    })
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({
+      severity: 'error',
+      summary: 'Report download failed',
+      detail: apiError?.message || 'Unable to download report.',
+      life: 5000,
+    })
+  } finally {
+    downloadingFormat.value = null
+  }
+}
+
+async function copyAiFixPrompt() {
+  if (!canCopyAiPrompt.value || !aiFixPromptText.value) {
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(aiFixPromptText.value)
+    toast.add({ severity: 'success', summary: 'Prompt copied', detail: 'AI fix prompt copied to clipboard.', life: 3000 })
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({
+      severity: 'error',
+      summary: 'Copy failed',
+      detail: apiError?.message || 'Unable to copy AI fix prompt.',
+      life: 5000,
+    })
   }
 }
 
@@ -475,6 +591,30 @@ onMounted(loadRuns)
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.warning-banner {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #ffd6a5;
+  background: #fff7ed;
+  color: #8a4b08;
+}
+
+.warning-banner strong,
+.warning-banner p,
+.warning-text {
+  margin: 0;
+}
+
+.warning-banner p,
+.warning-text {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.warning-text {
+  color: #8a4b08;
 }
 
 .hidden-input {

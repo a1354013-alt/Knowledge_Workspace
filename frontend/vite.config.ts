@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@vue/runtime-core': path.resolve(__dirname, './node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js'),
     },
   },
   test: {

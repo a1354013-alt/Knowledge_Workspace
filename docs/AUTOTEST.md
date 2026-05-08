@@ -43,6 +43,7 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 - must be explicitly enabled with `AUTOTEST_MODE=real`
 - extracts the uploaded ZIP
 - detects a Node/Python project root
+- executes commands from the uploaded project
 - executes commands with:
   - `shell=False`
   - fixed timeout
@@ -66,6 +67,11 @@ Recommended usage:
 - use `simulated` in CI
 - use `simulated` on shared/dev machines
 - use `real` only on isolated local environments you control
+- use `real` only with trusted local projects
+- future hardening direction:
+  - Docker sandbox
+  - no-network execution
+  - stricter resource limits
 
 ## Timeline Contract
 
@@ -115,13 +121,17 @@ The frontend should rely on:
 - `failed_reason`
 - `timeline[*].status`
 - `timeline[*].message`
+- report export endpoints for completed runs:
+  - `GET /api/autotest/{run_id}/export?format=md`
+  - `GET /api/autotest/{run_id}/export?format=html`
+- `suggestion` / `prompt_output` for AI-fix copy affordances
 
 It should not infer success/failure from missing fields or command text alone.
 
 ## Known Limitations
 
 - no container or VM isolation
-- GitHub analyze is still URL intake and queued analysis, not a full remote clone-and-run path
+- GitHub analyze is still URL intake and queued analysis registration, not a full remote clone-and-run path
 - report export is generated on demand rather than persisted as a versioned artifact
 
 ## Interview Demo Flow

@@ -48,6 +48,22 @@ def test_analyze_github_repo_success_trigger(app_module, client: TestClient, aut
     }
 
 
+def test_analyze_github_repo_run_detail_uses_honest_summary(client: TestClient, auth_headers: dict[str, str]):
+    response = client.post(
+        "/api/autotest/github/analyze",
+        json={"repo_url": "https://github.com/a1354013-alt/Knowledge_Workspace"},
+        headers=auth_headers,
+    )
+    assert response.status_code == 200, response.text
+
+    detail = client.get(f"/api/autotest/runs/{response.json()['run_id']}", headers=auth_headers)
+    assert detail.status_code == 200, detail.text
+    payload = detail.json()
+    assert payload["execution_mode"] == "simulated"
+    assert "registered for queued analysis" in payload["summary"].lower()
+    assert "clone" in payload["summary"].lower()
+
+
 def test_get_repo_info():
     from app.services.autotest_service import get_repo_info
 

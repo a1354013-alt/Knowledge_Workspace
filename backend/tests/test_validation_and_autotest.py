@@ -26,6 +26,31 @@ def test_missing_field_returns_400(client: TestClient):
     assert response.status_code == 400
 
 
+def test_autotest_db_rejects_invalid_status(app_module):
+    try:
+        app_module.db.add_autotest_run(
+            run_id="bad-status",
+            source_type="upload",
+            source_ref="demo.zip",
+            execution_mode="simulated",
+            project_type_detected="python",
+            working_directory=".",
+            project_name="Bad",
+            project_type="python",
+            status="pending",
+            summary="",
+            suggestion="",
+            prompt_output="",
+            failed_reason="",
+            timeline_json="[]",
+            created_by="owner",
+        )
+    except ValueError as exc:
+        assert "Unsupported autotest status" in str(exc)
+    else:
+        raise AssertionError("Expected invalid autotest status to be rejected.")
+
+
 def test_autotest_run_success_creates_knowledge_draft(client: TestClient, auth_headers: dict[str, str]):
     response = client.post(
         "/api/autotest/run",
@@ -46,6 +71,9 @@ def test_autotest_run_success_creates_knowledge_draft(client: TestClient, auth_h
         "generated_report",
         "failed_reason",
     ]
+    failed_reason = next(item for item in payload["timeline"] if item["key"] == "failed_reason")
+    assert failed_reason["status"] == "skipped"
+    assert failed_reason["message"] is None
 
     knowledge = client.get("/api/knowledge/entries", headers=auth_headers)
     assert knowledge.status_code == 200
@@ -192,8 +220,36 @@ def test_autotest_report_generation_failure_sets_failed(app_module, client: Test
     )
     assert response.status_code == 200, response.text
     payload = response.json()
-    assert payload["status"] == "failed"
-    assert payload["failed_reason"]
+    assert payload["status"] == "passed"
+    assert payload["failed_reason"] == ""
+
+
+def test_autotest_real_mode_executes_commands_when_enabled(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
+    calls: list[list[str]] = []
+
+    def fake_run_command(*, argv, cwd, timeout_seconds):
+        calls.append(list(argv))
+        return 0, "ok", ""
+
+    monkeypatch.setattr(app_module.autotest_service, "_run_command", fake_run_command)
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(), "application/zip")},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] == "passed"
+    assert payload["execution_mode"] == "real"
+    assert calls
+    assert any(command[:2] == ["npm", "ci"] for command in calls)
 
 
 def test_autotest_simulated_mode_does_not_execute_real_commands(
@@ -218,3 +274,25 @@ def test_autotest_simulated_mode_does_not_execute_real_commands(
     payload = response.json()
     assert payload["status"] == "passed"
     assert payload["execution_mode"] == "simulated"
+
+
+def test_set_timeline_item_can_clear_message(app_module):
+    timeline = app_module.autotest_service.initial_autotest_timeline(
+        source_ref="demo.zip",
+        created_at="2026-05-08T00:00:00+00:00",
+    )
+    timeline = app_module.autotest_service.set_timeline_item(
+        timeline,
+        "failed_reason",
+        status="failed",
+        message="old failure",
+    )
+    timeline = app_module.autotest_service.set_timeline_item(
+        timeline,
+        "failed_reason",
+        status="skipped",
+        clear_message=True,
+    )
+    failed_reason = next(item for item in timeline if item["key"] == "failed_reason")
+    assert failed_reason["status"] == "skipped"
+    assert failed_reason["message"] is None

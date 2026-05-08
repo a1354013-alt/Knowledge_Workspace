@@ -202,6 +202,7 @@ export interface UploadPhotoResponse extends PhotoResponse {
 // AutoTest
 export type AutoTestRunStatus = 'queued' | 'running' | 'passed' | 'failed';
 export type AutoTestStepStatus = AutoTestRunStatus | 'skipped' | 'unavailable';
+export type AutoTestExportFormat = 'md' | 'html';
 
 export interface AutoTestStepResponse {
   step_id: string;
@@ -275,6 +276,8 @@ export interface SavedPromptResponse {
   tags: string;
   created_at: string;
   updated_at: string;
+  index_status: 'indexed' | 'failed';
+  index_error: string;
 }
 
 // Item Links & Relations
@@ -328,7 +331,6 @@ export interface DashboardAutoTestMetrics {
   total_runs: number;
   passed: number;
   failed: number;
-  skipped: number;
   pass_rate: number;
   recent_runs: AutoTestRunListItemResponse[];
 }
@@ -346,7 +348,6 @@ export interface DashboardRecentActivity {
   documents_added: number;
   knowledge_added: number;
   logbook_added: number;
-  qa_count: number;
   autotest_runs: number;
   autotest_passed: number;
   autotest_failed: number;

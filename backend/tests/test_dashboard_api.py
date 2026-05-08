@@ -12,10 +12,12 @@ def test_dashboard_health_no_data(client: TestClient, auth_headers: dict[str, st
     assert data["logbook"]["total"] == 0
     assert data["logbook"]["promoted_to_knowledge"] == 0
     assert data["autotest"]["total_runs"] == 0
+    assert "skipped" not in data["autotest"]
     assert data["documents"]["indexed"] == 0
     assert data["documents"]["pending"] == 0
     assert data["documents"]["failed_documents"] == 0
     assert data["documents"]["archived_documents"] == 0
+    assert "qa_count" not in data["recent_activity"]
 
 
 def test_dashboard_promote_counts_canonical_logbook_to_knowledge_link(

@@ -72,10 +72,23 @@ Minimum required:
 Optional (common):
 - `ALLOWED_ORIGINS` (comma-separated)
 - `MAX_FILE_SIZE` (bytes; default: 52428800 = 50MB)
+- `AUTOTEST_MODE` (`simulated` by default; `real` only for trusted local projects)
+- `AUTOTEST_TIMEOUT_SECONDS`
+- `AUTOTEST_MAX_FILES`
+- `AUTOTEST_MAX_UNZIPPED_BYTES`
+- `AUTOTEST_RLIMIT_CPU_SECONDS`
+- `AUTOTEST_RLIMIT_AS_MB`
+- `AUTOTEST_RLIMIT_FSIZE_MB`
 - `OCR_ENABLED` (`true/false/1/0`)
 - `OCR_TESSERACT_CMD` (optional absolute path to the `tesseract` binary)
 - `LLM_PROVIDER` (`ollama`, `mock`, `fallback`)
 - `OLLAMA_BASE_URL`, `OLLAMA_MODEL`
+
+AutoTest real mode note:
+
+- `AUTOTEST_MODE=real` is not a hardened sandbox
+- it executes commands from uploaded projects
+- use it only with trusted local code
 
 Text uploads:
 - `.txt` / `.md` are decoded with `utf-8`, `utf-8-sig`, or `cp950` (upload validation and indexing use the same rules).

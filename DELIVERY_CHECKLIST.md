@@ -1,32 +1,58 @@
-﻿# Delivery Checklist
+# Delivery Checklist
 
 ## Pre-delivery cleanup
 
-- Remove `backend/.env`
-- Remove `backend/*.db`
-- Remove `backend/chroma_db/`
-- Remove `backend/uploads/`
-- Remove `frontend/node_modules/`
-- Remove `frontend/dist/`
-- Remove tar/zip backups
-- Remove nested duplicate source trees
+- remove `backend/.env`
+- remove local DB files from `backend/`
+- remove local Chroma data
+- remove uploaded test files
+- remove `frontend/node_modules/`
+- remove `frontend/dist/`
+- remove ad-hoc tar/zip backups that are not release artifacts
 
-## Verification
+## Architecture sanity check
 
-- `cd backend && python -m pytest`
-- `cd frontend && npm test`
-- `cd frontend && npm run typecheck`
-- `cd frontend && npm run build`
-- Start backend on `8000`
-- Start frontend on `5173`
-- Login with `owner` account
-- Verify `/health` and `/api/health` return 200 with the same payload
-- Verify `/api/me`
-- Upload a document and confirm it appears in Documents list with `status=reviewed`, can be previewed/downloaded, and can be archived/deleted
-- Upload a photo and confirm it appears in Photos list, can be previewed/downloaded, and can be deleted
-- Create a logbook entry, promote it to knowledge, and confirm it is searchable via QA (traceable sources)
-- Run AutoTest with `AUTOTEST_MODE=simulated` and confirm response includes `execution_mode`, `project_type_detected`, `working_directory`
-- Confirm each knowledge/logbook entry can edit `status`, `source_type`, `source_ref`, and `related_item_ids` and shows a related-items panel
+- official backend entrypoint is `backend/app/main.py`
+- app assembly is `backend/app/api/app_factory.py`
+- `backend/app/api/legacy_main.py` is treated as a transition compatibility layer, not the target architecture
+- route/service/repository/schema responsibilities remain aligned with current code
+
+## Product checks
+
+- document upload/update/delete works even when indexing fails, and warnings are visible instead of 500 errors
+- photo upload/update/delete works without pretending indexing is transactional
+- knowledge/logbook create/update/promote flows survive indexing failures and still persist DB state
+- saved prompt creation reports indexing failure honestly
+- dashboard shows only real metrics
+- AutoTest run detail shows:
+  - timeline
+  - Markdown report download
+  - HTML report download
+  - AI fix prompt copy when available
+- AutoTest `real` mode warning is visible in UI and docs
+- GitHub repo analyze language says register/queue, not clone-and-run
+
+## Verification commands
+
+Backend:
+
+- `cd backend`
+- `python -m compileall -q app`
+- `ruff check .`
+- `python -m pytest -q`
+
+Frontend:
+
+- `cd frontend`
+- `npm ci`
+- `npm run lint`
+- `npm run build`
+- `npm run test:run`
+
+Repo-wide:
+
+- `python scripts/check_version_consistency.py`
+- `python scripts/package_release.py knowledge_workspace_release.zip`
 
 ## Packaging rule
 
@@ -35,8 +61,5 @@ Deliver only:
 - `backend/`
 - `frontend/`
 - root documentation and startup scripts
-- `scripts/smoke_check.py`
-
-Recommended (reproducible) packaging:
-
-- `python scripts/package_release.py ./knowledge_workspace_release.zip`
+- `docs/`
+- `scripts/`

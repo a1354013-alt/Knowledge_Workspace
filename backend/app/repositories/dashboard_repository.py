@@ -107,10 +107,6 @@ class DashboardRepository:
                 "SELECT COUNT(*) FROM autotest_runs WHERE created_by = ? AND status = 'failed'",
                 (user_id,),
             ).fetchone()[0]
-            skipped = conn.execute(
-                "SELECT COUNT(*) FROM autotest_runs WHERE created_by = ? AND status = 'skipped'",
-                (user_id,),
-            ).fetchone()[0]
             recent_runs_rows = conn.execute(
                 """
                 SELECT run_id as id, project_name, status, created_at, summary
@@ -126,7 +122,6 @@ class DashboardRepository:
             "total_runs": total_runs,
             "passed": passed,
             "failed": failed,
-            "skipped": skipped,
             "pass_rate": round(pass_rate, 2),
             "recent_runs": [dict(row) for row in recent_runs_rows],
         }
