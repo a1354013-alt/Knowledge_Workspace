@@ -50,7 +50,7 @@ graph TD
 
 - upload `.zip` projects or register GitHub repos for analysis
 - simulated mode by default for demos, CI, and safe reproducibility
-- real mode is opt-in and uses fixed timeouts, `shell=False`, and sensitive env scrubbing
+- real mode is opt-in behind `AUTOTEST_MODE=real` plus `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`, and uses fixed timeouts, `shell=False`, output limits, path sanitization, and sensitive env scrubbing
 - backend is now split into:
   - `api/routes/autotest.py`: thin HTTP layer
   - `services/autotest_service.py`: workflow orchestration, timeline, failure handling, cleanup
@@ -105,8 +105,11 @@ Responsibility split:
 AutoTest is intentionally constrained, but it is not a sandbox.
 
 - default mode is `AUTOTEST_MODE=simulated`
-- real mode must be explicitly enabled
+- real mode must be explicitly enabled with both `AUTOTEST_MODE=real` and `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- if `AUTOTEST_MODE=real` is set without that enable flag, the API rejects the run
 - real mode executes commands from uploaded projects
+- Node installs use `npm ci --ignore-scripts --no-audit --no-fund`
+- Python dependency installation for uploaded projects is disabled until a stronger trusted sandbox policy is added
 - subprocess execution uses `shell=False`
 - command timeout is fixed via `AUTOTEST_TIMEOUT_SECONDS`
 - real mode strips env vars containing:
@@ -132,7 +135,7 @@ Recommended usage:
 ### Prerequisites
 
 - Python `3.11`
-- Node.js `20`
+- Node.js `20` LTS
 
 ### Backend
 
@@ -149,7 +152,9 @@ JWT_SECRET=<32+ chars>
 DEFAULT_OWNER_PASSWORD=<local password>
 ALLOWED_ORIGINS=http://localhost:5173
 AUTOTEST_MODE=simulated
-# optional: AUTOTEST_MODE=real
+# optional real mode, sandbox/container only:
+# AUTOTEST_MODE=real
+# KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1
 # optional: AUTOTEST_TIMEOUT_SECONDS=300
 # optional: AUTOTEST_MAX_UNZIPPED_BYTES=262144000
 ```
@@ -176,8 +181,8 @@ npm run dev -- --host 127.0.0.1 --port 5173
 ```bash
 cd backend
 python -m ruff check .
-python -m compileall app
-python -m pytest -q
+python -m pytest
+python -m compileall -q app tests
 ```
 
 ### Frontend
@@ -187,8 +192,9 @@ cd frontend
 npm ci
 npm run lint
 npm run typecheck
-npm run build
 npm run test:run
+npm run build
+npm audit
 ```
 
 If your local default Node runtime is newer than `20`, use a Node 20 runtime for frontend lint/test/build to match CI.
@@ -199,8 +205,8 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 
 1. backend dependency install
 2. `ruff`
-3. `python -m compileall app`
-4. `python -m pytest -q`
+3. `python -m pytest -q`
+4. `python -m compileall -q app tests`
 5. frontend `npm ci`
 6. frontend `npm run lint`
 7. frontend `npm run typecheck`
@@ -239,7 +245,9 @@ Metric sources:
 
 - extracts the ZIP
 - detects Node/Python project roots
-- runs project commands from the uploaded project with constrained subprocess settings
+- requires `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- runs a fixed command plan from the uploaded project with constrained subprocess settings
+- does not run Python dependency installation for uploaded projects
 - should only be used on trusted code in an isolated environment
 
 ## AutoTest Report Export
@@ -281,6 +289,8 @@ Status meanings:
 - frontend verification should be run with Node `20` to match CI
 
 ## Portfolio Case Study
+
+See [SECURITY_MODEL.md](SECURITY_MODEL.md), [API_CONTRACT.md](API_CONTRACT.md), [TESTING.md](TESTING.md), and [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the security, contract, verification, and release rules.
 
 See [docs/AUTOTEST.md](docs/AUTOTEST.md) for the AutoTest architecture, modes, timeline contract, and safety boundary.
 

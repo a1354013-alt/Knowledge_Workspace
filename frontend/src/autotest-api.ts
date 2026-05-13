@@ -2,6 +2,7 @@ import { get, getBlob, post } from './api'
 import { downloadBlob } from './utils/blob'
 import type {
   AutoTestExportFormat,
+  AutoTestCapabilitiesResponse,
   AutoTestRunListItemResponse,
   AutoTestRunResponse,
   PromoteToKnowledgeResponse,
@@ -9,6 +10,10 @@ import type {
 
 export async function listAutoTestRuns(): Promise<AutoTestRunListItemResponse[]> {
   return get<AutoTestRunListItemResponse[]>('/api/autotest/runs')
+}
+
+export async function getAutoTestCapabilities(): Promise<AutoTestCapabilitiesResponse> {
+  return get<AutoTestCapabilitiesResponse>('/api/autotest/capabilities')
 }
 
 export async function getAutoTestRun(runId: string): Promise<AutoTestRunResponse> {

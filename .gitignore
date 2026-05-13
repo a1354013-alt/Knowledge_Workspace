@@ -12,6 +12,9 @@ venv/
 .env.*
 .env.local
 .pytest_cache/
+pytest_run/
+pytest_runtime/
+openapi_runtime/
 .pytest-tmp/
 .pytest-*
 .mypy_cache/

@@ -1,6 +1,6 @@
 # Backend API
 
-Prereqs: Python 3.11 (matches CI).
+Prereqs: Python 3.11 (matches `requires-python = ">=3.11,<3.12"` and CI).
 
 ## Start
 
@@ -73,6 +73,7 @@ Optional (common):
 - `ALLOWED_ORIGINS` (comma-separated)
 - `MAX_FILE_SIZE` (bytes; default: 52428800 = 50MB)
 - `AUTOTEST_MODE` (`simulated` by default; `real` only for trusted local projects)
+- `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST` (`1` required before `AUTOTEST_MODE=real` can execute)
 - `AUTOTEST_TIMEOUT_SECONDS`
 - `AUTOTEST_MAX_FILES`
 - `AUTOTEST_MAX_UNZIPPED_BYTES`
@@ -86,9 +87,10 @@ Optional (common):
 
 AutoTest real mode note:
 
-- `AUTOTEST_MODE=real` is not a hardened sandbox
+- `AUTOTEST_MODE=real` without `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1` is rejected
+- real mode is not a hardened sandbox
 - it executes commands from uploaded projects
-- use it only with trusted local code
+- use it only with trusted local code inside a sandbox/container
 
 Text uploads:
 - `.txt` / `.md` are decoded with `utf-8`, `utf-8-sig`, or `cp950` (upload validation and indexing use the same rules).

@@ -29,7 +29,7 @@
   - Markdown report download
   - HTML report download
   - AI fix prompt copy when available
-- AutoTest `real` mode warning is visible in UI and docs
+- AutoTest real mode availability is visible in UI and docs, and the API rejects real mode unless `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
 - GitHub repo analyze language says register/queue, not clone-and-run
 
 ## Verification commands
@@ -39,20 +39,23 @@ Backend:
 - `cd backend`
 - `python -m compileall -q app`
 - `ruff check .`
-- `python -m pytest -q`
+- `python -m pytest`
 
 Frontend:
 
 - `cd frontend`
 - `npm ci`
 - `npm run lint`
-- `npm run build`
+- `npm run typecheck`
 - `npm run test:run`
+- `npm run build`
+- `npm audit`
 
 Repo-wide:
 
 - `python scripts/check_version_consistency.py`
-- `python scripts/package_release.py knowledge_workspace_release.zip`
+- `python scripts/package_release.py --output dist`
+- `python scripts/verify_release_zip.py dist/knowledge_workspace_release.zip`
 
 ## Packaging rule
 

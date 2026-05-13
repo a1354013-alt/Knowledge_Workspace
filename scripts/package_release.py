@@ -12,6 +12,9 @@ COMMON_IGNORE_PATTERNS = (
     "__pycache__",
     ".pytest_cache",
     ".pytest-tmp",
+    "pytest_run",
+    "pytest_runtime",
+    "openapi_runtime",
     ".pytest-*",
     ".pytest-chroma",
     ".mypy_cache",
@@ -47,10 +50,16 @@ ROOT_RELEASE_FILES = (
     "DELIVERY_CHECKLIST.md",
     "CHANGELOG.md",
     "PROJECT_STRUCTURE.md",
+    "ARCHITECTURE.md",
+    "API_CONTRACT.md",
+    "TESTING.md",
+    "SECURITY_MODEL.md",
+    "RELEASE_CHECKLIST.md",
 )
 REQUIRED_RELEASE_DOCS = (
     "docs/AUTOTEST.md",
     "docs/PORTFOLIO_CASE_STUDY.md",
+    "docs/KNOWN_LIMITATIONS.md",
 )
 
 
@@ -92,7 +101,9 @@ def copy_release_tree(root_dir: Path, release_root: Path, *, build_frontend: boo
         )
 
     for name in ROOT_RELEASE_FILES:
-        shutil.copy2(root_dir / name, release_root / name)
+        source = root_dir / name
+        if source.exists():
+            shutil.copy2(source, release_root / name)
 
     if build_frontend:
         npm = "npm.cmd" if os.name == "nt" else "npm"
@@ -113,6 +124,9 @@ def prune_release_tree(release_root: Path) -> None:
     rm_tree(release_root / "backend" / "chroma_db")
     rm_tree(release_root / "backend" / ".pytest-chroma")
     rm_tree(release_root / "backend" / ".pytest-tmp")
+    rm_tree(release_root / "backend" / "pytest_run")
+    rm_tree(release_root / "backend" / "pytest_runtime")
+    rm_tree(release_root / "backend" / "openapi_runtime")
     rm_tree(release_root / "backend" / ".pytest_cache")
     rm_tree(release_root / "frontend" / ".vite")
 
@@ -141,6 +155,9 @@ def build_release_zip(release_root: Path, out_zip: Path) -> None:
         "__pycache__",
         ".pytest_cache",
         ".pytest-chroma",
+        "pytest_run",
+        "pytest_runtime",
+        "openapi_runtime",
         ".mypy_cache",
         ".vite",
         "uploads",
@@ -174,10 +191,13 @@ def validate_required_release_docs(release_root: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Package a clean release zip (cross-platform).")
     parser.add_argument("out_zip", nargs="?", default="knowledge_workspace_release.zip")
+    parser.add_argument("--output", "-o", dest="output_dir", default="", help="Directory for the default release zip name.")
     args = parser.parse_args()
 
     root_dir = Path(__file__).resolve().parents[1]
     out_zip = Path(args.out_zip)
+    if args.output_dir and args.out_zip == "knowledge_workspace_release.zip":
+        out_zip = Path(args.output_dir) / "knowledge_workspace_release.zip"
     if not out_zip.is_absolute():
         out_zip = root_dir / out_zip
 

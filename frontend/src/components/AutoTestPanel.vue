@@ -10,8 +10,8 @@
       <template #content>
         <div class="stack-md">
           <div class="warning-banner">
-            <strong>Real mode warning</strong>
-            <p>Real mode executes commands from uploaded projects. Use only with trusted local projects.</p>
+            <strong>AutoTest mode: {{ capabilities?.mode || 'simulated' }}</strong>
+            <p>{{ capabilities?.message || 'Safe simulated mode is active until the backend reports otherwise.' }}</p>
           </div>
           <div class="row">
             <input
@@ -37,6 +37,7 @@
               label="Run"
               icon="pi pi-play"
               :loading="running"
+              :disabled="capabilities?.real_mode_requested && !capabilities.real_mode_available"
               @click="runAutoTest"
             />
             <Button
@@ -289,12 +290,14 @@ import { computed, onMounted, ref } from 'vue'
 
 import {
   downloadAutoTestReport,
+  getAutoTestCapabilities,
   getAutoTestRun,
   promoteAutoTestProblem,
   startAutoTest,
 } from '../autotest-api'
 import type {
   AutoTestExportFormat,
+  AutoTestCapabilitiesResponse,
   AutoTestRunListItemResponse,
   AutoTestRunResponse,
   AutoTestTimelineItemResponse,
@@ -312,6 +315,7 @@ const loadingRuns = ref(false)
 const downloadingFormat = ref<AutoTestExportFormat | null>(null)
 const runs = ref<AutoTestRunListItemResponse[]>([])
 const selectedRun = ref<AutoTestRunResponse | null>(null)
+const capabilities = ref<AutoTestCapabilitiesResponse | null>(null)
 const store = useWorkspaceStore()
 
 const allowedTimelineStatuses = new Set(['pending', 'running', 'success', 'failed', 'skipped'])
@@ -458,6 +462,7 @@ function onZipSelected(event: Event) {
 async function loadRuns() {
   loadingRuns.value = true
   try {
+    capabilities.value = await getAutoTestCapabilities()
     await store.refreshAutotestRuns({ force: true })
     runs.value = store.state.lists.autotestRuns || []
   } catch {

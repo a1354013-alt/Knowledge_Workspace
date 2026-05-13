@@ -11,7 +11,8 @@
     "test:run": "vitest run",
     "test:watch": "vitest",
     "lint": "node ./node_modules/eslint/bin/eslint.js src tests eslint.config.js vite.config.ts",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "generate:api-types": "python ../scripts/generate_api_types.py"
   },
   "dependencies": {
     "@primeuix/themes": "^2.0.3",

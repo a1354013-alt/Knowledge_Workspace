@@ -373,6 +373,14 @@ class AutoTestRunResponse(StrictModel):
     timeline: list[AutoTestTimelineItemResponse] = Field(default_factory=list)
 
 
+class AutoTestCapabilitiesResponse(StrictModel):
+    mode: AutoTestExecutionMode
+    real_mode_requested: bool
+    real_mode_enabled: bool
+    real_mode_available: bool
+    message: str
+
+
 class GitHubAnalyzeRequest(StrictModel):
     repo_url: str = Field(min_length=1, max_length=2000)
 
@@ -424,6 +432,16 @@ class ResolveItemsRequest(StrictModel):
 
 class ResolveItemsResponse(StrictModel):
     items: list[ItemSummary] = Field(default_factory=list)
+
+
+class TemplateMetaItem(StrictModel):
+    value: str
+    label: str
+    fields: list[str] = Field(default_factory=list)
+
+
+class TemplatesMetaResponse(StrictModel):
+    templates: list[TemplateMetaItem] = Field(default_factory=list)
 
 
 class DashboardHealthResponse(StrictModel):

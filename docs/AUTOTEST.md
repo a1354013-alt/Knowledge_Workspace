@@ -40,7 +40,7 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 
 ### `real`
 
-- must be explicitly enabled with `AUTOTEST_MODE=real`
+- must be explicitly enabled with `AUTOTEST_MODE=real` and `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
 - extracts the uploaded ZIP
 - detects a Node/Python project root
 - executes commands from the uploaded project

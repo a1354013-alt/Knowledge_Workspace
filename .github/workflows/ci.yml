@@ -47,6 +47,11 @@ jobs:
           cd backend
           python -m pytest -q
 
+      - name: OpenAPI contract export
+        run: |
+          python scripts/export_openapi.py
+          python scripts/generate_api_types.py --check
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -89,29 +94,7 @@ jobs:
 
       - name: Verify release zip exclusions
         run: |
-          python - <<'PY'
-          import zipfile
-          bad = []
-          with zipfile.ZipFile("knowledge_workspace_release.zip") as zf:
-            names = zf.namelist()
-          forbidden_parts = {".git", "node_modules", "__pycache__", "uploads", "photos", "chroma_db", "autotest_uploads"}
-          for name in names:
-            parts = set([p for p in name.split("/") if p])
-            if parts & forbidden_parts:
-              bad.append(name)
-            if name.endswith(".db") or name.endswith("/.env") or name.endswith(".env"):
-              bad.append(name)
-          if bad:
-            raise SystemExit("Forbidden paths in zip:\n" + "\n".join(sorted(set(bad))[:200]))
-          required = {
-            "knowledge_workspace/docs/AUTOTEST.md",
-            "knowledge_workspace/docs/PORTFOLIO_CASE_STUDY.md",
-          }
-          missing = sorted(required - set(names))
-          if missing:
-            raise SystemExit("Missing required docs in zip:\n" + "\n".join(missing))
-          print("OK: zip exclusions")
-          PY
+          python scripts/verify_release_zip.py knowledge_workspace_release.zip
 
       - name: Start backend (for smoke)
         env:

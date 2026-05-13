@@ -203,6 +203,15 @@ export interface UploadPhotoResponse extends PhotoResponse {
 export type AutoTestRunStatus = 'queued' | 'running' | 'passed' | 'failed';
 export type AutoTestStepStatus = AutoTestRunStatus | 'skipped' | 'unavailable';
 export type AutoTestExportFormat = 'md' | 'html';
+export type AutoTestExecutionMode = 'real' | 'simulated';
+
+export interface AutoTestCapabilitiesResponse {
+  mode: AutoTestExecutionMode;
+  real_mode_requested: boolean;
+  real_mode_enabled: boolean;
+  real_mode_available: boolean;
+  message: string;
+}
 
 export interface AutoTestStepResponse {
   step_id: string;
@@ -245,7 +254,7 @@ export interface AutoTestRunResponse {
   id: string;
   source_type: string;
   source_ref: string;
-  execution_mode: 'real' | 'simulated';
+  execution_mode: AutoTestExecutionMode;
   project_type_detected: string;
   working_directory: string;
   project_name: string;

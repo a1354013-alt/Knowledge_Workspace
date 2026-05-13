@@ -3,10 +3,22 @@ from fastapi.responses import Response
 
 from app.api import legacy_main
 from app.dependencies import get_current_user
-from app.models import AutoTestRunListItemResponse, AutoTestRunResponse, GitHubAnalyzeRequest, GitHubAnalyzeResponse
+from app.models import (
+    AutoTestCapabilitiesResponse,
+    AutoTestRunListItemResponse,
+    AutoTestRunResponse,
+    GitHubAnalyzeRequest,
+    GitHubAnalyzeResponse,
+)
 from app.services import autotest_service
 
 router = APIRouter()
+
+
+@router.get("/api/autotest/capabilities", response_model=AutoTestCapabilitiesResponse)
+async def get_autotest_capabilities(current_user: dict = Depends(get_current_user)) -> AutoTestCapabilitiesResponse:
+    _ = current_user
+    return autotest_service.get_autotest_capabilities()
 
 
 @router.post("/api/autotest/run", response_model=AutoTestRunResponse)

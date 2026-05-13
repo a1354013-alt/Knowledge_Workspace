@@ -5,7 +5,6 @@ import logging
 import os
 import shutil
 import subprocess
-import tempfile
 import uuid
 import zipfile
 from datetime import datetime, timezone
@@ -19,6 +18,7 @@ from app.context import db, settings
 from app.kb_index import index_knowledge_entry, index_logbook_entry
 from app.llm import get_llm_provider
 from app.models import (
+    AutoTestCapabilitiesResponse,
     AutoTestExportFormat,
     AutoTestRunListItemResponse,
     AutoTestRunResponse,
@@ -53,6 +53,52 @@ Rules:
 2. Prefer actionable, reproducible steps (commands, filenames, config keys).
 3. If logs are insufficient, say what extra info is needed.
 """
+
+AUTOTEST_OUTPUT_LIMIT = 12_000
+
+
+def is_real_autotest_requested() -> bool:
+    return str(settings.AUTOTEST_MODE or "").strip().lower() == "real"
+
+
+def is_real_autotest_enabled() -> bool:
+    return bool(settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST)
+
+
+def current_autotest_execution_mode() -> str:
+    return "real" if is_real_autotest_requested() and is_real_autotest_enabled() else "simulated"
+
+
+def get_autotest_capabilities() -> AutoTestCapabilitiesResponse:
+    requested = is_real_autotest_requested()
+    enabled = is_real_autotest_enabled()
+    available = requested and enabled
+    message = (
+        "Real AutoTest mode is enabled. Run only trusted projects inside a sandbox/container."
+        if available
+        else "Safe simulated mode is active. Real command execution requires AUTOTEST_MODE=real and KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1."
+    )
+    return AutoTestCapabilitiesResponse(
+        mode="real" if available else "simulated",
+        real_mode_requested=requested,
+        real_mode_enabled=enabled,
+        real_mode_available=available,
+        message=message,
+    )
+
+
+def sanitize_path_for_report(path: Path, *, base_dir: Path) -> str:
+    try:
+        return path.resolve().relative_to(base_dir.resolve()).as_posix() or "."
+    except ValueError:
+        return "<sanitized-path>"
+
+
+def clamp_output(value: str, *, limit: int = AUTOTEST_OUTPUT_LIMIT) -> str:
+    text = str(value or "")
+    if len(text) <= limit:
+        return text
+    return text[:limit] + f"\n...[truncated to {limit} characters]"
 
 
 def utc_now_iso() -> str:
@@ -528,14 +574,14 @@ def find_project_root_on_disk(extracted_root: Path) -> tuple[str, Path]:
 def autotest_commands(project_type: str) -> dict[str, list[str]]:
     if project_type == "node":
         return {
-            "install": ["npm", "ci", "--no-audit", "--no-fund"],
+            "install": ["npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"],
             "build": ["npm", "run", "build"],
             "test": ["npm", "test"],
             "lint": ["npm", "run", "lint"],
         }
     if project_type == "python":
         return {
-            "install": ["python", "-m", "pip", "install", "--no-input", "-r", "requirements.txt"],
+            "install": ["python", "-m", "pip", "--version"],
             "build": ["python", "-m", "compileall", "."],
             "test": ["pytest"],
             "lint": ["python", "-m", "compileall", "."],
@@ -576,6 +622,8 @@ def autotest_step_should_run(*, project_type: str, working_dir: Path, step_name:
         if not has_tests_dir and not has_pytest_ini:
             return False, "No 'tests/' directory or pytest.ini found; step skipped."
         return True, ""
+    if project_type_normalized == "python" and name == "install":
+        return False, "Python dependency installation is disabled unless trusted sandbox support is added."
     return True, ""
 
 
@@ -590,7 +638,7 @@ def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[i
     if not argv:
         raise ValueError("Missing command argv.")
     env = os.environ.copy()
-    if str(settings.AUTOTEST_MODE or "").strip().lower() == "real":
+    if current_autotest_execution_mode() == "real":
         sensitive_tokens = ("TOKEN", "KEY", "SECRET", "PASSWORD", "DATABASE_URL")
         for key in list(env):
             normalized = key.upper()
@@ -626,7 +674,7 @@ def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[i
         env=env,
         preexec_fn=preexec_fn,
     )
-    return int(completed.returncode), completed.stdout or "", completed.stderr or ""
+    return int(completed.returncode), clamp_output(completed.stdout or ""), clamp_output(completed.stderr or "")
 
 
 async def suggest_fix_from_autotest(*, project_type: str, failed_step: str, command: str, output: str) -> str:
@@ -668,6 +716,14 @@ async def suggest_fix_from_autotest(*, project_type: str, failed_step: str, comm
 
 async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunResponse:
     user_id = current_user["sub"]
+    if is_real_autotest_requested() and not is_real_autotest_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "AutoTest real mode is disabled. Set KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1 "
+                "and run inside an isolated sandbox/container before executing uploaded projects."
+            ),
+        )
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing filename.")
     if Path(file.filename).suffix.lower() != ".zip":
@@ -686,7 +742,7 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
     created_at = utc_now_iso()
     source_ref = file.filename
     timeline = initial_autotest_timeline(source_ref=source_ref, created_at=created_at)
-    execution_mode = "real" if str(settings.AUTOTEST_MODE or "").strip().lower() == "real" else "simulated"
+    execution_mode = current_autotest_execution_mode()
     project_name = Path(file.filename).stem or "uploaded-project"
 
     created = autotest_repository.create_run(
@@ -710,7 +766,8 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
         safe_unlink(zip_path)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create AutoTest run.")
 
-    work_dir = Path(tempfile.mkdtemp(prefix=f"autotest-{run_id}-", dir=str(autotest_dir)))
+    work_dir = autotest_dir / f"autotest-{run_id}"
+    work_dir.mkdir(parents=True, exist_ok=True)
     extracted_dir = work_dir / "extracted"
     extracted_dir.mkdir(parents=True, exist_ok=True)
     step_ids = {name: str(uuid.uuid4()) for name in ("install", "build", "test", "lint")}
@@ -764,17 +821,17 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
     try:
         autotest_repository.update_run(run_id, status="running", summary="Extracting uploaded ZIP archive.")
         extract_started_at = utc_now_iso()
-        timeline = set_timeline_item(timeline, "extracted", status="running", started_at=extract_started_at, message=str(extracted_dir))
+        timeline = set_timeline_item(timeline, "extracted", status="running", started_at=extract_started_at, message="extracting")
         save_run_timeline(run_id, timeline)
         safe_extract_zip(zip_path, extracted_dir)
         extract_finished_at = utc_now_iso()
-        timeline = set_timeline_item(timeline, "extracted", status="success", finished_at=extract_finished_at, message=str(extracted_dir))
+        timeline = set_timeline_item(timeline, "extracted", status="success", finished_at=extract_finished_at, message="extracted")
         save_run_timeline(run_id, timeline)
 
         timeline = set_timeline_item(timeline, "detected_stack", status="running", started_at=utc_now_iso())
         save_run_timeline(run_id, timeline)
         project_type_detected, working_dir = find_project_root_on_disk(extracted_dir)
-        working_dir_rel = str(working_dir)
+        working_dir_rel = sanitize_path_for_report(working_dir, base_dir=extracted_dir)
         project_name = working_dir.name or project_name
         autotest_repository.update_run(
             run_id,
@@ -909,6 +966,7 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
                 ).strip()
 
             finished_at = utc_now_iso()
+            output_text = clamp_output(output_text)
             outputs[name] = output_text
             step_status = "passed" if ok else "failed"
             if error_type == "command_not_found":

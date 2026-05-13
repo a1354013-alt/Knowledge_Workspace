@@ -171,6 +171,7 @@ def test_autotest_run_detail_derives_timeline_for_legacy_sparse_runs(app_module,
 def test_autotest_zip_extract_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
     monkeypatch.setattr(app_module.autotest_service, "safe_extract_zip", lambda zip_path, dest_dir: (_ for _ in ()).throw(ValueError("zip explode failed")))
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
 
     response = client.post(
         "/api/autotest/run",
@@ -186,6 +187,7 @@ def test_autotest_zip_extract_failure_sets_failed(app_module, client: TestClient
 def test_autotest_stack_detection_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
     monkeypatch.setattr(app_module.autotest_service, "find_project_root_on_disk", lambda extracted_dir: (_ for _ in ()).throw(RuntimeError("stack detect failed")))
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
 
     response = client.post(
         "/api/autotest/run",
@@ -231,6 +233,7 @@ def test_autotest_real_mode_executes_commands_when_enabled(
     monkeypatch,
 ):
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
     calls: list[list[str]] = []
 
     def fake_run_command(*, argv, cwd, timeout_seconds):
@@ -249,7 +252,7 @@ def test_autotest_real_mode_executes_commands_when_enabled(
     assert payload["status"] == "passed"
     assert payload["execution_mode"] == "real"
     assert calls
-    assert any(command[:2] == ["npm", "ci"] for command in calls)
+    assert any(command[:2] == ["npm", "ci"] and "--ignore-scripts" in command for command in calls)
 
 
 def test_autotest_simulated_mode_does_not_execute_real_commands(

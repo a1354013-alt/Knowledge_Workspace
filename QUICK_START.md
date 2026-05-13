@@ -3,7 +3,7 @@
 Recommended toolchain:
 
 - Python `3.11`
-- Node.js `20`
+- Node.js `20` LTS
 
 ## 1. Install backend
 
@@ -20,12 +20,14 @@ JWT_SECRET=<minimum 32 chars>
 DEFAULT_OWNER_PASSWORD=<local owner password>
 ALLOWED_ORIGINS=http://localhost:5173
 AUTOTEST_MODE=simulated
+# Real mode additionally requires KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1
 ```
 
 Notes:
 
 - keep `AUTOTEST_MODE=simulated` unless you intentionally want trusted local command execution
-- `AUTOTEST_MODE=real` is not a hardened sandbox
+- `AUTOTEST_MODE=real` is rejected unless `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- real mode is not a hardened sandbox; use a container/sandbox
 
 ## 2. Start backend
 
@@ -66,8 +68,8 @@ Backend:
 ```bash
 cd backend
 python -m compileall -q app
-ruff check .
-python -m pytest -q
+python -m ruff check .
+python -m pytest
 ```
 
 Frontend:
@@ -76,13 +78,16 @@ Frontend:
 cd frontend
 npm ci
 npm run lint
-npm run build
+npm run typecheck
 npm run test:run
+npm run build
+npm audit
 ```
 
 Repo-wide:
 
 ```bash
 python scripts/check_version_consistency.py
-python scripts/package_release.py knowledge_workspace_release.zip
+python scripts/package_release.py --output dist
+python scripts/verify_release_zip.py dist/knowledge_workspace_release.zip
 ```

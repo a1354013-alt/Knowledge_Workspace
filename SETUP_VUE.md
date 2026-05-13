@@ -4,6 +4,8 @@ Frontend lives in `frontend/` and expects the backend at `http://localhost:8000`
 
 ## Install
 
+Use Node.js `20` LTS, then install with the lockfile:
+
 ```bash
 cd frontend
 npm ci
