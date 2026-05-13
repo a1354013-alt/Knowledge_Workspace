@@ -5,9 +5,11 @@
    - Node 20.19+ LTS
 2. Backend verification:
    - `cd backend`
+   - use Python 3.11.x (`py -3.11 -m venv .venv`)
    - `python -m pip install -r requirements.txt`
+   - `python -m compileall app tests`
+   - `ruff check .`
    - `python -m pytest`
-   - `python -m compileall -q app tests`
 3. Frontend verification:
    - `cd frontend`
    - `npm ci`

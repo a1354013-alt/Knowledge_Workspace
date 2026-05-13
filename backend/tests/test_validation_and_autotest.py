@@ -184,6 +184,45 @@ def test_autotest_run_detail_derives_timeline_for_legacy_sparse_runs(app_module,
     )
 
 
+def test_autotest_run_detail_handles_nullable_numeric_fields(app_module, client: TestClient, auth_headers: dict[str, str]):
+    run_id = "nullable-numeric-run"
+    assert app_module.db.add_autotest_run(
+        run_id=run_id,
+        source_type="zip_upload",
+        source_ref="nullable.zip",
+        execution_mode="simulated",
+        project_type_detected="node",
+        working_directory=".",
+        project_name="Nullable Numeric",
+        project_type="node",
+        status="failed",
+        summary="failed after extraction",
+        suggestion="",
+        prompt_output="",
+        failed_reason="zip explode failed",
+        timeline_json='[{"key":"uploaded","label":"Uploaded","name":"Uploaded","status":"success","started_at":null,"finished_at":null,"duration_ms":null,"message":"nullable.zip"},{"key":"failed_reason","label":"Failed reason","name":"Failed reason","status":"failed","started_at":null,"finished_at":null,"duration_ms":"not-a-number","message":"zip explode failed"}]',
+        created_by="owner",
+    )
+    assert app_module.db.add_autotest_step(
+        step_id="nullable-step",
+        run_id=run_id,
+        name="test",
+        command="npm test",
+        status="failed",
+        success=None,
+        exit_code=None,
+    )
+
+    response = client.get(f"/api/autotest/runs/{run_id}", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] == "failed"
+    assert payload["steps"][0]["success"] == 0
+    assert payload["steps"][0]["exit_code"] == 0
+    assert payload["timeline"][0]["duration_ms"] is None
+    assert payload["timeline"][1]["duration_ms"] is None
+
+
 def test_autotest_zip_extract_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
     monkeypatch.setattr(app_module.autotest_service, "safe_extract_zip", lambda zip_path, dest_dir: (_ for _ in ()).throw(ValueError("zip explode failed")))
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"

@@ -14,7 +14,7 @@ flowchart LR
 
 ## Backend
 
-`backend/app/main.py` creates the app through `api/app_factory.py`. Formal routers live in `backend/app/api/routes`. Older handlers still live in `api/legacy_main.py` while migration continues, but route registration now keeps explicit response models.
+`backend/app/main.py` creates the app through `api/app_factory.py`. Formal routers live in `backend/app/api/routes`; domain handlers live in `backend/app/api/handlers`. `api/legacy_main.py` is a short compatibility shim for older imports and tests.
 
 ## Frontend
 
@@ -22,7 +22,7 @@ The Vue app uses typed API helpers in `frontend/src/api.ts` and domain helpers s
 
 ## Database
 
-SQLite stores documents, knowledge entries, logbook entries, prompts, item links, users, and AutoTest runs. Dashboard and AutoTest already use focused repositories; broader domain repository extraction is still incremental.
+SQLite stores documents, knowledge entries, logbook entries, prompts, item links, users, and AutoTest runs. `db/legacy_database.py` now acts as the facade/schema bootstrap, while document, knowledge, logbook, photo, prompt, link, search, dashboard, and AutoTest persistence live behind repository modules.
 
 ## AutoTest Flow
 

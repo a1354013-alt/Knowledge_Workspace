@@ -90,8 +90,11 @@ Primary runtime entrypoints:
 Transition compatibility layer:
 
 - `backend/app/api/legacy_main.py`
-  - still hosts stable document, knowledge, logbook, photo, prompt, auth, and file-serving handlers
-  - not the long-term architecture direction
+  - compatibility shim for older imports and tests
+  - stable handlers now live under `backend/app/api/handlers/*` by domain
+- `backend/app/db/legacy_database.py`
+  - database facade and schema bootstrap
+  - focused repository mixins now live under `backend/app/repositories/*`
 
 Responsibility split:
 
@@ -185,10 +188,14 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 ```bash
 cd backend
-python -m ruff check .
-python -m pytest
-python -m compileall -q app tests
+py -3.11 -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m compileall app tests
+.venv\Scripts\ruff check .
+.venv\Scripts\python -m pytest
 ```
+
+Python 3.11.x is the supported backend test runtime. See `docs/LOCAL_TESTING.md` for the reproducible local flow.
 
 ### Frontend
 
@@ -290,7 +297,7 @@ Status meanings:
 
 ## Known Limitations
 
-- `legacy_main.py` still owns part of the document, knowledge, logbook, photo, prompt, and system surface while the migration continues
+- `legacy_main.py` is a compatibility shim; some handler modules still use shared support imports while deeper service extraction continues
 - AutoTest real mode is constrained subprocess execution, not a hardened sandbox
 - AutoTest uses an in-process background worker, not a durable external queue; backend process crashes can interrupt active jobs
 - GitHub analyze is currently a register/queue flow only: validated URL intake plus queued analysis metadata, not a remote clone-and-run executor

@@ -16,18 +16,26 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
   - auth dependency wiring
   - response handoff
 - `backend/app/services/autotest_service.py`
-  - run creation
-  - timeline orchestration
-  - ZIP extraction
-  - stack detection
-  - command execution policy
-  - report generation
+  - compatibility shim for older imports
+- `backend/app/services/autotest/service.py`
+  - run creation and orchestration
+  - async in-process worker lifecycle
   - failure finalization
   - temporary directory cleanup
+- `backend/app/services/autotest/archive.py`
+  - ZIP validation/extraction
+- `backend/app/services/autotest/detector.py`
+  - stack detection and command selection
+- `backend/app/services/autotest/runner.py`
+  - constrained subprocess execution with `shell=False`
+- `backend/app/services/autotest/timeline.py`
+  - timeline normalization and response serialization
+- `backend/app/services/autotest/reports.py`
+  - AI suggestion fallback and indexing side-effect guards
+- `backend/app/repositories/autotest_persistence_repository.py`
+  - SQLite run/step persistence mixed into the DB facade
 - `backend/app/repositories/autotest_repository.py`
-  - AutoTest run CRUD
-  - AutoTest step CRUD
-  - status / failed_reason / timeline persistence
+  - narrow service-facing repository wrapper
 
 ## Modes
 

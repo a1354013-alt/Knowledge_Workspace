@@ -1,0 +1,114 @@
+# ruff: noqa: E501
+from __future__ import annotations
+
+import sqlite3
+from typing import Any
+
+from app.repositories.repository_utils import (
+    PHOTO_STATUS_VALUES,
+    WORKFLOW_STATUS_VALUES,
+    utc_now_iso,
+)
+
+
+class PhotoRepositoryMixin:
+    def add_photo(
+        self,
+        photo_id: str,
+        filename: str,
+        saved_filename: str,
+        tags: str,
+        description: str,
+        ocr_text: str,
+        file_size: int,
+        uploaded_by: str | None,
+        status: str = "reviewed",
+    ) -> bool:
+        if status not in PHOTO_STATUS_VALUES and status not in WORKFLOW_STATUS_VALUES:
+            raise ValueError(f"Unsupported photo status: {status}")
+        now = utc_now_iso()
+        is_active = 0 if status == "archived" else 1
+        try:
+            with self._connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO photos
+                    (photo_id, filename, saved_filename, tags, description, ocr_text, status, uploaded_by, is_active, file_size, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        photo_id,
+                        filename,
+                        saved_filename,
+                        tags,
+                        description,
+                        ocr_text,
+                        status,
+                        uploaded_by,
+                        is_active,
+                        int(file_size),
+                        now,
+                        now,
+                    ),
+                )
+                conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def list_photos(self, limit: int = 200, user_id: str | None = None, include_archived: bool = False) -> list[dict[str, Any]]:
+        with self._connection() as conn:
+            where: list[str] = []
+            params: list[Any] = []
+            if user_id:
+                where.append("uploaded_by = ?")
+                params.append(user_id)
+            if not include_archived:
+                where.append("is_active = 1")
+            params.append(int(limit))
+            sql = "SELECT * FROM photos"
+            if where:
+                sql += " WHERE " + " AND ".join(where)
+            sql += " ORDER BY created_at DESC LIMIT ?"
+            rows = conn.execute(sql, tuple(params)).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_photo(self, photo_id: str) -> dict[str, Any] | None:
+        with self._connection() as conn:
+            row = conn.execute("SELECT * FROM photos WHERE photo_id = ?", (photo_id,)).fetchone()
+        return dict(row) if row else None
+
+    def update_photo(self, photo_id: str, **updates: Any) -> bool:
+        columns: list[str] = []
+        params: list[Any] = []
+        if "tags" in updates:
+            columns.append("tags = ?")
+            params.append(str(updates["tags"] or ""))
+        if "description" in updates:
+            columns.append("description = ?")
+            params.append(str(updates["description"] or ""))
+        if "status" in updates:
+            status_value = str(updates["status"] or "").strip()
+            if status_value and status_value not in PHOTO_STATUS_VALUES and status_value not in WORKFLOW_STATUS_VALUES:
+                raise ValueError(f"Unsupported photo status: {status_value}")
+            if status_value:
+                columns.append("status = ?")
+                params.append(status_value)
+                columns.append("is_active = ?")
+                params.append(0 if status_value == "archived" else 1)
+        if not columns:
+            return False
+
+        columns.append("updated_at = ?")
+        params.append(utc_now_iso())
+        params.append(photo_id)
+        with self._connection() as conn:
+            cursor = conn.execute(f"UPDATE photos SET {', '.join(columns)} WHERE photo_id = ?", params)
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def delete_photo(self, photo_id: str) -> bool:
+        with self._connection() as conn:
+            cursor = conn.execute("DELETE FROM photos WHERE photo_id = ?", (photo_id,))
+            conn.commit()
+            return cursor.rowcount > 0
