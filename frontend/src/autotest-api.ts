@@ -8,8 +8,6 @@ import type {
   PromoteToKnowledgeResponse,
 } from './types'
 
-export const AUTOTEST_RUN_TIMEOUT_MS = 5 * 60 * 1000
-
 export async function listAutoTestRuns(): Promise<AutoTestRunListItemResponse[]> {
   return get<AutoTestRunListItemResponse[]>('/api/autotest/runs')
 }
@@ -25,7 +23,6 @@ export async function getAutoTestRun(runId: string): Promise<AutoTestRunResponse
 export async function startAutoTest(formData: FormData): Promise<AutoTestRunResponse> {
   return post<AutoTestRunResponse, FormData>('/api/autotest/run', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: AUTOTEST_RUN_TIMEOUT_MS,
   })
 }
 

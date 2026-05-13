@@ -319,6 +319,8 @@ const capabilities = ref<AutoTestCapabilitiesResponse | null>(null)
 const store = useWorkspaceStore()
 
 const allowedTimelineStatuses = new Set(['pending', 'running', 'success', 'failed', 'skipped'])
+const AUTO_TEST_POLL_INTERVAL_MS = 1500
+const AUTO_TEST_POLL_TIMEOUT_MS = 5 * 60 * 1000
 
 const fallbackTimelineKeys = [
   ['uploaded', 'Uploaded'],
@@ -473,6 +475,28 @@ function autoTestRunErrorMessage(error: unknown) {
   return apiError?.message || 'Request failed.'
 }
 
+function isTerminalRunStatus(status: string | undefined) {
+  return status === 'passed' || status === 'failed'
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+async function pollAutoTestRun(runId: string) {
+  const deadline = Date.now() + AUTO_TEST_POLL_TIMEOUT_MS
+  while (Date.now() < deadline) {
+    const latest = await getAutoTestRun(runId)
+    selectedRun.value = latest
+    await loadRuns()
+    if (isTerminalRunStatus(latest.status)) {
+      return latest
+    }
+    await sleep(AUTO_TEST_POLL_INTERVAL_MS)
+  }
+  throw new Error('AutoTest execution timed out while waiting for the async job to finish.')
+}
+
 async function loadRuns() {
   loadingRuns.value = true
   try {
@@ -497,13 +521,15 @@ async function runAutoTest() {
     const formData = new FormData()
     formData.append('file', selectedZip.value)
     const response = await startAutoTest(formData)
-    toast.add({ severity: 'success', summary: 'Run completed', detail: response.status || 'Done.', life: 3000 })
+    selectedRun.value = response
+    toast.add({ severity: 'info', summary: 'Run queued', detail: `AutoTest job ${response.id} started.`, life: 3000 })
     selectedZip.value = null
     if (zipInput.value) {
       zipInput.value.value = ''
     }
-    selectedRun.value = response
     await loadRuns()
+    const completed = isTerminalRunStatus(response.status) ? response : await pollAutoTestRun(response.id)
+    toast.add({ severity: 'success', summary: 'Run completed', detail: completed.status || 'Done.', life: 3000 })
   } catch (error: unknown) {
     toast.add({ severity: 'error', summary: 'Run failed', detail: autoTestRunErrorMessage(error), life: 6000 })
   } finally {

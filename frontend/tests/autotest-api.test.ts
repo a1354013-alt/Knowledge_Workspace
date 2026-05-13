@@ -10,19 +10,17 @@ vi.mock('../src/api', () => ({
   post: apiMocks.post,
 }))
 
-import { AUTOTEST_RUN_TIMEOUT_MS, startAutoTest } from '../src/autotest-api'
+import { startAutoTest } from '../src/autotest-api'
 
 describe('autotest API client', () => {
-  it('uses a long timeout only for the AutoTest run request', async () => {
+  it('starts the async AutoTest job without overriding the shared request timeout', async () => {
     const formData = new FormData()
     apiMocks.post.mockResolvedValueOnce({ id: 'run-1', status: 'passed', steps: [] })
 
     await startAutoTest(formData)
 
-    expect(AUTOTEST_RUN_TIMEOUT_MS).toBe(5 * 60 * 1000)
     expect(apiMocks.post).toHaveBeenCalledWith('/api/autotest/run', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: AUTOTEST_RUN_TIMEOUT_MS,
     })
   })
 })

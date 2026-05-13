@@ -2,7 +2,7 @@
 
 1. Confirm runtime versions:
    - Python 3.11
-   - Node 20 LTS
+   - Node 20.19+ LTS
 2. Backend verification:
    - `cd backend`
    - `python -m pip install -r requirements.txt`
@@ -15,7 +15,7 @@
    - `npm run typecheck`
    - `npm run test:run`
    - `npm run build`
-   - `npm audit --omit=dev --audit-level=high`
+   - `npm audit --audit-level=moderate`
 4. Contract verification:
    - `python scripts/export_openapi.py`
    - `cd frontend && npm run generate:api-types`

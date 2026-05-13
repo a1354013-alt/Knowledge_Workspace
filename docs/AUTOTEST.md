@@ -117,6 +117,8 @@ Any exception after run creation must end in a consistent terminal state:
 
 The frontend should rely on:
 
+- `POST /api/autotest/run` returning `202 Accepted` with a queued run
+- `GET /api/autotest/runs/{run_id}` polling until `run.status` is `passed` or `failed`
 - `run.status`
 - `failed_reason`
 - `timeline[*].status`
@@ -131,13 +133,10 @@ It should not infer success/failure from missing fields or command text alone.
 ## Known Limitations
 
 - no container or VM isolation
-- `/api/autotest/run` is currently a single request execution model
-- real mode tasks fail if they exceed the configured request or backend command timeout
-- the medium-term direction is an async job model:
-  - `POST /api/autotest/run` creates a job and returns `run_id` immediately
-  - `GET /api/autotest/runs/{run_id}` returns status
-  - timeline/log updates use polling or SSE
-  - reports are downloaded after completion
+- AutoTest jobs run in an in-process background worker, not an external durable queue
+- real mode tasks fail if they exceed the configured backend command timeout
+- timeline/log updates currently use polling; SSE can be added later without changing the run contract
+- a process crash can interrupt an active worker, so a future queue should recover or requeue interrupted runs
 - GitHub analyze is still URL intake and queued analysis registration, not a full remote clone-and-run path
 - report export is generated on demand rather than persisted as a versioned artifact
 

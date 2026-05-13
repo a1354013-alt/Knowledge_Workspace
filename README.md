@@ -194,10 +194,10 @@ npm run lint
 npm run typecheck
 npm run test:run
 npm run build
-npm audit --omit=dev --audit-level=high
+npm audit --audit-level=moderate
 ```
 
-If your local default Node runtime is newer than `20`, use a Node 20 runtime for frontend lint/test/build to match CI.
+Use Node 20.19+ or newer for frontend lint/test/build to match the Vite/Vitest toolchain and CI.
 
 ## CI
 
@@ -208,7 +208,7 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 3. `python -m pytest -q`
 4. `python -m compileall -q app tests`
 5. frontend `npm ci`
-6. frontend `npm audit --omit=dev --audit-level=high`
+6. frontend `npm audit --audit-level=moderate`
 7. frontend `npm run lint`
 8. frontend `npm run typecheck`
 9. frontend `npm run build`
@@ -235,6 +235,8 @@ Metric sources:
 - `recent_activity.*`: last-7-day slices from the same user-scoped tables
 
 ## AutoTest Modes
+
+`POST /api/autotest/run` creates an asynchronous job and returns `202 Accepted` with the queued run. The frontend polls `GET /api/autotest/runs/{run_id}` for timeline/log updates and downloads reports only after the run reaches `passed` or `failed`.
 
 ### `simulated`
 

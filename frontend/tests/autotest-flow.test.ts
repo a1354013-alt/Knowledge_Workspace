@@ -60,6 +60,21 @@ describe('AutoTestPanel flows', () => {
     expect(autotestMocks.downloadAutoTestReport).not.toHaveBeenCalled()
   })
 
+  it('polls the async autotest run until it reaches a terminal state', async () => {
+    autotestMocks.startAutoTest.mockResolvedValueOnce({ id: 'r-queued', status: 'queued', steps: [] })
+    autotestMocks.getAutoTestRun.mockResolvedValueOnce({ id: 'r-queued', status: 'passed', steps: [] })
+
+    const wrapper = mount(AutoTestPanel, { global: { stubs: PrimeStubs } })
+    const vm = wrapper.vm as any
+    vm.selectedZip = new File(['zip'], 'proj.zip', { type: 'application/zip' })
+
+    await vm.runAutoTest()
+
+    expect(autotestMocks.getAutoTestRun).toHaveBeenCalledWith('r-queued')
+    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ summary: 'Run queued' }))
+    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ summary: 'Run completed', detail: 'passed' }))
+  })
+
   it('shows a specific timeout message when an autotest run exceeds the request timeout', async () => {
     autotestMocks.startAutoTest.mockRejectedValueOnce({
       message: 'Request timed out.',

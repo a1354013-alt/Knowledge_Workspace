@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import subprocess
+import threading
 import uuid
 import zipfile
 from datetime import datetime, timezone
@@ -766,17 +767,7 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
         safe_unlink(zip_path)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create AutoTest run.")
 
-    work_dir = autotest_dir / f"autotest-{run_id}"
-    work_dir.mkdir(parents=True, exist_ok=True)
-    extracted_dir = work_dir / "extracted"
-    extracted_dir.mkdir(parents=True, exist_ok=True)
     step_ids = {name: str(uuid.uuid4()) for name in ("install", "build", "test", "lint")}
-    timeout_seconds = int(settings.AUTOTEST_TIMEOUT_SECONDS)
-    commands_by_step: dict[str, str] = {}
-    outputs: dict[str, str] = {}
-    failed_step_name = ""
-    failed_reason = ""
-
     for name in ("install", "build", "test", "lint"):
         autotest_repository.create_step(
             step_id=step_ids[name],
@@ -793,6 +784,58 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
             stderr_summary="",
             error_type="",
         )
+
+    schedule_autotest_run_job(
+        run_id=run_id,
+        user_id=user_id,
+        zip_path=zip_path,
+        step_ids=step_ids,
+        timeline=timeline,
+        execution_mode=execution_mode,
+        project_name=project_name,
+    )
+
+    run_row = autotest_repository.get_run(run_id=run_id, created_by=user_id)
+    if not run_row:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Autotest run missing after creation.")
+    return serialize_autotest_run(run_row, autotest_repository.list_steps(run_id))
+
+
+def _run_autotest_job_thread(**kwargs: object) -> None:
+    try:
+        import asyncio
+
+        asyncio.run(execute_autotest_run_job(**kwargs))
+    except Exception:
+        logger.exception("AutoTest background job failed before service-level failure handling could run.")
+
+
+def schedule_autotest_run_job(**kwargs: object) -> threading.Thread:
+    thread = threading.Thread(target=_run_autotest_job_thread, kwargs=kwargs, daemon=True)
+    thread.start()
+    return thread
+
+
+async def execute_autotest_run_job(
+    *,
+    run_id: str,
+    user_id: str,
+    zip_path: Path,
+    step_ids: dict[str, str],
+    timeline: list[dict[str, object]],
+    execution_mode: str,
+    project_name: str,
+) -> None:
+    autotest_dir = settings.AUTOTEST_DIR
+    work_dir = autotest_dir / f"autotest-{run_id}"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    extracted_dir = work_dir / "extracted"
+    extracted_dir.mkdir(parents=True, exist_ok=True)
+    timeout_seconds = int(settings.AUTOTEST_TIMEOUT_SECONDS)
+    commands_by_step: dict[str, str] = {}
+    outputs: dict[str, str] = {}
+    failed_step_name = ""
+    failed_reason = ""
 
     def refresh_run() -> tuple[dict, list[dict]]:
         run_row = autotest_repository.get_run(run_id=run_id, created_by=user_id)
@@ -1029,7 +1072,6 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
             prompt_output += "Next: capture any useful learnings into a Knowledge entry."
             autotest_repository.update_run(
                 run_id,
-                status="passed",
                 summary=summary,
                 prompt_output=prompt_output,
                 failed_reason="",
@@ -1078,6 +1120,7 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
             )
             timeline = set_timeline_item(timeline, "failed_reason", status="skipped", clear_message=True)
             save_run_timeline(run_id, timeline)
+            autotest_repository.update_run(run_id, status="passed")
         else:
             failed_step = failed_step_name or "unknown"
             summary = f"Acceptance pipeline failed at step '{failed_step}' ({project_type_detected})."
@@ -1101,7 +1144,6 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
             failed_reason = failed_output or summary
             autotest_repository.update_run(
                 run_id,
-                status="failed",
                 summary=summary,
                 prompt_output=prompt_output,
                 suggestion=suggestion,
@@ -1148,12 +1190,12 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
                 failed_reason=failed_reason,
             )
             save_run_timeline(run_id, timeline)
+            autotest_repository.update_run(run_id, status="failed")
     except Exception as exc:
         failed_reason = str(exc) or "AutoTest run failed unexpectedly."
         logger.exception("AutoTest run %s failed unexpectedly", run_id)
         autotest_repository.update_run(
             run_id,
-            status="failed",
             summary=f"AutoTest run failed: {failed_reason}",
             prompt_output="",
             suggestion="",
@@ -1177,12 +1219,11 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
         )
         save_run_timeline(run_id, timeline)
         mark_unfinished_command_steps(current_failed_step=failed_step_name)
+        autotest_repository.update_run(run_id, status="failed")
     finally:
         safe_unlink(zip_path)
         shutil.rmtree(work_dir, ignore_errors=True)
 
-    run_row, step_rows = refresh_run()
-    return serialize_autotest_run(run_row, step_rows)
 
 
 def list_autotest_runs(current_user: dict) -> list[AutoTestRunListItemResponse]:

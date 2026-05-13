@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import time
 import zipfile
 
 from fastapi.testclient import TestClient
@@ -14,6 +15,19 @@ def build_zip(*, marker_fail_step: str | None = None) -> bytes:
         if marker_fail_step:
             archive.writestr(".autotest_fail_step", marker_fail_step)
     return buffer.getvalue()
+
+
+def wait_for_autotest_run(client: TestClient, auth_headers: dict[str, str], run_id: str, *, timeout_seconds: float = 5.0) -> dict:
+    deadline = time.monotonic() + timeout_seconds
+    latest: dict = {}
+    while time.monotonic() < deadline:
+        response = client.get(f"/api/autotest/runs/{run_id}", headers=auth_headers)
+        assert response.status_code == 200, response.text
+        latest = response.json()
+        if latest["status"] in {"passed", "failed"}:
+            return latest
+        time.sleep(0.05)
+    raise AssertionError(f"AutoTest run {run_id} did not finish in time. Latest: {latest}")
 
 
 def test_invalid_template_returns_400(client: TestClient, auth_headers: dict[str, str]):
@@ -57,8 +71,10 @@ def test_autotest_run_success_creates_knowledge_draft(client: TestClient, auth_h
         headers=auth_headers,
         files={"file": ("demo.zip", build_zip(), "application/zip")},
     )
-    assert response.status_code == 200, response.text
-    payload = response.json()
+    assert response.status_code == 202, response.text
+    queued_payload = response.json()
+    assert queued_payload["status"] in {"queued", "running", "passed"}
+    payload = wait_for_autotest_run(client, auth_headers, queued_payload["id"])
     assert payload["status"] == "passed"
     assert payload["execution_mode"] == "simulated"
     assert payload["failed_reason"] == ""
@@ -88,8 +104,8 @@ def test_autotest_run_failure_creates_logbook_entry(client: TestClient, auth_hea
         headers=auth_headers,
         files={"file": ("demo.zip", build_zip(marker_fail_step="test"), "application/zip")},
     )
-    assert response.status_code == 200, response.text
-    payload = response.json()
+    assert response.status_code == 202, response.text
+    payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
     assert payload["status"] == "failed"
     assert payload["failed_reason"]
     failed_reason = next(item for item in payload["timeline"] if item["key"] == "failed_reason")
@@ -115,7 +131,7 @@ def test_autotest_run_is_filtered_by_owner(app_module, client: TestClient, auth_
         headers=auth_headers,
         files={"file": ("demo.zip", build_zip(), "application/zip")},
     )
-    assert run_response.status_code == 200, run_response.text
+    assert run_response.status_code == 202, run_response.text
     run_id = run_response.json()["id"]
 
     owner_runs = client.get("/api/autotest/runs", headers=auth_headers)
@@ -178,8 +194,8 @@ def test_autotest_zip_extract_failure_sets_failed(app_module, client: TestClient
         headers=auth_headers,
         files={"file": ("demo.zip", build_zip(), "application/zip")},
     )
-    assert response.status_code == 200, response.text
-    payload = response.json()
+    assert response.status_code == 202, response.text
+    payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
     assert payload["status"] == "failed"
     assert payload["failed_reason"]
 
@@ -194,8 +210,8 @@ def test_autotest_stack_detection_failure_sets_failed(app_module, client: TestCl
         headers=auth_headers,
         files={"file": ("demo.zip", build_zip(), "application/zip")},
     )
-    assert response.status_code == 200, response.text
-    payload = response.json()
+    assert response.status_code == 202, response.text
+    payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
     assert payload["status"] == "failed"
     assert payload["failed_reason"]
 
@@ -206,8 +222,8 @@ def test_autotest_test_command_failure_sets_failed(client: TestClient, auth_head
         headers=auth_headers,
         files={"file": ("demo.zip", build_zip(marker_fail_step="test"), "application/zip")},
     )
-    assert response.status_code == 200, response.text
-    payload = response.json()
+    assert response.status_code == 202, response.text
+    payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
     assert payload["status"] == "failed"
     assert payload["failed_reason"]
 
@@ -220,8 +236,8 @@ def test_autotest_report_generation_failure_sets_failed(app_module, client: Test
         headers=auth_headers,
         files={"file": ("demo.zip", build_zip(), "application/zip")},
     )
-    assert response.status_code == 200, response.text
-    payload = response.json()
+    assert response.status_code == 202, response.text
+    payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
     assert payload["status"] == "passed"
     assert payload["failed_reason"] == ""
 
@@ -247,8 +263,8 @@ def test_autotest_real_mode_executes_commands_when_enabled(
         headers=auth_headers,
         files={"file": ("demo.zip", build_zip(), "application/zip")},
     )
-    assert response.status_code == 200, response.text
-    payload = response.json()
+    assert response.status_code == 202, response.text
+    payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
     assert payload["status"] == "passed"
     assert payload["execution_mode"] == "real"
     assert calls
@@ -273,10 +289,40 @@ def test_autotest_simulated_mode_does_not_execute_real_commands(
         headers=auth_headers,
         files={"file": ("demo.zip", build_zip(), "application/zip")},
     )
-    assert response.status_code == 200, response.text
-    payload = response.json()
+    assert response.status_code == 202, response.text
+    payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
     assert payload["status"] == "passed"
     assert payload["execution_mode"] == "simulated"
+
+
+def test_autotest_run_returns_queued_response_before_background_execution(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    scheduled: list[dict] = []
+
+    def capture_schedule(**kwargs):
+        scheduled.append(kwargs)
+        return None
+
+    monkeypatch.setattr(app_module.autotest_service, "schedule_autotest_run_job", capture_schedule)
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(), "application/zip")},
+    )
+
+    assert response.status_code == 202, response.text
+    payload = response.json()
+    assert payload["status"] == "queued"
+    assert payload["summary"] == "AutoTest queued."
+    assert payload["steps"]
+    assert all(step["status"] == "queued" for step in payload["steps"])
+    assert scheduled
+    assert scheduled[0]["run_id"] == payload["id"]
 
 
 def test_set_timeline_item_can_clear_message(app_module):

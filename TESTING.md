@@ -20,10 +20,10 @@ npm run lint
 npm run typecheck
 npm run test:run
 npm run build
-npm audit --omit=dev --audit-level=high
+npm audit --audit-level=moderate
 ```
 
-Use Node 20 LTS to match CI.
+Use Node 20.19+ LTS to match CI and the Vite/Vitest toolchain engine range.
 
 ## Release
 
