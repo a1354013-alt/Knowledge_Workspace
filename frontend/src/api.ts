@@ -36,6 +36,14 @@ apiClient.interceptors.response.use(
     const detail = error.response?.data?.detail || error.message || 'Request failed.'
     const requestUrl = String(error.config?.url || '')
 
+    if (error.code === 'ECONNABORTED' || String(error.message || '').toLowerCase().includes('timeout')) {
+      return Promise.reject({
+        status,
+        message: 'Request timed out.',
+        detail,
+      } as ApiError)
+    }
+
     // Handle 401 Unauthorized
     if (status === 401 && !requestUrl.includes('/api/login')) {
       clearToken()

@@ -194,7 +194,7 @@ npm run lint
 npm run typecheck
 npm run test:run
 npm run build
-npm audit
+npm audit --omit=dev --audit-level=high
 ```
 
 If your local default Node runtime is newer than `20`, use a Node 20 runtime for frontend lint/test/build to match CI.
@@ -208,11 +208,12 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 3. `python -m pytest -q`
 4. `python -m compileall -q app tests`
 5. frontend `npm ci`
-6. frontend `npm run lint`
-7. frontend `npm run typecheck`
-8. frontend `npm run build`
-9. frontend `npm run test:run`
-10. release packaging and smoke checks
+6. frontend `npm audit --omit=dev --audit-level=high`
+7. frontend `npm run lint`
+8. frontend `npm run typecheck`
+9. frontend `npm run build`
+10. frontend `npm run test:run`
+11. release packaging and smoke checks
 
 ## Dashboard Metric Contract
 

@@ -459,6 +459,20 @@ function onZipSelected(event: Event) {
   selectedZip.value = target?.files?.[0] || null
 }
 
+function isTimeoutError(error: unknown) {
+  const apiError = error as { code?: string; message?: string; detail?: string }
+  const text = `${apiError?.code || ''} ${apiError?.message || ''} ${apiError?.detail || ''}`.toLowerCase()
+  return apiError?.code === 'ECONNABORTED' || text.includes('timeout') || text.includes('timed out')
+}
+
+function autoTestRunErrorMessage(error: unknown) {
+  if (isTimeoutError(error)) {
+    return 'AutoTest execution timed out. Check whether project tests are stuck, adjust AUTOTEST_TIMEOUT_SECONDS, or run a smaller test scope.'
+  }
+  const apiError = error as { message?: string }
+  return apiError?.message || 'Request failed.'
+}
+
 async function loadRuns() {
   loadingRuns.value = true
   try {
@@ -491,8 +505,7 @@ async function runAutoTest() {
     selectedRun.value = response
     await loadRuns()
   } catch (error: unknown) {
-    const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Run failed', detail: apiError?.message || 'Request failed.', life: 5000 })
+    toast.add({ severity: 'error', summary: 'Run failed', detail: autoTestRunErrorMessage(error), life: 6000 })
   } finally {
     running.value = false
   }

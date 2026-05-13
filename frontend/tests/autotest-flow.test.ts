@@ -60,6 +60,32 @@ describe('AutoTestPanel flows', () => {
     expect(autotestMocks.downloadAutoTestReport).not.toHaveBeenCalled()
   })
 
+  it('shows a specific timeout message when an autotest run exceeds the request timeout', async () => {
+    autotestMocks.startAutoTest.mockRejectedValueOnce({
+      message: 'Request timed out.',
+      detail: 'timeout of 300000ms exceeded',
+    })
+
+    const wrapper = mount(AutoTestPanel, { global: { stubs: PrimeStubs } })
+    const vm = wrapper.vm as any
+    vm.selectedZip = new File(['zip'], 'proj.zip', { type: 'application/zip' })
+
+    await vm.runAutoTest()
+
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'error',
+        summary: 'Run failed',
+        detail: expect.stringContaining('AutoTest execution timed out'),
+      })
+    )
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: expect.stringContaining('AUTOTEST_TIMEOUT_SECONDS'),
+      })
+    )
+  })
+
   it('shows export actions and disables them for unfinished runs', async () => {
     const wrapper = mount(AutoTestPanel, { global: { stubs: PrimeStubs } })
     const vm = wrapper.vm as any

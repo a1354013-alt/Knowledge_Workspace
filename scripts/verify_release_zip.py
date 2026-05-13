@@ -9,18 +9,32 @@ FORBIDDEN_PARTS = {
     ".git",
     "node_modules",
     "__pycache__",
+    ".openapi-runtime",
+    "openapi-runtime",
+    "openapi_runtime",
     ".pytest_cache",
     ".pytest-chroma",
+    ".ruff_cache",
     "pytest_run",
     "pytest_runtime",
-    "openapi_runtime",
     ".mypy_cache",
     ".vite",
     "uploads",
     "photos",
     "chroma_db",
     "autotest_uploads",
+    "coverage",
+    "playwright-report",
+    "test-results",
 }
+FORBIDDEN_SUFFIXES = (
+    ".db",
+    ".db-journal",
+    ".sqlite",
+    ".sqlite3",
+    ".sqlite-journal",
+    ".sqlite3-journal",
+)
 
 REQUIRED = {
     "knowledge_workspace/README.md",
@@ -45,7 +59,10 @@ def verify(zip_path: Path) -> None:
         parts = {part for part in name.split("/") if part}
         if parts & FORBIDDEN_PARTS:
             bad.append(name)
-        if name.endswith((".db", ".sqlite", ".sqlite3")) or name.endswith("/.env") or name.endswith(".env"):
+        basename = Path(name).name
+        if basename == ".env" or basename.startswith(".env."):
+            bad.append(name)
+        if name.endswith(FORBIDDEN_SUFFIXES):
             bad.append(name)
     if bad:
         raise SystemExit("Forbidden paths in zip:\n" + "\n".join(sorted(set(bad))[:200]))
@@ -57,7 +74,7 @@ def verify(zip_path: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify release zip exclusions and required docs.")
-    parser.add_argument("zip_path")
+    parser.add_argument("zip_path", nargs="?", default="knowledge_workspace_release.zip")
     args = parser.parse_args()
     verify(Path(args.zip_path))
     print(f"OK: verified {args.zip_path}")

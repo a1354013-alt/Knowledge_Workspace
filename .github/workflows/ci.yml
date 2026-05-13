@@ -64,6 +64,11 @@ jobs:
           cd frontend
           npm ci
 
+      - name: Frontend dependency audit
+        run: |
+          cd frontend
+          npm audit --omit=dev --audit-level=high
+
       - name: Frontend tests
         run: |
           cd frontend

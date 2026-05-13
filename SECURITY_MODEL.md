@@ -22,7 +22,7 @@ KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1
 
 If `AUTOTEST_MODE=real` is set without the explicit enable flag, the API rejects the run with `403`.
 
-Real mode must be run inside a sandbox or container. It uses `shell=False`, fixed command timeouts, output truncation, sanitized report paths, and environment scrubbing, but those controls are not a full sandbox.
+AutoTest real mode is constrained command execution, not a hardened sandbox. Real mode should be run only inside an isolated local environment. It uses `shell=False`, fixed command timeouts, output truncation, sanitized report paths, and environment scrubbing, but those controls are not a full sandbox.
 
 ## AutoTest Command Policy
 
@@ -42,4 +42,8 @@ JWT auth is intended for a local owner workflow. Frontend token storage uses bro
 
 ## Dependency Audit Policy
 
-Frontend release verification includes `npm audit`. High severity production-path vulnerabilities must be fixed before release. Remaining moderate vulnerabilities, if any, must be documented in `docs/KNOWN_LIMITATIONS.md` with production-path impact and a follow-up plan.
+CI enforces production dependency audit with `npm audit --omit=dev --audit-level=high`. High or critical production-path vulnerabilities must be fixed before release. Remaining lower-risk dev-only or transitive issues, if any, must be documented in `docs/KNOWN_LIMITATIONS.md` with production-path impact and a follow-up plan.
+
+## Release Hygiene
+
+Release zip verification rejects runtime databases, journal files, secrets, caches, uploads, build outputs, and test artifacts before a package is accepted.

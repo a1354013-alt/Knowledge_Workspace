@@ -15,27 +15,50 @@ venv/
 pytest_run/
 pytest_runtime/
 openapi_runtime/
+.openapi-runtime/
 .pytest-tmp/
 .pytest-*
 .mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
+*.db
+*.db-journal
 *.sqlite3
+*.sqlite3-journal
 *.sqlite
+*.sqlite-journal
 chroma.sqlite3
 
 # Node / frontend
 node_modules/
 frontend/node_modules/
+dist/
 frontend/dist/
 frontend/.vite/
 frontend/coverage/
 
 # Backend runtime data
 backend/*.db
+backend/*.db-journal
+backend/*.sqlite
+backend/*.sqlite3
+backend/*.sqlite-journal
+backend/*.sqlite3-journal
+backend/**/*.db
+backend/**/*.db-journal
+backend/**/*.sqlite
+backend/**/*.sqlite3
+backend/**/*.sqlite-journal
+backend/**/*.sqlite3-journal
+backend/.openapi-runtime/
+backend/**/.openapi-runtime/
+uploads/
 backend/uploads/
 backend/photos/
+autotest_uploads/
 backend/autotest_uploads/
+chroma_db/
 backend/chroma_db/
 backend/.pytest_cache/
 backend/.pytest-tmp/

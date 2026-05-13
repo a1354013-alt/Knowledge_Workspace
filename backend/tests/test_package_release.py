@@ -68,3 +68,66 @@ def test_release_package_includes_docs_and_excludes_cache(tmp_path: Path):
     assert "D:\\" not in readme
     assert "docs/AUTOTEST.md" in readme
     assert "docs/PORTFOLIO_CASE_STUDY.md" in readme
+
+
+def test_release_package_excludes_runtime_artifacts(tmp_path: Path):
+    package_release = import_module("scripts.package_release")
+    root_dir = tmp_path / "workspace"
+    release_root = tmp_path / "stage" / "knowledge_workspace"
+
+    for directory in ("backend/app", "frontend/src", "frontend/dist", "scripts", "docs", "uploads", "chroma_db"):
+        (root_dir / directory).mkdir(parents=True)
+
+    runtime_files = [
+        "backend/.openapi-runtime/openapi.db",
+        "backend/.openapi-runtime/openapi.db-journal",
+        "backend/.openapi.db-journal",
+        "backend/app.db",
+        "backend/app.sqlite3",
+        ".env",
+        "uploads/secret.txt",
+        "chroma_db/index.bin",
+        "frontend/dist/index.html",
+    ]
+    for rel_path in runtime_files:
+        path = root_dir / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("runtime artifact\n", encoding="utf-8")
+
+    (root_dir / "backend" / "app" / "main.py").write_text("print('backend')\n", encoding="utf-8")
+    (root_dir / "frontend" / "src" / "main.ts").write_text("console.log('frontend')\n", encoding="utf-8")
+    (root_dir / "scripts" / "helper.py").write_text("print('helper')\n", encoding="utf-8")
+
+    package_release.copy_release_tree(root_dir, release_root, build_frontend=False)
+    out_zip = tmp_path / "knowledge_workspace_release.zip"
+    package_release.build_release_zip(release_root, out_zip)
+
+    with zipfile.ZipFile(out_zip) as archive:
+        names = set(archive.namelist())
+
+    assert "knowledge_workspace/backend/app/main.py" in names
+    for rel_path in runtime_files:
+        assert f"knowledge_workspace/{rel_path}" not in names
+
+
+def test_verify_release_zip_rejects_runtime_artifacts(tmp_path: Path):
+    verify_release_zip = import_module("scripts.verify_release_zip")
+    forbidden_paths = [
+        "knowledge_workspace/backend/.openapi-runtime/openapi.db-journal",
+        "knowledge_workspace/backend/.openapi.db-journal",
+        "knowledge_workspace/backend/app.sqlite3",
+        "knowledge_workspace/.env",
+        "knowledge_workspace/uploads/private.txt",
+    ]
+
+    for rel_path in forbidden_paths:
+        zip_path = tmp_path / f"{Path(rel_path).name}.zip"
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr(rel_path, "forbidden\n")
+
+        try:
+            verify_release_zip.verify(zip_path)
+        except SystemExit as exc:
+            assert "Forbidden paths in zip" in str(exc)
+        else:
+            raise AssertionError(f"verify() accepted forbidden path: {rel_path}")

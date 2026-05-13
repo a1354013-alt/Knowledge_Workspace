@@ -15,31 +15,71 @@ COMMON_IGNORE_PATTERNS = (
     "pytest_run",
     "pytest_runtime",
     "openapi_runtime",
+    ".openapi-runtime",
     ".pytest-*",
     ".pytest-chroma",
     ".mypy_cache",
+    ".ruff_cache",
     "*.pyc",
     "*.pyo",
+    "*.db",
+    "*.db-journal",
+    "*.sqlite",
+    "*.sqlite3",
+    "*.sqlite-journal",
+    "*.sqlite3-journal",
+    ".env",
+    ".env.*",
 )
 BACKEND_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + (
     "uploads",
     "photos",
     "autotest_uploads",
     "chroma_db",
-    "*.db",
-    "*.sqlite3",
-    "*.sqlite",
     "chroma.sqlite3",
-    ".env",
 )
 FRONTEND_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + (
     "node_modules",
     "dist",
     ".vite",
     "coverage",
+    "playwright-report",
+    "test-results",
 )
 DOCS_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + (
     "node_modules",
+)
+FORBIDDEN_DIR_NAMES = {
+    ".git",
+    "__pycache__",
+    ".openapi-runtime",
+    "openapi-runtime",
+    "openapi_runtime",
+    ".pytest_cache",
+    ".pytest-chroma",
+    ".pytest-tmp",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".vite",
+    "pytest_run",
+    "pytest_runtime",
+    "uploads",
+    "photos",
+    "chroma_db",
+    "autotest_uploads",
+    "node_modules",
+    "dist",
+    "coverage",
+    "playwright-report",
+    "test-results",
+}
+FORBIDDEN_FILE_SUFFIXES = (
+    ".db",
+    ".db-journal",
+    ".sqlite",
+    ".sqlite3",
+    ".sqlite-journal",
+    ".sqlite3-journal",
 )
 ROOT_RELEASE_FILES = (
     "VERSION",
@@ -116,66 +156,33 @@ def copy_release_tree(root_dir: Path, release_root: Path, *, build_frontend: boo
 
 def prune_release_tree(release_root: Path) -> None:
     # Exclusions (must not ship)
-    rm_tree(release_root / ".git")
-    rm_tree(release_root / "frontend" / "node_modules")
-    rm_tree(release_root / "backend" / "uploads")
-    rm_tree(release_root / "backend" / "photos")
-    rm_tree(release_root / "backend" / "autotest_uploads")
-    rm_tree(release_root / "backend" / "chroma_db")
-    rm_tree(release_root / "backend" / ".pytest-chroma")
-    rm_tree(release_root / "backend" / ".pytest-tmp")
-    rm_tree(release_root / "backend" / "pytest_run")
-    rm_tree(release_root / "backend" / "pytest_runtime")
-    rm_tree(release_root / "backend" / "openapi_runtime")
-    rm_tree(release_root / "backend" / ".pytest_cache")
-    rm_tree(release_root / "frontend" / ".vite")
-
-    # Remove env + sqlite artifacts anywhere
-    for candidate in release_root.rglob(".env"):
-        rm_tree(candidate)
-    for candidate in release_root.rglob("*.db"):
-        rm_tree(candidate)
-    for pattern in ("*.sqlite3", "*.sqlite", "chroma.sqlite3"):
-        for candidate in release_root.rglob(pattern):
-            rm_tree(candidate)
-    for pattern in (".pytest-*",):
-        for candidate in release_root.rglob(pattern):
+    for dir_name in FORBIDDEN_DIR_NAMES:
+        for candidate in release_root.rglob(dir_name):
             rm_tree(candidate)
 
-    # Remove caches
-    for cache_dir in ("__pycache__", ".pytest_cache", ".mypy_cache"):
-        for candidate in release_root.rglob(cache_dir):
+    # Remove env, database, journal, and pytest scratch artifacts anywhere.
+    for candidate in release_root.rglob("*"):
+        if not candidate.exists():
+            continue
+        name = candidate.name
+        if name == ".env" or name.startswith(".env."):
+            rm_tree(candidate)
+            continue
+        if name.startswith(".pytest-"):
+            rm_tree(candidate)
+            continue
+        if candidate.is_file() and name.endswith(FORBIDDEN_FILE_SUFFIXES):
             rm_tree(candidate)
 
 
 def build_release_zip(release_root: Path, out_zip: Path) -> None:
-    forbidden_dirs = {
-        ".git",
-        "node_modules",
-        "__pycache__",
-        ".pytest_cache",
-        ".pytest-chroma",
-        "pytest_run",
-        "pytest_runtime",
-        "openapi_runtime",
-        ".mypy_cache",
-        ".vite",
-        "uploads",
-        "photos",
-        "chroma_db",
-        "autotest_uploads",
-    }
-
     with zipfile.ZipFile(out_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for root, dirs, files in os.walk(release_root):
-            dirs[:] = [d for d in dirs if d not in forbidden_dirs]
+            dirs[:] = [d for d in dirs if d not in FORBIDDEN_DIR_NAMES and not d.startswith(".pytest-")]
             for filename in files:
-                if (
-                    filename == ".env"
-                    or filename.endswith(".db")
-                    or filename.endswith(".sqlite3")
-                    or filename.endswith(".sqlite")
-                ):
+                if filename == ".env" or filename.startswith(".env."):
+                    continue
+                if filename.endswith(FORBIDDEN_FILE_SUFFIXES):
                     continue
                 path = Path(root) / filename
                 rel = path.relative_to(release_root.parent).as_posix()
