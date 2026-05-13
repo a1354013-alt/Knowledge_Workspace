@@ -69,9 +69,13 @@ Recommended usage:
 - use `real` only on isolated local environments you control
 - use `real` only with trusted local projects
 - future hardening direction:
-  - Docker sandbox
+  - Docker or Podman sandbox
   - no-network execution
-  - stricter resource limits
+  - non-root user
+  - read-only root filesystem
+  - CPU / memory / file-size limits
+  - durable job queue
+  - persistent logs / timeline
 
 ## Timeline Contract
 

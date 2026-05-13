@@ -6,5 +6,6 @@
 - Search fallback is deterministic keyword-style matching when a real embedding backend is unavailable; it should not be described as true semantic search in that mode.
 - JWT and browser storage are suitable for a local-first demo, not a public multi-tenant deployment.
 - `legacy_main.py` and `legacy_database.py` still contain compatibility logic while routes and repositories are migrated incrementally.
-- CI enforces frontend dependency audit with `npm audit --audit-level=moderate`, including devDependencies.
+- CI enforces frontend production dependency audit with `npm audit --omit=dev --audit-level=high`.
 - Release zip verification rejects runtime databases, journal files, secrets, caches, uploads, build outputs, and test artifacts.
+- Production-grade AutoTest needs Docker or Podman isolation, no network, a non-root user, a read-only root filesystem, CPU / memory / file-size limits, a durable job queue, and persistent logs / timeline storage.

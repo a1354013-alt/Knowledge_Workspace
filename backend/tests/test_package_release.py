@@ -85,7 +85,7 @@ def test_release_package_excludes_runtime_artifacts(tmp_path: Path):
         "backend/app.db",
         "backend/app.sqlite3",
         ".env",
-        "uploads/secret.txt",
+        "uploads/private.txt",
         "chroma_db/index.bin",
         "frontend/dist/index.html",
     ]
@@ -118,6 +118,8 @@ def test_verify_release_zip_rejects_runtime_artifacts(tmp_path: Path):
         "knowledge_workspace/backend/app.sqlite3",
         "knowledge_workspace/.env",
         "knowledge_workspace/uploads/private.txt",
+        "knowledge_workspace/chroma_db/index.bin",
+        "knowledge_workspace/frontend/dist/index.html",
     ]
 
     for rel_path in forbidden_paths:
@@ -131,3 +133,26 @@ def test_verify_release_zip_rejects_runtime_artifacts(tmp_path: Path):
             assert "Forbidden paths in zip" in str(exc)
         else:
             raise AssertionError(f"verify() accepted forbidden path: {rel_path}")
+
+
+def test_verify_release_zip_accepts_clean_zip(tmp_path: Path):
+    verify_release_zip = import_module("scripts.verify_release_zip")
+    zip_path = tmp_path / "clean.zip"
+
+    required_files = {
+        "knowledge_workspace/README.md": "# README\n",
+        "knowledge_workspace/SECURITY_MODEL.md": "# Security\n",
+        "knowledge_workspace/API_CONTRACT.md": "# API\n",
+        "knowledge_workspace/TESTING.md": "# Testing\n",
+        "knowledge_workspace/RELEASE_CHECKLIST.md": "# Release\n",
+        "knowledge_workspace/docs/AUTOTEST.md": "# AutoTest\n",
+        "knowledge_workspace/docs/PORTFOLIO_CASE_STUDY.md": "# Case Study\n",
+        "knowledge_workspace/docs/KNOWN_LIMITATIONS.md": "# Known Limitations\n",
+        "knowledge_workspace/backend/app/main.py": "print('ok')\n",
+        "knowledge_workspace/frontend/src/main.ts": "console.log('ok')\n",
+    }
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for rel_path, content in required_files.items():
+            archive.writestr(rel_path, content)
+
+    verify_release_zip.verify(zip_path)

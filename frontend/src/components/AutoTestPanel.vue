@@ -469,7 +469,7 @@ function isTimeoutError(error: unknown) {
 
 function autoTestRunErrorMessage(error: unknown) {
   if (isTimeoutError(error)) {
-    return 'AutoTest execution timed out. Check whether project tests are stuck, adjust AUTOTEST_TIMEOUT_SECONDS, or run a smaller test scope.'
+    return 'AutoTest upload or job creation timed out. Check the ZIP size, network connection, or backend status. If the job was created, refresh and review recent runs.'
   }
   const apiError = error as { message?: string }
   return apiError?.message || 'Request failed.'

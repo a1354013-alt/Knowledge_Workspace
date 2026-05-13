@@ -23,6 +23,7 @@ export async function getAutoTestRun(runId: string): Promise<AutoTestRunResponse
 export async function startAutoTest(formData: FormData): Promise<AutoTestRunResponse> {
   return post<AutoTestRunResponse, FormData>('/api/autotest/run', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60 * 1000,
   })
 }
 

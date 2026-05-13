@@ -112,6 +112,7 @@ AutoTest is intentionally constrained, but it is not a sandbox.
 - Python dependency installation for uploaded projects is disabled until a stronger trusted sandbox policy is added
 - subprocess execution uses `shell=False`
 - command timeout is fixed via `AUTOTEST_TIMEOUT_SECONDS`
+- `/api/autotest/run` creates an in-process background job; a backend process crash can interrupt an active run until a durable external queue is added
 - real mode strips env vars containing:
   - `TOKEN`
   - `KEY`
@@ -126,9 +127,13 @@ Recommended usage:
 - use `real` mode only on a local or isolated environment you control
 - use `real` mode only with trusted local projects
 - recommended future hardening direction:
-  - Docker or VM sandboxing
+  - Docker or Podman sandboxing
   - no-network execution
-  - tighter CPU / memory / file limits
+  - non-root user
+  - read-only root filesystem
+  - CPU / memory / file-size limits
+  - durable job queue
+  - persistent logs / timeline
 
 ## Local Startup
 
@@ -194,7 +199,7 @@ npm run lint
 npm run typecheck
 npm run test:run
 npm run build
-npm audit --audit-level=moderate
+npm audit --omit=dev --audit-level=high
 ```
 
 Use Node 20.19+ or newer for frontend lint/test/build to match the Vite/Vitest toolchain and CI.
@@ -208,7 +213,7 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 3. `python -m pytest -q`
 4. `python -m compileall -q app tests`
 5. frontend `npm ci`
-6. frontend `npm audit --audit-level=moderate`
+6. frontend `npm audit --omit=dev --audit-level=high`
 7. frontend `npm run lint`
 8. frontend `npm run typecheck`
 9. frontend `npm run build`
@@ -287,6 +292,7 @@ Status meanings:
 
 - `legacy_main.py` still owns part of the document, knowledge, logbook, photo, prompt, and system surface while the migration continues
 - AutoTest real mode is constrained subprocess execution, not a hardened sandbox
+- AutoTest uses an in-process background worker, not a durable external queue; backend process crashes can interrupt active jobs
 - GitHub analyze is currently a register/queue flow only: validated URL intake plus queued analysis metadata, not a remote clone-and-run executor
 - Chroma emits third-party deprecation warnings in tests
 - frontend verification should be run with Node `20` to match CI

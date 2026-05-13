@@ -1164,19 +1164,6 @@ async def execute_autotest_run_job(
                 created_by=user_id,
                 source_ref=f"autotest_run:{run_id}",
             )
-            if created_problem:
-                autotest_repository.update_run(run_id, problem_entry_id=logbook_id)
-                db.add_link(f"autotest_run:{run_id}", f"logbook:{logbook_id}", link_type="produced")
-                db.add_link(f"logbook:{logbook_id}", f"autotest_run:{run_id}", link_type="derived_from")
-                entry = db.get_logbook_entry(logbook_id)
-                if entry:
-                    _safe_autotest_index_entry(
-                        run_id=run_id,
-                        item_kind="logbook",
-                        item_id=logbook_id,
-                        entry=entry,
-                        indexer=index_logbook_entry,
-                    )
             timeline = set_timeline_item(
                 timeline,
                 "generated_report",
@@ -1190,7 +1177,21 @@ async def execute_autotest_run_job(
                 failed_reason=failed_reason,
             )
             save_run_timeline(run_id, timeline)
-            autotest_repository.update_run(run_id, status="failed")
+            if created_problem:
+                autotest_repository.update_run(run_id, problem_entry_id=logbook_id, status="failed")
+                db.add_link(f"autotest_run:{run_id}", f"logbook:{logbook_id}", link_type="produced")
+                db.add_link(f"logbook:{logbook_id}", f"autotest_run:{run_id}", link_type="derived_from")
+                entry = db.get_logbook_entry(logbook_id)
+                if entry:
+                    _safe_autotest_index_entry(
+                        run_id=run_id,
+                        item_kind="logbook",
+                        item_id=logbook_id,
+                        entry=entry,
+                        indexer=index_logbook_entry,
+                    )
+            else:
+                autotest_repository.update_run(run_id, status="failed")
     except Exception as exc:
         failed_reason = str(exc) or "AutoTest run failed unexpectedly."
         logger.exception("AutoTest run %s failed unexpectedly", run_id)

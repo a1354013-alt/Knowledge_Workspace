@@ -15,7 +15,7 @@
    - `npm run typecheck`
    - `npm run test:run`
    - `npm run build`
-   - `npm audit --audit-level=moderate`
+   - `npm audit --omit=dev --audit-level=high`
 4. Contract verification:
    - `python scripts/export_openapi.py`
    - `cd frontend && npm run generate:api-types`

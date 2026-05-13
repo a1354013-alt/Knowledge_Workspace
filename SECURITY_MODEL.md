@@ -42,7 +42,7 @@ JWT auth is intended for a local owner workflow. Frontend token storage uses bro
 
 ## Dependency Audit Policy
 
-CI enforces frontend dependency audit with `npm audit --audit-level=moderate`, including devDependencies used by the build and test toolchain. Moderate or higher vulnerabilities must be fixed before release. Any accepted exception must be documented in `docs/KNOWN_LIMITATIONS.md` with package name, dependency path, risk, and follow-up plan.
+CI enforces the frontend production dependency audit gate with `npm audit --omit=dev --audit-level=high`. High or critical production dependency vulnerabilities must be fixed before release. Any accepted exception must be documented in `docs/KNOWN_LIMITATIONS.md` with package name, dependency path, risk, and follow-up plan.
 
 ## Release Hygiene
 

@@ -91,12 +91,12 @@ describe('AutoTestPanel flows', () => {
       expect.objectContaining({
         severity: 'error',
         summary: 'Run failed',
-        detail: expect.stringContaining('AutoTest execution timed out'),
+        detail: expect.stringContaining('AutoTest upload or job creation timed out'),
       })
     )
     expect(toastAdd).toHaveBeenCalledWith(
       expect.objectContaining({
-        detail: expect.stringContaining('AUTOTEST_TIMEOUT_SECONDS'),
+        detail: expect.stringContaining('refresh and review recent runs'),
       })
     )
   })
