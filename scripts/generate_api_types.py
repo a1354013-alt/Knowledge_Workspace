@@ -28,6 +28,8 @@ def schema_to_ts(name: str, schema: dict) -> str:
 def type_to_ts(schema: dict) -> str:
     if "$ref" in schema:
         return str(schema["$ref"]).rsplit("/", 1)[-1]
+    if "const" in schema:
+        return json.dumps(schema["const"])
     if "anyOf" in schema:
         return " | ".join(type_to_ts(item) for item in schema["anyOf"])
     if "enum" in schema:

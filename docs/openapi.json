@@ -357,7 +357,7 @@
       "Body_run_autotest_api_autotest_run_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           }
@@ -376,7 +376,7 @@
             "type": "string"
           },
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           },
@@ -400,7 +400,7 @@
             "type": "string"
           },
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           },
@@ -748,7 +748,6 @@
         "additionalProperties": false,
         "properties": {
           "inputs": {
-            "additionalProperties": true,
             "title": "Inputs",
             "type": "object"
           },
@@ -807,8 +806,7 @@
           },
           "status": {
             "const": "queued",
-            "title": "Status",
-            "type": "string"
+            "title": "Status"
           }
         },
         "required": [
@@ -2443,13 +2441,6 @@
       },
       "ValidationError": {
         "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
           "loc": {
             "items": {
               "anyOf": [

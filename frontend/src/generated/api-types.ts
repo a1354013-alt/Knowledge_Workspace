@@ -164,7 +164,7 @@ export interface GitHubAnalyzeRequest {
 export interface GitHubAnalyzeResponse {
   repo_info: GitHubRepoInfoResponse;
   run_id: string;
-  status: string;
+  status: "queued";
 }
 
 export interface GitHubRepoInfoResponse {
@@ -467,8 +467,6 @@ export interface UploadPhotoResponse {
 }
 
 export interface ValidationError {
-  ctx?: Record<string, unknown>;
-  input?: unknown;
   loc: string | number[];
   msg: string;
   type: string;
