@@ -1,4 +1,3 @@
-﻿# ruff: noqa: F401,F403,F405
 import asyncio
 import logging
 import uuid
@@ -21,6 +20,7 @@ from app.api.common import (
     knowledge_revision_snapshot,
     maybe_link_source_item,
     normalize_related_item_ids,
+    resolve_item_summary,
     run_deindex_side_effect,
     run_index_side_effect,
     safe_download_filename,
@@ -163,6 +163,15 @@ async def lifespan(app: FastAPI):
                    status_info["fallback_enabled"])
     except Exception as exc:
         logger.warning("Failed to initialize LLM provider: %s", exc)
+
+    try:
+        from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
+
+        recovered = recover_interrupted_autotest_runs()
+        if recovered:
+            logger.warning("Recovered %s stale AutoTest run(s) after startup.", recovered)
+    except Exception as exc:
+        logger.warning("AutoTest startup recovery failed: %s", exc)
     
     yield
     logger.info("Knowledge Workspace API stopped.")
@@ -170,5 +179,109 @@ async def lifespan(app: FastAPI):
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
-
-__all__ = [name for name in globals() if not name.startswith("__")]
+__all__ = (
+    "APP_VERSION",
+    "CORSMiddleware",
+    "Depends",
+    "DocumentResponse",
+    "DocumentUpdateRequest",
+    "FORM_TEMPLATES",
+    "FastAPI",
+    "File",
+    "FileResponse",
+    "Form",
+    "GenerateRequest",
+    "GenerateResponse",
+    "HTTPException",
+    "HealthResponse",
+    "ItemLinkResolved",
+    "ItemLinksResponse",
+    "ItemSummary",
+    "JSONResponse",
+    "KNOWLEDGE_REVISION_FIELDS",
+    "KnowledgeEntryCreateRequest",
+    "KnowledgeEntryResponse",
+    "KnowledgeEntryUpdateRequest",
+    "KnowledgeRevisionDiffResponse",
+    "KnowledgeRevisionResponse",
+    "Limiter",
+    "LogbookEntryCreateRequest",
+    "LogbookEntryResponse",
+    "LogbookEntryUpdateRequest",
+    "LoginRequest",
+    "LoginResponse",
+    "MeResponse",
+    "MessageResponse",
+    "PHOTO_DIR",
+    "Path",
+    "PhotoResponse",
+    "PhotoUpdateRequest",
+    "PromoteToKnowledgeResponse",
+    "QARequest",
+    "QAResponse",
+    "RateLimitExceeded",
+    "Request",
+    "RequestValidationError",
+    "ResolveItemsRequest",
+    "ResolveItemsResponse",
+    "SavedPromptCreateRequest",
+    "SavedPromptResponse",
+    "UPLOAD_DIR",
+    "UploadDocumentResponse",
+    "UploadFile",
+    "UploadPhotoResponse",
+    "_guess_media_type",
+    "_rate_limit_exceeded_handler",
+    "_run_deindex_side_effect",
+    "_run_index_side_effect",
+    "_safe_download_filename",
+    "_side_effect_warning",
+    "allow_credentials",
+    "allowed_origins",
+    "asynccontextmanager",
+    "asyncio",
+    "build_links_response",
+    "create_token",
+    "db",
+    "delete_from_kb_vector_db",
+    "delete_from_vector_db",
+    "extract_text_from_image",
+    "generate_form",
+    "generate_safe_filename",
+    "get_current_user",
+    "get_remote_address",
+    "guess_media_type",
+    "index_knowledge_entry",
+    "index_logbook_entry",
+    "index_photo",
+    "index_saved_prompt",
+    "item_id_from_parts",
+    "knowledge_revision_snapshot",
+    "lifespan",
+    "limiter",
+    "logger",
+    "logging",
+    "maybe_link_source_item",
+    "normalize_related_item_ids",
+    "perform_qa",
+    "process_file",
+    "resolve_item_summary",
+    "run_deindex_side_effect",
+    "run_index_side_effect",
+    "safe_download_filename",
+    "safe_unlink",
+    "serialize_document",
+    "serialize_knowledge_revision",
+    "serialize_me",
+    "settings",
+    "side_effect_warning",
+    "status",
+    "stream_write_file",
+    "sync_document_index",
+    "sync_source_ref_link",
+    "utc_now_iso",
+    "uuid",
+    "validate_env_vars",
+    "validate_file_extension",
+    "validate_file_magic_bytes",
+)

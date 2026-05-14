@@ -141,6 +141,8 @@ def test_verify_release_zip_accepts_clean_zip(tmp_path: Path):
 
     required_files = {
         "knowledge_workspace/README.md": "# README\n",
+        "knowledge_workspace/.python-version": "3.11\n",
+        "knowledge_workspace/.env.example": "JWT_SECRET=replace-me\n",
         "knowledge_workspace/SECURITY_MODEL.md": "# Security\n",
         "knowledge_workspace/API_CONTRACT.md": "# API\n",
         "knowledge_workspace/TESTING.md": "# Testing\n",

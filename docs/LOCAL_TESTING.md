@@ -2,9 +2,10 @@
 
 ## Backend
 
-Use Python 3.11.x. The backend package declares `requires-python = ">=3.11,<3.12"`, so Python 3.12/3.13 results are not accepted as release evidence.
+Use Python 3.11.x. The backend package declares `requires-python = ">=3.11,<3.12"`, so Python 3.12/3.13 results are not accepted as release evidence unless dependency constraints are updated.
 
 ```bash
+python scripts/check_python_version.py
 cd backend
 py -3.11 -m venv .venv
 .venv\Scripts\python -m pip install --upgrade pip
@@ -55,3 +56,4 @@ python scripts/smoke_check.py --password "OwnerPass123!"
 ```
 
 The smoke check expects a local backend already running on `127.0.0.1:8000`, matching the CI startup step.
+The release zip is a clean source package. It excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary Chroma/AutoTest data; run the frontend build after extraction.

@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import time
 import zipfile
+from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 
@@ -384,3 +385,91 @@ def test_set_timeline_item_can_clear_message(app_module):
     failed_reason = next(item for item in timeline if item["key"] == "failed_reason")
     assert failed_reason["status"] == "skipped"
     assert failed_reason["message"] is None
+
+
+def _create_recovery_run(app_module, *, run_id: str, status: str) -> None:
+    assert app_module.db.add_autotest_run(
+        run_id=run_id,
+        source_type="zip_upload",
+        source_ref=f"{run_id}.zip",
+        execution_mode="simulated",
+        project_type_detected="node",
+        working_directory=".",
+        project_name=run_id,
+        project_type="node",
+        status=status,
+        summary="",
+        suggestion="",
+        prompt_output="",
+        failed_reason="",
+        timeline_json="",
+        created_by="owner",
+    )
+    assert app_module.db.add_autotest_step(
+        step_id=f"{run_id}-test",
+        run_id=run_id,
+        name="test",
+        command="npm test",
+        status="running" if status == "running" else "queued",
+    )
+
+
+def test_autotest_startup_recovery_fails_stale_running_run(app_module):
+    from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
+
+    _create_recovery_run(app_module, run_id="stale-running", status="running")
+    recovered = recover_interrupted_autotest_runs(
+        now=datetime.now(timezone.utc) + timedelta(minutes=31),
+        stale_after_minutes=30,
+    )
+
+    run = app_module.db.get_autotest_run(run_id="stale-running", created_by="owner")
+    assert recovered == 1
+    assert run["status"] == "failed"
+    assert "worker_interrupted" in run["failed_reason"]
+    assert "server_restarted" in run["failed_reason"]
+    assert "stale_running_job" in run["failed_reason"]
+
+
+def test_autotest_startup_recovery_fails_stale_queued_run(app_module):
+    from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
+
+    _create_recovery_run(app_module, run_id="stale-queued", status="queued")
+    recovered = recover_interrupted_autotest_runs(
+        now=datetime.now(timezone.utc) + timedelta(minutes=31),
+        stale_after_minutes=30,
+    )
+
+    run = app_module.db.get_autotest_run(run_id="stale-queued", created_by="owner")
+    assert recovered == 1
+    assert run["status"] == "failed"
+    assert "server_restarted" in run["failed_reason"]
+    assert "stale_queued_job" in run["failed_reason"]
+
+
+def test_autotest_startup_recovery_keeps_recent_running_run(app_module):
+    from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
+
+    _create_recovery_run(app_module, run_id="recent-running", status="running")
+    recovered = recover_interrupted_autotest_runs(
+        now=datetime.now(timezone.utc) + timedelta(minutes=5),
+        stale_after_minutes=30,
+    )
+
+    run = app_module.db.get_autotest_run(run_id="recent-running", created_by="owner")
+    assert recovered == 0
+    assert run["status"] == "running"
+
+
+def test_autotest_startup_recovery_ignores_terminal_runs(app_module):
+    from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
+
+    _create_recovery_run(app_module, run_id="already-failed", status="failed")
+    recovered = recover_interrupted_autotest_runs(
+        now=datetime.now(timezone.utc) + timedelta(minutes=31),
+        stale_after_minutes=30,
+    )
+
+    run = app_module.db.get_autotest_run(run_id="already-failed", created_by="owner")
+    assert recovered == 0
+    assert run["status"] == "failed"

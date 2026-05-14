@@ -18,10 +18,19 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 - `backend/app/services/autotest_service.py`
   - compatibility shim for older imports
 - `backend/app/services/autotest/service.py`
-  - run creation and orchestration
+  - stable facade used by routers and compatibility imports
+- `backend/app/services/autotest/run_lifecycle.py`
+  - startup recovery for stale queued/running runs
+  - durable failed-state marking after worker interruption
+- `backend/app/services/autotest/job_executor.py`
   - async in-process worker lifecycle
-  - failure finalization
-  - temporary directory cleanup
+  - project extraction, stack detection, step ordering, and failure finalization
+- `backend/app/services/autotest/step_runner.py`
+  - command step execution entrypoint
+- `backend/app/services/autotest/report_side_effects.py`
+  - Knowledge draft and Logbook draft side effects after report generation
+- `backend/app/services/autotest/workspace_cleanup.py`
+  - ZIP and temporary directory cleanup
 - `backend/app/services/autotest/archive.py`
   - ZIP validation/extraction
 - `backend/app/services/autotest/detector.py`

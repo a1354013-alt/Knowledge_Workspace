@@ -23,6 +23,10 @@ jobs:
           python -m pip install -r backend/requirements.txt
           python -m pip install -r backend/requirements-dev.txt
 
+      - name: Python runtime check
+        run: |
+          python scripts/check_python_version.py
+
       - name: Backend lint (ruff)
         run: |
           cd backend

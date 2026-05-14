@@ -19,6 +19,9 @@ class AutoTestRepository:
     def list_runs(self, *, created_by: str, limit: int = 50) -> list[dict[str, Any]]:
         return self._db.list_autotest_runs(limit=limit, created_by=created_by)
 
+    def list_unfinished_runs(self) -> list[dict[str, Any]]:
+        return self._db.list_unfinished_autotest_runs(statuses=("queued", "running"))
+
     def create_step(self, **kwargs: Any) -> bool:
         return bool(self._db.add_autotest_step(**kwargs))
 

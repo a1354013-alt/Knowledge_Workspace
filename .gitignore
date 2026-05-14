@@ -3,13 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 .Python
-.python-version
 env/
 venv/
 .venv/
 .ENV
 .env
 .env.*
+!.env.example
 .env.local
 .pytest_cache/
 pytest_run/

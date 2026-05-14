@@ -2,6 +2,8 @@
 
 1. Confirm runtime versions:
    - Python 3.11
+   - `.python-version` is `3.11`
+   - `python scripts/check_python_version.py`
    - Node 20.19+ LTS
 2. Backend verification:
    - `cd backend`
@@ -25,4 +27,5 @@
    - `python scripts/check_version_consistency.py`
    - `python scripts/package_release.py --output dist`
    - `python scripts/verify_release_zip.py dist/knowledge_workspace_release.zip`
+   - release zip is a clean source package; it does not include `frontend/dist`
    - release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts

@@ -1,5 +1,8 @@
-﻿# ruff: noqa: F401,F403,F405
-from app.api.handlers.support import *  # noqa: F403
+from app.api.handlers.support import (
+    FORM_TEMPLATES,
+    Depends,
+    get_current_user,
+)
 
 
 async def list_templates(current_user: dict = Depends(get_current_user)) -> dict[str, list[dict[str, object]]]:

@@ -189,6 +189,17 @@ class AutoTestPersistenceRepositoryMixin:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def list_unfinished_autotest_runs(self, *, statuses: tuple[str, ...] = ("queued", "running")) -> list[dict[str, Any]]:
+        if not statuses:
+            return []
+        placeholders = ", ".join("?" for _ in statuses)
+        with self._connection() as conn:
+            rows = conn.execute(
+                f"SELECT * FROM autotest_runs WHERE status IN ({placeholders}) ORDER BY created_at ASC",
+                tuple(statuses),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def get_autotest_run(self, *, run_id: str, created_by: str) -> dict[str, Any] | None:
         with self._connection() as conn:
             row = conn.execute(

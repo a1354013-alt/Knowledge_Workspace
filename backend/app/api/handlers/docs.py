@@ -1,5 +1,37 @@
-﻿# ruff: noqa: F401,F403,F405
-from app.api.handlers.support import *  # noqa: F403
+from app.api.handlers.support import (
+    UPLOAD_DIR,
+    Depends,
+    DocumentResponse,
+    DocumentUpdateRequest,
+    File,
+    FileResponse,
+    Form,
+    HTTPException,
+    ItemLinksResponse,
+    MessageResponse,
+    Path,
+    UploadDocumentResponse,
+    UploadFile,
+    _guess_media_type,
+    _run_deindex_side_effect,
+    _safe_download_filename,
+    _side_effect_warning,
+    build_links_response,
+    db,
+    delete_from_vector_db,
+    generate_safe_filename,
+    get_current_user,
+    item_id_from_parts,
+    logger,
+    safe_unlink,
+    serialize_document,
+    status,
+    stream_write_file,
+    sync_document_index,
+    uuid,
+    validate_file_extension,
+    validate_file_magic_bytes,
+)
 
 
 async def upload_document(

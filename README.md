@@ -53,7 +53,12 @@ graph TD
 - real mode is opt-in behind `AUTOTEST_MODE=real` plus `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`, and uses fixed timeouts, `shell=False`, output limits, path sanitization, and sensitive env scrubbing
 - backend is now split into:
   - `api/routes/autotest.py`: thin HTTP layer
-  - `services/autotest_service.py`: workflow orchestration, timeline, failure handling, cleanup
+  - `services/autotest_service.py`: compatibility shim for older imports
+  - `services/autotest/service.py`: stable facade used by routers
+  - `services/autotest/run_lifecycle.py`: run state transitions and startup recovery
+  - `services/autotest/job_executor.py`: background worker flow
+  - `services/autotest/report_side_effects.py`: knowledge/logbook draft side effects
+  - `services/autotest/workspace_cleanup.py`: temporary workspace cleanup
   - `repositories/autotest_repository.py`: run/step persistence
 - run detail includes a timeline with:
   - `Uploaded`
@@ -116,6 +121,7 @@ AutoTest is intentionally constrained, but it is not a sandbox.
 - subprocess execution uses `shell=False`
 - command timeout is fixed via `AUTOTEST_TIMEOUT_SECONDS`
 - `/api/autotest/run` creates an in-process background job; a backend process crash can interrupt an active run until a durable external queue is added
+- startup recovery marks stale queued/running AutoTest runs failed after `AUTOTEST_STALE_RUN_MINUTES` (default 30) with a `worker_interrupted: server_restarted` failure reason
 - real mode strips env vars containing:
   - `TOKEN`
   - `KEY`
@@ -198,7 +204,7 @@ py -3.11 -m venv .venv
 .venv\Scripts\python -m pytest -q
 ```
 
-Python 3.11.x is the supported backend test runtime. See `docs/LOCAL_TESTING.md` for the reproducible local flow.
+Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see `docs/LOCAL_TESTING.md` for the reproducible local flow.
 
 ### Frontend
 
@@ -219,21 +225,24 @@ Use Node 20.19+ or newer for frontend lint/test/build to match the Vite/Vitest t
 CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently runs:
 
 1. backend dependency install
-2. `cd backend && python -m ruff check .`
-3. `cd backend && python -m compileall app`
-4. `cd backend && python -m pytest -q`
-5. `python scripts/export_openapi.py`
-6. `python scripts/generate_api_types.py --check`
-7. frontend `npm ci`
-8. frontend `npm audit --omit=dev --audit-level=high`
-9. frontend `npm run test:run`
-10. frontend `npm run lint`
-11. frontend `npm run typecheck`
-12. frontend `npm run build`
-13. `python scripts/check_version_consistency.py`
-14. `python scripts/package_release.py ./knowledge_workspace_release.zip`
-15. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
-16. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
+2. `python scripts/check_python_version.py`
+3. `cd backend && python -m ruff check .`
+4. `cd backend && python -m compileall app`
+5. `cd backend && python -m pytest -q`
+6. `python scripts/export_openapi.py`
+7. `python scripts/generate_api_types.py --check`
+8. frontend `npm ci`
+9. frontend `npm audit --omit=dev --audit-level=high`
+10. frontend `npm run test:run`
+11. frontend `npm run lint`
+12. frontend `npm run typecheck`
+13. frontend `npm run build`
+14. `python scripts/check_version_consistency.py`
+15. `python scripts/package_release.py ./knowledge_workspace_release.zip`
+16. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
+17. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
+
+The release zip is a clean source package. It deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
 
 ## Dashboard Metric Contract
 

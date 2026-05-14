@@ -1,5 +1,35 @@
-﻿# ruff: noqa: F401,F403,F405
-from app.api.handlers.support import *  # noqa: F403
+from app.api.handlers.support import (
+    PHOTO_DIR,
+    Depends,
+    File,
+    FileResponse,
+    Form,
+    HTTPException,
+    ItemLinksResponse,
+    MessageResponse,
+    Path,
+    PhotoResponse,
+    PhotoUpdateRequest,
+    UploadFile,
+    UploadPhotoResponse,
+    _guess_media_type,
+    _run_deindex_side_effect,
+    _run_index_side_effect,
+    _safe_download_filename,
+    _side_effect_warning,
+    build_links_response,
+    db,
+    delete_from_kb_vector_db,
+    extract_text_from_image,
+    generate_safe_filename,
+    get_current_user,
+    index_photo,
+    item_id_from_parts,
+    safe_unlink,
+    status,
+    stream_write_file,
+    uuid,
+)
 
 
 def validate_image_extension(filename: str) -> bool:

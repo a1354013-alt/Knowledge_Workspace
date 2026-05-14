@@ -39,6 +39,8 @@ FORBIDDEN_SUFFIXES = (
 )
 
 REQUIRED = {
+    "knowledge_workspace/.python-version",
+    "knowledge_workspace/.env.example",
     "knowledge_workspace/README.md",
     "knowledge_workspace/SECURITY_MODEL.md",
     "knowledge_workspace/API_CONTRACT.md",
@@ -62,7 +64,7 @@ def verify(zip_path: Path) -> None:
         if parts & FORBIDDEN_PARTS:
             bad.append(name)
         basename = Path(name).name
-        if basename == ".env" or basename.startswith(".env."):
+        if basename == ".env" or (basename.startswith(".env.") and basename != ".env.example"):
             bad.append(name)
         if name.endswith(FORBIDDEN_SUFFIXES):
             bad.append(name)

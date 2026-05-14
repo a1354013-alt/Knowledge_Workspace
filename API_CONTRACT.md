@@ -25,4 +25,4 @@ python scripts/generate_api_types.py --check
 
 ## Contract Tests
 
-Backend tests include OpenAPI checks for the main route groups and response schemas. Frontend API helpers still use the stable hand-maintained types while generated types are introduced incrementally.
+Backend tests include OpenAPI checks for the main route groups and response schemas. Frontend API types are generated from `docs/openapi.json` and re-exported from `frontend/src/types/index.ts`; API helper changes must stay aligned with those generated types.

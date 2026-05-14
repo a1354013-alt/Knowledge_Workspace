@@ -1,5 +1,10 @@
-﻿# ruff: noqa: F401,F403,F405
-from app.api.handlers.support import *  # noqa: F403
+from app.api.handlers.support import (
+    Depends,
+    ItemSummary,
+    ResolveItemsResponse,
+    db,
+    get_current_user,
+)
 
 
 async def global_search(
@@ -48,4 +53,3 @@ async def global_search(
         for row in rows
     ]
     return ResolveItemsResponse(items=items)
-

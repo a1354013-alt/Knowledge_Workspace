@@ -82,6 +82,8 @@ FORBIDDEN_FILE_SUFFIXES = (
     ".sqlite3-journal",
 )
 ROOT_RELEASE_FILES = (
+    ".python-version",
+    ".env.example",
     "VERSION",
     "start_backend.sh",
     "start_frontend.sh",
@@ -165,7 +167,7 @@ def prune_release_tree(release_root: Path) -> None:
         if not candidate.exists():
             continue
         name = candidate.name
-        if name == ".env" or name.startswith(".env."):
+        if name == ".env" or (name.startswith(".env.") and name != ".env.example"):
             rm_tree(candidate)
             continue
         if name.startswith(".pytest-"):
@@ -180,7 +182,7 @@ def build_release_zip(release_root: Path, out_zip: Path) -> None:
         for root, dirs, files in os.walk(release_root):
             dirs[:] = [d for d in dirs if d not in FORBIDDEN_DIR_NAMES and not d.startswith(".pytest-")]
             for filename in files:
-                if filename == ".env" or filename.startswith(".env."):
+                if filename == ".env" or (filename.startswith(".env.") and filename != ".env.example"):
                     continue
                 if filename.endswith(FORBIDDEN_FILE_SUFFIXES):
                     continue

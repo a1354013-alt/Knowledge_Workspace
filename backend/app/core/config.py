@@ -49,6 +49,7 @@ class Settings(BaseModel):
     AUTOTEST_RLIMIT_CPU_SECONDS: int = 310
     AUTOTEST_RLIMIT_AS_MB: int = 2048
     AUTOTEST_RLIMIT_FSIZE_MB: int = 200
+    AUTOTEST_STALE_RUN_MINUTES: int = 30
     
     # OCR Settings
     OCR_ENABLED: bool = True
@@ -126,6 +127,7 @@ class Settings(BaseModel):
             AUTOTEST_RLIMIT_CPU_SECONDS=int(os.getenv("AUTOTEST_RLIMIT_CPU_SECONDS", "310")),
             AUTOTEST_RLIMIT_AS_MB=int(os.getenv("AUTOTEST_RLIMIT_AS_MB", "2048")),
             AUTOTEST_RLIMIT_FSIZE_MB=int(os.getenv("AUTOTEST_RLIMIT_FSIZE_MB", "200")),
+            AUTOTEST_STALE_RUN_MINUTES=int(os.getenv("AUTOTEST_STALE_RUN_MINUTES", "30")),
             OCR_ENABLED=parse_bool(os.getenv("OCR_ENABLED", "true"), default=True),
             LLM_PROVIDER=(os.getenv("LLM_PROVIDER", "ollama") or "ollama").strip().lower(),
             OLLAMA_BASE_URL=(os.getenv("OLLAMA_BASE_URL", "http://localhost:11434") or "http://localhost:11434").strip(),

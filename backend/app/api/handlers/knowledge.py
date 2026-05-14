@@ -1,5 +1,27 @@
-﻿# ruff: noqa: F401,F403,F405
-from app.api.handlers.support import *  # noqa: F403
+from app.api.handlers.support import (
+    KNOWLEDGE_REVISION_FIELDS,
+    Depends,
+    HTTPException,
+    KnowledgeEntryCreateRequest,
+    KnowledgeEntryResponse,
+    KnowledgeEntryUpdateRequest,
+    KnowledgeRevisionDiffResponse,
+    KnowledgeRevisionResponse,
+    MessageResponse,
+    _run_index_side_effect,
+    _side_effect_warning,
+    db,
+    get_current_user,
+    index_knowledge_entry,
+    item_id_from_parts,
+    knowledge_revision_snapshot,
+    maybe_link_source_item,
+    normalize_related_item_ids,
+    serialize_knowledge_revision,
+    status,
+    sync_source_ref_link,
+    uuid,
+)
 
 
 async def list_knowledge_entries(current_user: dict = Depends(get_current_user)) -> list[KnowledgeEntryResponse]:
