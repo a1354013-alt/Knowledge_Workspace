@@ -39,8 +39,8 @@ class AutoTestPersistenceRepositoryMixin:
                 conn.execute(
                     """
                     INSERT INTO autotest_runs
-                    (run_id, source_type, source_ref, execution_mode, project_type_detected, working_directory, project_name, project_type, status, summary, suggestion, prompt_output, failed_reason, timeline_json, created_by, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (run_id, source_type, source_ref, execution_mode, project_type_detected, working_directory, project_name, project_type, status, summary, suggestion, prompt_output, failed_reason, timeline_json, created_by, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         run_id,
@@ -58,6 +58,7 @@ class AutoTestPersistenceRepositoryMixin:
                         failed_reason,
                         timeline_json,
                         created_by,
+                        now,
                         now,
                     ),
                 )
@@ -143,6 +144,8 @@ class AutoTestPersistenceRepositoryMixin:
                 params.append(str(updates[key]))
         if not columns:
             return False
+        columns.append("updated_at = ?")
+        params.append(str(updates.get("updated_at") or utc_now_iso()))
         params.append(run_id)
         with self._connection() as conn:
             cursor = conn.execute(f"UPDATE autotest_runs SET {', '.join(columns)} WHERE run_id = ?", params)
@@ -184,7 +187,7 @@ class AutoTestPersistenceRepositoryMixin:
     def list_autotest_runs(self, *, limit: int = 50, created_by: str) -> list[dict[str, Any]]:
         with self._connection() as conn:
             rows = conn.execute(
-                "SELECT * FROM autotest_runs WHERE created_by = ? ORDER BY created_at DESC LIMIT ?",
+                "SELECT * FROM autotest_runs WHERE created_by = ? ORDER BY COALESCE(NULLIF(updated_at, ''), created_at) DESC, created_at DESC LIMIT ?",
                 (created_by, int(limit)),
             ).fetchall()
         return [dict(row) for row in rows]
@@ -195,7 +198,7 @@ class AutoTestPersistenceRepositoryMixin:
         placeholders = ", ".join("?" for _ in statuses)
         with self._connection() as conn:
             rows = conn.execute(
-                f"SELECT * FROM autotest_runs WHERE status IN ({placeholders}) ORDER BY created_at ASC",
+                f"SELECT * FROM autotest_runs WHERE status IN ({placeholders}) ORDER BY COALESCE(NULLIF(updated_at, ''), created_at) ASC, created_at ASC",
                 tuple(statuses),
             ).fetchall()
         return [dict(row) for row in rows]

@@ -173,7 +173,7 @@ class SearchRepositoryMixin:
                 "''",
                 "lower(project_name || ' ' || source_ref || ' ' || summary || ' ' || suggestion)",
                 "created_at",
-                "created_at",
+                "COALESCE(NULLIF(updated_at,''), created_at)",
                 "created_by = ?",
                 [user_id],
                 "autotest_run",

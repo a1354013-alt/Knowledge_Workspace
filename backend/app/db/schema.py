@@ -144,7 +144,8 @@ CREATE TABLE IF NOT EXISTS autotest_runs (
     problem_entry_id TEXT NOT NULL DEFAULT '',
     solution_entry_id TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 )
 """
 

@@ -210,6 +210,8 @@ def test_main_returns_zero_after_autotest_passes(monkeypatch):
     def fake_call(method: str, url: str, payload=None, token: str | None = None):
         if url.endswith("/api/login"):
             return 200, json.dumps({"access_token": "token-main"})
+        if url.endswith("/api/health"):
+            return 200, json.dumps({"status": "ok", "version": "test"})
         if url.endswith("/api/me"):
             return 200, json.dumps({"user_id": "owner"})
         if url.endswith("/api/docs"):

@@ -23,7 +23,7 @@ vi.mock('../src/api', () => ({
 describe('KnowledgeBase flows', () => {
   it('creates knowledge entry with status/source/related_item_ids', async () => {
     mocks.post.mockResolvedValueOnce({ message: 'ok' })
-    mocks.get.mockResolvedValueOnce([])
+    mocks.get.mockResolvedValue([]).mockResolvedValueOnce([])
 
     const wrapper = mount(KnowledgeBase, { global: { stubs: PrimeStubs } })
     const vm = wrapper.vm as any
@@ -50,7 +50,7 @@ describe('KnowledgeBase flows', () => {
 
   it('edits knowledge entry via patch including related_item_ids', async () => {
     mocks.patch.mockResolvedValueOnce({ message: 'updated' })
-    mocks.get.mockResolvedValueOnce([])
+    mocks.get.mockResolvedValue([]).mockResolvedValueOnce([])
 
     const wrapper = mount(KnowledgeBase, { global: { stubs: PrimeStubs } })
     const vm = wrapper.vm as any

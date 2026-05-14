@@ -157,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     token = json.loads(body)['access_token']
-    for path in ['/api/me', '/api/docs', '/api/photos', '/api/prompts']:
+    for path in ['/api/health', '/api/me', '/api/docs', '/api/photos', '/api/prompts']:
         code, response_body = call('GET', f'{args.base_url}{path}', token=token)
         print(path, code, response_body)
         if code != 200:

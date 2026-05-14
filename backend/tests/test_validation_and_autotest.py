@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import io
+import sqlite3
 import time
 import zipfile
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -414,6 +416,12 @@ def _create_recovery_run(app_module, *, run_id: str, status: str) -> None:
     )
 
 
+def _set_run_updated_at(app_module, *, run_id: str, updated_at: str) -> None:
+    with app_module.db._connection() as conn:
+        conn.execute("UPDATE autotest_runs SET updated_at = ? WHERE run_id = ?", (updated_at, run_id))
+        conn.commit()
+
+
 def test_autotest_startup_recovery_fails_stale_running_run(app_module):
     from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
 
@@ -451,6 +459,11 @@ def test_autotest_startup_recovery_keeps_recent_running_run(app_module):
     from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
 
     _create_recovery_run(app_module, run_id="recent-running", status="running")
+    _set_run_updated_at(
+        app_module,
+        run_id="recent-running",
+        updated_at=(datetime.now(timezone.utc) + timedelta(minutes=4)).isoformat(),
+    )
     recovered = recover_interrupted_autotest_runs(
         now=datetime.now(timezone.utc) + timedelta(minutes=5),
         stale_after_minutes=30,
@@ -473,3 +486,113 @@ def test_autotest_startup_recovery_ignores_terminal_runs(app_module):
     run = app_module.db.get_autotest_run(run_id="already-failed", created_by="owner")
     assert recovered == 0
     assert run["status"] == "failed"
+
+
+def test_autotest_run_updates_updated_at_on_status_and_summary_changes(app_module):
+    run_id = "updated-at-run"
+    assert app_module.db.add_autotest_run(
+        run_id=run_id,
+        source_type="zip_upload",
+        source_ref="updated.zip",
+        execution_mode="simulated",
+        project_type_detected="node",
+        working_directory=".",
+        project_name="UpdatedAt",
+        project_type="node",
+        status="queued",
+        summary="queued",
+        suggestion="",
+        prompt_output="",
+        failed_reason="",
+        timeline_json="[]",
+        created_by="owner",
+    )
+
+    initial = app_module.db.get_autotest_run(run_id=run_id, created_by="owner")
+    assert initial["updated_at"] == initial["created_at"]
+    time.sleep(0.01)
+
+    assert app_module.db.update_autotest_run(run_id, status="running", summary="started")
+    updated = app_module.db.get_autotest_run(run_id=run_id, created_by="owner")
+    assert updated["status"] == "running"
+    assert updated["summary"] == "started"
+    assert updated["updated_at"] >= initial["updated_at"]
+
+
+def test_autotest_startup_recovery_prefers_updated_at_for_stale_detection(app_module):
+    from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
+
+    now = datetime.now(timezone.utc)
+    _create_recovery_run(app_module, run_id="fresh-updated", status="running")
+    _set_run_updated_at(
+        app_module,
+        run_id="fresh-updated",
+        updated_at=(now + timedelta(minutes=5)).isoformat(),
+    )
+    recovered = recover_interrupted_autotest_runs(
+        now=now + timedelta(minutes=31),
+        stale_after_minutes=30,
+    )
+
+    run = app_module.db.get_autotest_run(run_id="fresh-updated", created_by="owner")
+    assert recovered == 0
+    assert run["status"] == "running"
+
+
+def test_autotest_startup_recovery_falls_back_to_created_at_when_updated_at_missing(app_module):
+    from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
+
+    _create_recovery_run(app_module, run_id="legacy-no-updated", status="queued")
+    _set_run_updated_at(app_module, run_id="legacy-no-updated", updated_at="")
+    recovered = recover_interrupted_autotest_runs(
+        now=datetime.now(timezone.utc) + timedelta(minutes=31),
+        stale_after_minutes=30,
+    )
+
+    run = app_module.db.get_autotest_run(run_id="legacy-no-updated", created_by="owner")
+    assert recovered == 1
+    assert run["status"] == "failed"
+
+
+def test_autotest_migration_backfills_updated_at_for_legacy_rows(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEFAULT_OWNER_PASSWORD", "OwnerPass123!")
+    db_path = tmp_path / "legacy-autotest.db"
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE autotest_runs (
+            run_id TEXT PRIMARY KEY,
+            source_type TEXT NOT NULL,
+            source_ref TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'queued',
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE autotest_steps (
+            step_id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            command TEXT NOT NULL,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO autotest_runs (run_id, source_type, source_ref, status, created_at)
+        VALUES ('legacy-run', 'zip_upload', 'legacy.zip', 'queued', '2026-05-08T00:00:00+00:00')
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    from app.db import DocumentDatabase
+
+    migrated = DocumentDatabase(str(Path(db_path)))
+    run = migrated.get_autotest_run(run_id="legacy-run", created_by="owner")
+    assert run is not None
+    assert run["updated_at"] == "2026-05-08T00:00:00+00:00"

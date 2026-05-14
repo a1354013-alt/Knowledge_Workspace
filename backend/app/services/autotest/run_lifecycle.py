@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta, timezone
 
 from app.context import db, settings
 from app.repositories.autotest_repository import AutoTestRepository
 from app.services.autotest.timeline import (
     finalize_autotest_timeline_failure,
-    initial_autotest_timeline,
+    load_run_timeline,
     save_run_timeline,
     utc_now_iso,
 )
@@ -26,23 +25,11 @@ def _parse_iso_datetime(value: object) -> datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
-
-
-def _load_timeline(run_row: dict) -> list[dict[str, object]]:
-    raw = str(run_row.get("timeline_json", "") or "").strip()
-    if raw:
-        try:
-            decoded = json.loads(raw)
-        except json.JSONDecodeError:
-            decoded = None
-        if isinstance(decoded, list):
-            return [item for item in decoded if isinstance(item, dict)]
-    created_at = str(run_row.get("created_at", "") or "") or utc_now_iso()
-    return initial_autotest_timeline(source_ref=str(run_row.get("source_ref", "") or ""), created_at=created_at)
-
-
 def _latest_activity_at(run_row: dict, step_rows: list[dict]) -> datetime | None:
-    candidates = [_parse_iso_datetime(run_row.get("created_at"))]
+    candidates = [
+        _parse_iso_datetime(run_row.get("updated_at")),
+        _parse_iso_datetime(run_row.get("created_at")),
+    ]
     for step in step_rows:
         candidates.append(_parse_iso_datetime(step.get("started_at")))
         candidates.append(_parse_iso_datetime(step.get("finished_at")))
@@ -79,7 +66,7 @@ def recover_interrupted_autotest_runs(*, now: datetime | None = None, stale_afte
         failed_reason = f"worker_interrupted: server_restarted: {stale_kind}"
         summary = "AutoTest run failed because the in-process worker was interrupted by a server restart."
         timeline = finalize_autotest_timeline_failure(
-            timeline=_load_timeline(run_row),
+            timeline=load_run_timeline(run_row),
             failed_phase="ran_tests" if status == "running" else "prepared_environment",
             failed_reason=failed_reason,
         )

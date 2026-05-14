@@ -198,7 +198,7 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
             title=str(run.get("project_name", "") or run.get("source_ref", "") or "AutoTest run"),
             status=str(run.get("status", "") or ""),
             created_at=str(run.get("created_at", "") or ""),
-            updated_at=str(run.get("created_at", "") or ""),
+            updated_at=str(run.get("updated_at", "") or run.get("created_at", "") or ""),
             source_type=str(run.get("source_type", "") or ""),
             source_ref=str(run.get("source_ref", "") or ""),
         )

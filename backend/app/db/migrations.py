@@ -220,6 +220,7 @@ def migrate_autotest_tables(cursor: sqlite3.Cursor) -> None:
         "problem_entry_id": "ALTER TABLE autotest_runs ADD COLUMN problem_entry_id TEXT NOT NULL DEFAULT ''",
         "solution_entry_id": "ALTER TABLE autotest_runs ADD COLUMN solution_entry_id TEXT NOT NULL DEFAULT ''",
         "created_by": "ALTER TABLE autotest_runs ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
+        "updated_at": "ALTER TABLE autotest_runs ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
     }
     for column, sql in run_migrations.items():
         if column not in run_columns:
@@ -236,6 +237,7 @@ def migrate_autotest_tables(cursor: sqlite3.Cursor) -> None:
     if "project_name" in run_columns:
         cursor.execute("UPDATE autotest_runs SET project_name = source_ref WHERE project_name = ''")
     cursor.execute("UPDATE autotest_runs SET created_by = 'owner' WHERE created_by = ''")
+    cursor.execute("UPDATE autotest_runs SET updated_at = created_at WHERE updated_at = ''")
 
     cursor.execute("PRAGMA table_info(autotest_steps)")
     step_columns = {row[1] for row in cursor.fetchall()}

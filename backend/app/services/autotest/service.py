@@ -192,7 +192,7 @@ async def execute_autotest_run_job(
     execution_mode: str,
     project_name: str,
 ) -> None:
-    from app.services.autotest import job_executor
+    from app.services.autotest import job_executor, step_runner
 
     # Keep the facade monkeypatch-compatible for existing tests and older callers.
     job_executor.safe_extract_zip = safe_extract_zip
@@ -200,6 +200,7 @@ async def execute_autotest_run_job(
     job_executor.index_knowledge_entry = index_knowledge_entry
     job_executor.index_logbook_entry = index_logbook_entry
     job_executor._run_command = _run_command
+    step_runner._run_command = _run_command
     await job_executor.execute_autotest_run_job(
         run_id=run_id,
         user_id=user_id,
