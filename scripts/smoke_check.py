@@ -8,6 +8,12 @@ import zipfile
 from io import BytesIO
 from urllib import error, request
 
+AUTOTEST_POLL_INTERVAL_SECONDS = 1
+AUTOTEST_POLL_TIMEOUT_SECONDS = 60
+SUCCESS_STATUSES = frozenset({"passed"})
+FAILURE_STATUSES = frozenset({"failed"})
+PENDING_STATUSES = frozenset({"queued", "running"})
+
 
 def call(method: str, url: str, payload: dict | None = None, token: str | None = None) -> tuple[int, str]:
     data = None if payload is None else json.dumps(payload).encode('utf-8')
@@ -69,17 +75,81 @@ def call_multipart(
 def build_autotest_zip_bytes() -> bytes:
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("package.json", '{"name":"smoke-project","version":"0.0.0"}')
+        archive.writestr(
+            "package.json",
+            '{"name":"smoke-project","version":"0.0.0","scripts":{"test":"echo ok","build":"echo ok","lint":"echo ok"}}',
+        )
         archive.writestr("README.md", "smoke check")
     return buffer.getvalue()
 
 
-def main() -> int:
+def poll_autotest_run(*, base_url: str, token: str, run_id: str) -> int:
+    deadline = time.monotonic() + AUTOTEST_POLL_TIMEOUT_SECONDS
+    last_run: dict[str, object] = {}
+
+    while time.monotonic() < deadline:
+        code, body = call("GET", f"{base_url}/api/autotest/runs/{run_id}", token=token)
+        print("AUTOTEST_POLL", code, body[:2000])
+        if code != 200:
+            print("FAIL unable to fetch autotest run detail")
+            return 1
+
+        last_run = json.loads(body)
+        status_value = str(last_run.get("status") or "").lower()
+        if status_value in SUCCESS_STATUSES:
+            return 0
+        if status_value in FAILURE_STATUSES:
+            print("FAIL autotest reached failed status")
+            print("summary:", last_run.get("summary", ""))
+            print("failed_reason:", last_run.get("failed_reason", ""))
+            print("suggestion:", last_run.get("suggestion", ""))
+            print("timeline:", json.dumps(last_run.get("timeline", []), ensure_ascii=False)[:4000])
+            return 1
+        if status_value not in PENDING_STATUSES:
+            print(f"FAIL unknown autotest status: {status_value}")
+            return 1
+
+        time.sleep(AUTOTEST_POLL_INTERVAL_SECONDS)
+
+    print("FAIL autotest polling timed out")
+    print("last_run:", json.dumps(last_run, ensure_ascii=False)[:4000])
+    return 1
+
+
+def run_autotest_smoke_check(*, base_url: str, token: str, smoke_id: str) -> int:
+    zip_bytes = build_autotest_zip_bytes()
+    code, body = call_multipart(
+        url=f"{base_url}/api/autotest/run",
+        fields={},
+        file_field="file",
+        filename=f"smoke_{smoke_id}.zip",
+        file_bytes=zip_bytes,
+        content_type="application/zip",
+        token=token,
+    )
+    print("AUTOTEST", code, body[:4000])
+    if code != 202:
+        print("FAIL expected AutoTest 202 Accepted")
+        return 1
+
+    run = json.loads(body)
+    run_id = run.get("id") or run.get("run_id")
+    if not run_id:
+        print("FAIL autotest response missing run id")
+        return 1
+    if not run.get("execution_mode") or not run.get("project_type_detected") or run.get("working_directory") is None:
+        print("FAIL autotest response missing execution fields")
+        return 1
+
+    return poll_autotest_run(base_url=base_url, token=token, run_id=str(run_id))
+
+
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description='Basic delivery smoke check for Personal AI Knowledge Workspace')
     parser.add_argument('--base-url', default='http://localhost:8000')
     parser.add_argument('--user-id', default='owner')
     parser.add_argument('--password', required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     status_code, body = call('POST', f"{args.base_url}/api/login", {'user_id': args.user_id, 'password': args.password})
     print('LOGIN', status_code, body)
@@ -134,22 +204,7 @@ def main() -> int:
         return 1
 
     # Run AutoTest (expects AUTOTEST_MODE=simulated in delivery/CI)
-    zip_bytes = build_autotest_zip_bytes()
-    code, body = call_multipart(
-        url=f"{args.base_url}/api/autotest/run",
-        fields={},
-        file_field="file",
-        filename=f"smoke_{smoke_id}.zip",
-        file_bytes=zip_bytes,
-        content_type="application/zip",
-        token=token,
-    )
-    print("AUTOTEST", code, body[:4000])
-    if code != 200:
-        return 1
-    run = json.loads(body)
-    if not run.get("execution_mode") or not run.get("project_type_detected") or run.get("working_directory") is None:
-        print("FAIL autotest response missing execution fields")
+    if run_autotest_smoke_check(base_url=args.base_url, token=token, smoke_id=smoke_id) != 0:
         return 1
 
     # QA should find the promoted knowledge via its unique marker
