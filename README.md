@@ -153,6 +153,8 @@ python -m pip install -r requirements.txt
 python -m pip install -r requirements-dev.txt
 ```
 
+`requirements.txt` contains runtime dependencies only. Install `requirements-dev.txt` for CI-equivalent linting and tests.
+
 Set environment variables:
 
 ```env
@@ -190,9 +192,10 @@ npm run dev -- --host 127.0.0.1 --port 5173
 cd backend
 py -3.11 -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python -m compileall app tests
+.venv\Scripts\python -m pip install -r requirements-dev.txt
 .venv\Scripts\ruff check .
-.venv\Scripts\python -m pytest
+.venv\Scripts\python -m compileall app
+.venv\Scripts\python -m pytest -q
 ```
 
 Python 3.11.x is the supported backend test runtime. See `docs/LOCAL_TESTING.md` for the reproducible local flow.
@@ -202,11 +205,11 @@ Python 3.11.x is the supported backend test runtime. See `docs/LOCAL_TESTING.md`
 ```bash
 cd frontend
 npm ci
+npm audit --omit=dev --audit-level=high
+npm run test:run
 npm run lint
 npm run typecheck
-npm run test:run
 npm run build
-npm audit --omit=dev --audit-level=high
 ```
 
 Use Node 20.19+ or newer for frontend lint/test/build to match the Vite/Vitest toolchain and CI.
@@ -216,16 +219,21 @@ Use Node 20.19+ or newer for frontend lint/test/build to match the Vite/Vitest t
 CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently runs:
 
 1. backend dependency install
-2. `ruff`
-3. `python -m pytest -q`
-4. `python -m compileall -q app tests`
-5. frontend `npm ci`
-6. frontend `npm audit --omit=dev --audit-level=high`
-7. frontend `npm run lint`
-8. frontend `npm run typecheck`
-9. frontend `npm run build`
-10. frontend `npm run test:run`
-11. release packaging and smoke checks
+2. `cd backend && python -m ruff check .`
+3. `cd backend && python -m compileall app`
+4. `cd backend && python -m pytest -q`
+5. `python scripts/export_openapi.py`
+6. `python scripts/generate_api_types.py --check`
+7. frontend `npm ci`
+8. frontend `npm audit --omit=dev --audit-level=high`
+9. frontend `npm run test:run`
+10. frontend `npm run lint`
+11. frontend `npm run typecheck`
+12. frontend `npm run build`
+13. `python scripts/check_version_consistency.py`
+14. `python scripts/package_release.py ./knowledge_workspace_release.zip`
+15. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
+16. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
 
 ## Dashboard Metric Contract
 
@@ -297,7 +305,7 @@ Status meanings:
 
 ## Known Limitations
 
-- `legacy_main.py` is a compatibility shim; some handler modules still use shared support imports while deeper service extraction continues
+- `legacy_main.py` is a compatibility shim for older imports and monkeypatch-based tests; remove it after all callers import concrete route/service modules directly
 - AutoTest real mode is constrained subprocess execution, not a hardened sandbox
 - AutoTest uses an in-process background worker, not a durable external queue; backend process crashes can interrupt active jobs
 - GitHub analyze is currently a register/queue flow only: validated URL intake plus queued analysis metadata, not a remote clone-and-run executor

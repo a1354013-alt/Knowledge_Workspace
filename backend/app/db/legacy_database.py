@@ -110,11 +110,15 @@ class DocumentDatabase(
             self._migrate_saved_prompts_table(cursor)
             self._migrate_autotest_tables(cursor)
             self._migrate_item_links_table(cursor)
+            self._ensure_query_indexes(cursor)
             self._seed_owner_user(cursor)
             conn.commit()
 
     def _migrate_item_links_table(self, cursor: sqlite3.Cursor) -> None:
         migrations.migrate_item_links_table(cursor)
+
+    def _ensure_query_indexes(self, cursor: sqlite3.Cursor) -> None:
+        migrations.ensure_query_indexes(cursor)
 
     def _migrate_users_table(self, cursor: sqlite3.Cursor) -> None:
         migrations.migrate_users_table(cursor)

@@ -9,10 +9,11 @@ cd backend
 py -3.11 -m venv .venv
 .venv\Scripts\python -m pip install --upgrade pip
 .venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m pip install -r requirements-dev.txt
 copy .env.example .env
-.venv\Scripts\python -m compileall app tests
 .venv\Scripts\ruff check .
-.venv\Scripts\python -m pytest
+.venv\Scripts\python -m compileall app
+.venv\Scripts\python -m pytest -q
 ```
 
 Equivalent single command from the repo root after dependencies are installed:
@@ -39,8 +40,18 @@ npm run build
 
 ```bash
 python scripts/export_openapi.py
-cd frontend
-npm run generate:api-types
+python scripts/generate_api_types.py --check
 ```
 
-Commit `docs/openapi.json` and `frontend/src/generated/api-types.ts` together when the API contract intentionally changes.
+When the API contract intentionally changes, run `python scripts/generate_api_types.py` and commit `docs/openapi.json` with `frontend/src/generated/api-types.ts`.
+
+## Release And Smoke
+
+```bash
+python scripts/check_version_consistency.py
+python scripts/package_release.py /tmp/kw_release.zip
+python scripts/verify_release_zip.py /tmp/kw_release.zip
+python scripts/smoke_check.py --password "OwnerPass123!"
+```
+
+The smoke check expects a local backend already running on `127.0.0.1:8000`, matching the CI startup step.

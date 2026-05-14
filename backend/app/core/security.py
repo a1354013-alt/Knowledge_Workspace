@@ -144,14 +144,15 @@ def verify_token(token: str) -> dict[str, Any]:
     """Verify and decode an access token payload for request dependencies."""
     payload = JWTHelper.verify_token(token, token_type="access")
     role = payload.get("role")
-    if not isinstance(role, str) or not role:
+    subject = payload.get("sub")
+    if not isinstance(subject, str) or not subject.strip() or not isinstance(role, str) or not role:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return {
-        "sub": str(payload.get("sub", "")),
+        "sub": subject.strip(),
         "role": role,
         "display_name": str(payload.get("display_name", "") or ""),
         "exp": payload.get("exp"),

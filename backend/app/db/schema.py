@@ -190,3 +190,30 @@ CREATE TABLE IF NOT EXISTS saved_prompts (
     updated_at TEXT NOT NULL
 )
 """
+
+CREATE_INDEXES_SQL = (
+    """
+    CREATE INDEX IF NOT EXISTS idx_documents_owner_active_status
+    ON documents (uploaded_by, is_active, status)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_knowledge_owner_active_status_updated
+    ON knowledge_entries (created_by, is_active, status, updated_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_logbook_owner_active_status_created
+    ON logbook_entries (created_by, is_active, status, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_autotest_runs_owner_status_created
+    ON autotest_runs (created_by, status, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_item_links_from_item_id
+    ON item_links (from_item_id)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_item_links_to_item_id
+    ON item_links (to_item_id)
+    """,
+)

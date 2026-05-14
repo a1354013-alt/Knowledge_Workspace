@@ -289,10 +289,11 @@
 import { onMounted, ref } from 'vue'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
+import { adaptDashboardHealth, type DashboardHealthViewModel } from '../adapters/dashboard'
 import { get } from '../api'
 import type { DashboardHealthResponse } from '../types'
 
-const data = ref<DashboardHealthResponse | null>(null)
+const data = ref<DashboardHealthViewModel | null>(null)
 const loading = ref(false)
 const error = ref('')
 
@@ -301,7 +302,7 @@ async function loadDashboard() {
   error.value = ''
   try {
     const response = await get<DashboardHealthResponse>('/api/dashboard/health')
-    data.value = response
+    data.value = adaptDashboardHealth(response)
   } catch (err: unknown) {
     const apiError = err as { message?: string; detail?: string }
     error.value = apiError?.message || apiError?.detail || 'Failed to load dashboard metrics'

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from fastapi import HTTPException, status
 
@@ -13,6 +15,7 @@ from app.models import (
     ItemLinkResolved,
     ItemLinksResponse,
     ItemSummary,
+    KnowledgeRevisionResponse,
     MeResponse,
 )
 
@@ -38,7 +41,50 @@ def serialize_document(document: dict) -> DocumentResponse:
         updated_at=str(document.get("updated_at") or document["uploaded_at"]),
         file_size=int(document.get("file_size", 0)),
         uploaded_by=document.get("uploaded_by"),
+        index_status=str(document.get("index_status", "") or "pending"),
+        index_error=str(document.get("index_error", "") or ""),
+        indexed_at=str(document.get("indexed_at", "") or ""),
     )
+
+
+KNOWLEDGE_REVISION_FIELDS: tuple[str, ...] = (
+    "title",
+    "status",
+    "problem",
+    "root_cause",
+    "solution",
+    "tags",
+    "notes",
+    "source_type",
+    "source_ref",
+)
+
+
+def knowledge_revision_snapshot(entry: dict) -> dict[str, str]:
+    return {field: str(entry.get(field, "") or "") for field in KNOWLEDGE_REVISION_FIELDS}
+
+
+def serialize_knowledge_revision(row: dict) -> KnowledgeRevisionResponse:
+    return KnowledgeRevisionResponse(
+        revision_id=str(row.get("revision_id", "")),
+        entry_id=str(row.get("entry_id", "")),
+        version_number=int(row.get("version_number", 0)),
+        title=str(row.get("title", "")),
+        status=str(row.get("status", "draft") or "draft"),
+        problem=str(row.get("problem", "")),
+        root_cause=str(row.get("root_cause", "")),
+        solution=str(row.get("solution", "")),
+        tags=str(row.get("tags", "")),
+        notes=str(row.get("notes", "")),
+        source_type=str(row.get("source_type", "manual") or "manual"),
+        source_ref=str(row.get("source_ref", "") or ""),
+        change_note=str(row.get("change_note", "") or ""),
+        created_at=str(row.get("created_at", "") or ""),
+    )
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def safe_unlink(path: Path) -> None:
@@ -223,6 +269,49 @@ def sync_source_ref_link(*, from_item_id: str, old_source_ref: str, new_source_r
 
     if new_ref != old_ref:
         maybe_link_source_item(from_item_id=from_item_id, source_type=source_type, source_ref=new_ref)
+
+
+def safe_download_filename(value: str) -> str:
+    name = str(value or "").replace("\r", "").replace("\n", "").strip()
+    if not name:
+        return "file"
+    return name.replace('"', "'")
+
+
+def guess_media_type(filename: str, default: str = "application/octet-stream") -> str:
+    media_type, _encoding = mimetypes.guess_type(str(filename or ""))
+    return media_type or default
+
+
+def side_effect_warning(base_message: str, warning: str | None) -> str:
+    detail = str(warning or "").strip()
+    if not detail:
+        return base_message
+    return f"{base_message} Warning: {detail}"
+
+
+def run_index_side_effect(*, label: str, item_id: str, operation: Callable[[], object]) -> str | None:
+    try:
+        result = operation()
+    except Exception as exc:
+        logger.warning("%s indexing failed for %s: %s", label, item_id, exc)
+        return f"{label} indexing failed."
+    if result is False:
+        logger.warning("%s indexing failed for %s without an exception", label, item_id)
+        return f"{label} indexing failed."
+    return None
+
+
+def run_deindex_side_effect(*, label: str, item_id: str, operation: Callable[[], object]) -> str | None:
+    try:
+        result = operation()
+    except Exception as exc:
+        logger.warning("%s de-index failed for %s: %s", label, item_id, exc)
+        return f"{label} de-index failed."
+    if result is False:
+        logger.warning("%s de-index failed for %s without an exception", label, item_id)
+        return f"{label} de-index failed."
+    return None
 
 
 def detect_project_type(zip_path: Path) -> str:

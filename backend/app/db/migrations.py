@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone
 
 from app.core.config import get_settings
+from app.db import schema
 from app.passwords import hash_password
 
 logger = logging.getLogger("knowledge_workspace")
@@ -55,6 +56,11 @@ def migrate_item_links_table(cursor: sqlite3.Cursor) -> None:
         )
         """
     )
+
+
+def ensure_query_indexes(cursor: sqlite3.Cursor) -> None:
+    for sql in schema.CREATE_INDEXES_SQL:
+        cursor.execute(sql)
 
 
 def migrate_users_table(cursor: sqlite3.Cursor) -> None:

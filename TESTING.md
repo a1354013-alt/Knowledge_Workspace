@@ -9,9 +9,10 @@ cd backend
 py -3.11 -m venv .venv
 .venv\Scripts\python -m pip install --upgrade pip
 .venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python -m compileall app tests
+.venv\Scripts\python -m pip install -r requirements-dev.txt
 .venv\Scripts\ruff check .
-.venv\Scripts\python -m pytest
+.venv\Scripts\python -m compileall app
+.venv\Scripts\python -m pytest -q
 ```
 
 After a Python 3.11 virtualenv is active, the repo-root helper runs the same checks:
@@ -27,8 +28,10 @@ Legacy fallback:
 ```bash
 cd backend
 python -m pip install -r requirements.txt
-python -m pytest
-python -m compileall -q app tests
+python -m pip install -r requirements-dev.txt
+python -m ruff check .
+python -m compileall app
+python -m pytest -q
 ```
 
 ## Frontend
@@ -36,11 +39,11 @@ python -m compileall -q app tests
 ```bash
 cd frontend
 npm ci
+npm audit --omit=dev --audit-level=high
+npm run test:run
 npm run lint
 npm run typecheck
-npm run test:run
 npm run build
-npm audit --audit-level=moderate
 ```
 
 Use Node 20.19+ LTS to match CI and the Vite/Vitest toolchain engine range.
@@ -48,11 +51,23 @@ Use Node 20.19+ LTS to match CI and the Vite/Vitest toolchain engine range.
 ## Release
 
 ```bash
+python scripts/export_openapi.py
+python scripts/generate_api_types.py --check
 python scripts/check_version_consistency.py
-python scripts/package_release.py --output dist
-python scripts/verify_release_zip.py dist/knowledge_workspace_release.zip
+python scripts/package_release.py /tmp/kw_release.zip
+python scripts/verify_release_zip.py /tmp/kw_release.zip
 ```
 
 Release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts.
+
+## Smoke
+
+CI starts the backend with simulated AutoTest settings and then runs:
+
+```bash
+python scripts/smoke_check.py --password "OwnerPass123!"
+```
+
+The smoke check is part of the release gate, not a substitute for backend pytest or frontend typecheck/build.
 
 There are currently no intentionally skipped core tests. If slow integration tests are added later, they should use pytest markers and CI should still run the core suite by default.
