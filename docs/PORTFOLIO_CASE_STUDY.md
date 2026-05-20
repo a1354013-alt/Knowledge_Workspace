@@ -25,7 +25,7 @@ This project treats those gaps as the product problem, not just an implementatio
 
 - FastAPI application with router-based app factory
 - SQLite for authoritative metadata
-- Chroma for vector retrieval
+- Chroma plus a deterministic lightweight embedding for reproducible local retrieval
 - service/repository split for AutoTest and Dashboard
 - compatibility-preserving legacy logic gradually replaced by thin routers
 
@@ -132,6 +132,7 @@ Fix:
 - `legacy_main.py` still owns part of the document, knowledge, logbook, photo, prompt, and system surface
 - AutoTest real mode is process-constrained rather than sandbox-isolated
 - GitHub analyze is a validated URL intake plus queued flow, not a full remote clone-and-run executor
+- built-in retrieval is deterministic lightweight embedding for demo/test stability, not production-grade semantic understanding
 - Chroma still emits third-party deprecation warnings in tests
 
 ## Future Work
@@ -139,6 +140,7 @@ Fix:
 - continue moving remaining document/photo/logbook orchestration out of `legacy_main.py`
 - add containerized real-mode execution
 - add background queue support for larger indexing or AutoTest jobs
+- add a real embedding-provider integration for production semantic retrieval
 - add richer dashboard drill-down views by metric source
 
 ## Interview Demo Script

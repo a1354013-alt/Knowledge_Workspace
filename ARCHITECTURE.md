@@ -9,7 +9,7 @@ flowchart LR
   Services --> Repos["Repositories / legacy DB layer"]
   Repos --> SQLite["SQLite"]
   Services --> Files["Uploads / photos / AutoTest workdirs"]
-  Services --> Index["Chroma or deterministic keyword fallback"]
+  Services --> Index["Chroma + deterministic lightweight embeddings"]
 ```
 
 ## Backend
@@ -32,7 +32,7 @@ Real mode requires `AUTOTEST_MODE=real` and `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUT
 
 ## Search Flow
 
-Global search returns typed item summaries. When vector indexing is unavailable, the app falls back to deterministic keyword-style matching and does not claim true semantic understanding.
+Global search returns typed item summaries. The built-in index uses a deterministic lightweight hash embedding so the project stays reproducible in CI and dependency-light local environments. It is useful for demos and stable tests, but it is not a full semantic understanding model. When vector indexing is unavailable, the app falls back further to deterministic keyword-style matching. A real embedding-provider integration would be the path to production-grade semantic search.
 
 ## Release Flow
 

@@ -10,7 +10,17 @@ ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
 
 
+def validate_python_version() -> None:
+    version = sys.version_info
+    if (version.major, version.minor) != (3, 11):
+        raise SystemExit(
+            "Unsupported Python runtime for OpenAPI export. "
+            "Use Python 3.11.x so docs/openapi.json matches the supported backend dependency set."
+        )
+
+
 def main() -> int:
+    validate_python_version()
     os.environ.setdefault("JWT_SECRET", "openapi-secret-openapi-secret-123456")
     os.environ.setdefault("DEFAULT_OWNER_PASSWORD", "OwnerPass123!")
     runtime_dir = BACKEND / "openapi_runtime"

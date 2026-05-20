@@ -22,7 +22,7 @@ graph TD
   UI["Vue Frontend"] --> API["FastAPI API"]
   API --> SQLITE["SQLite Metadata"]
   API --> FS["Uploads / Photos / AutoTest Workdirs"]
-  API --> CHROMA["Chroma Vector Index"]
+  API --> CHROMA["Chroma + Deterministic Lightweight Embeddings"]
   API --> LLM["Primary LLM + Fallback Status"]
 
   DOC["Document Upload"] --> IDX["Index Status: pending/indexed/failed"]
@@ -84,6 +84,14 @@ graph TD
   - `indexed`
   - `failed`
   - `archived`
+
+## Search Reality Check
+
+- the built-in search/indexing path uses Chroma with the deterministic lightweight hash embedding in `backend/app/vector_db.py`
+- this is intentionally optimized for local demos, tests, and no-external-dependency environments
+- it is not a production-grade semantic understanding model and should not be described as full AI semantic search
+- production-grade semantic retrieval would require a real embedding provider such as Ollama embeddings, `sentence-transformers`, or an OpenAI-compatible embedding API
+- that provider integration is a roadmap item in the current codebase, not a completed runtime switch
 
 ## Entry Points And Architecture
 
@@ -148,7 +156,7 @@ Recommended usage:
 
 ### Prerequisites
 
-- Python `3.11`
+- Python `3.11.x`
 - Node.js `20` LTS
 
 ### Backend
@@ -199,8 +207,8 @@ cd backend
 py -3.11 -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
 .venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\ruff check .
-.venv\Scripts\python -m compileall app
+.venv\Scripts\python -m ruff check ..\backend ..\scripts
+.venv\Scripts\python ..\scripts\safe_compileall.py -q ..
 .venv\Scripts\python -m pytest -q
 ```
 
@@ -226,21 +234,22 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 
 1. backend dependency install
 2. `python scripts/check_python_version.py`
-3. `cd backend && python -m ruff check .`
-4. `cd backend && python -m compileall app`
-5. `cd backend && python -m pytest -q`
+3. `python -m ruff check backend scripts`
+4. `python scripts/safe_compileall.py -q .`
+5. `python -m pytest -q`
 6. `python scripts/export_openapi.py`
 7. `python scripts/generate_api_types.py --check`
-8. frontend `npm ci`
-9. frontend `npm audit --omit=dev --audit-level=high`
-10. frontend `npm run test:run`
-11. frontend `npm run lint`
-12. frontend `npm run typecheck`
-13. frontend `npm run build`
-14. `python scripts/check_version_consistency.py`
-15. `python scripts/package_release.py ./knowledge_workspace_release.zip`
-16. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
-17. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
+8. `git diff --exit-code docs/openapi.json frontend/src/generated/api-types.ts`
+9. frontend `npm ci`
+10. frontend `npm audit --omit=dev --audit-level=high`
+11. frontend `npm run test:run`
+12. frontend `npm run lint`
+13. frontend `npm run typecheck`
+14. frontend `npm run build`
+15. `python scripts/check_version_consistency.py`
+16. `python scripts/package_release.py ./knowledge_workspace_release.zip`
+17. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
+18. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
 
 The release zip is a clean source package. It deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
 
@@ -318,6 +327,7 @@ Status meanings:
 - AutoTest real mode is constrained subprocess execution, not a hardened sandbox
 - AutoTest uses an in-process background worker, not a durable external queue; backend process crashes can interrupt active jobs
 - GitHub analyze is currently a register/queue flow only: validated URL intake plus queued analysis metadata, not a remote clone-and-run executor
+- built-in vector search uses deterministic lightweight hash embeddings for demos/tests; it is not a production semantic retrieval model
 - Chroma emits third-party deprecation warnings in tests
 - frontend verification should be run with Node `20` to match CI
 

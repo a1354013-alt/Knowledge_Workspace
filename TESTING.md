@@ -11,9 +11,10 @@ py -3.11 -m venv .venv
 .venv\Scripts\python -m pip install --upgrade pip
 .venv\Scripts\python -m pip install -r requirements.txt
 .venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\ruff check .
-.venv\Scripts\python -m compileall app
-.venv\Scripts\python -m pytest -q
+.venv\Scripts\python ..\scripts\check_python_version.py
+.venv\Scripts\python -m ruff check ..\backend ..\scripts
+.venv\Scripts\python ..\scripts\safe_compileall.py -q ..
+.venv\Scripts\python -m pytest -q ..\
 ```
 
 After a Python 3.11 virtualenv is active, the repo-root helper runs the same checks:
@@ -24,15 +25,13 @@ python scripts/run_backend_checks.py
 
 Backend tests use isolated temporary SQLite databases and upload directories. AutoTest defaults to simulated mode in tests; real-mode tests patch the subprocess runner and explicitly enable the real-mode gate. See `backend/.env.example` and `docs/LOCAL_TESTING.md` for the local environment contract.
 
-Legacy fallback:
+Direct repo-root validation:
 
 ```bash
-cd backend
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
-python -m ruff check .
-python -m compileall app
-python -m pytest -q
+python scripts/check_python_version.py
+python -m ruff check backend scripts
+python scripts/safe_compileall.py -q .
+pytest -q
 ```
 
 ## Frontend
@@ -54,6 +53,7 @@ Use Node 20.19+ LTS to match CI and the Vite/Vitest toolchain engine range.
 ```bash
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
+git diff --exit-code docs/openapi.json frontend/src/generated/api-types.ts
 python scripts/check_version_consistency.py
 python scripts/package_release.py /tmp/kw_release.zip
 python scripts/verify_release_zip.py /tmp/kw_release.zip
@@ -73,3 +73,5 @@ python scripts/smoke_check.py --password "OwnerPass123!"
 The smoke check is part of the release gate, not a substitute for backend pytest or frontend typecheck/build.
 
 There are currently no intentionally skipped core tests. If slow integration tests are added later, they should use pytest markers and CI should still run the core suite by default.
+
+Core pytest runs include `pytest-timeout` with a default 45-second per-test timeout using the cross-platform `thread` method so a hung test fails with a concrete test name instead of stalling CI indefinitely.

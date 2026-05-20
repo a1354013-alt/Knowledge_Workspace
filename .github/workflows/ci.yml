@@ -17,25 +17,23 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install backend deps
+      - name: Install backend runtime dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r backend/requirements.txt
+
+      - name: Install backend development dependencies
+        run: |
           python -m pip install -r backend/requirements-dev.txt
 
       - name: Python runtime check
-        run: |
-          python scripts/check_python_version.py
+        run: python scripts/check_python_version.py
 
-      - name: Backend lint (ruff)
-        run: |
-          cd backend
-          python -m ruff check .
+      - name: Backend lint
+        run: python -m ruff check backend scripts
 
-      - name: Backend compile
-        run: |
-          cd backend
-          python -m compileall app
+      - name: Backend compile check
+        run: python scripts/safe_compileall.py -q .
 
       - name: Backend pytest
         env:
@@ -47,14 +45,16 @@ jobs:
           CHROMA_DB_PATH: ./ci_chroma
           AUTOTEST_DIR: ./ci_autotest
           AUTOTEST_MODE: simulated
-        run: |
-          cd backend
-          python -m pytest -q
+        run: python -m pytest -q
 
-      - name: OpenAPI contract export
-        run: |
-          python scripts/export_openapi.py
-          python scripts/generate_api_types.py --check
+      - name: Export OpenAPI schema
+        run: python scripts/export_openapi.py
+
+      - name: Check generated frontend API types
+        run: python scripts/generate_api_types.py --check
+
+      - name: Check committed contract artifacts
+        run: git diff --exit-code docs/openapi.json frontend/src/generated/api-types.ts
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -64,46 +64,37 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Frontend install
-        run: |
-          cd frontend
-          npm ci
+        working-directory: frontend
+        run: npm ci
 
       - name: Frontend dependency audit
-        run: |
-          cd frontend
-          npm audit --omit=dev --audit-level=high
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Frontend tests
-        run: |
-          cd frontend
-          npm run test:run
+        working-directory: frontend
+        run: npm run test:run
 
-      - name: Frontend lint (eslint)
-        run: |
-          cd frontend
-          npm run lint
+      - name: Frontend lint
+        working-directory: frontend
+        run: npm run lint
 
       - name: Frontend typecheck
-        run: |
-          cd frontend
-          npm run typecheck
+        working-directory: frontend
+        run: npm run typecheck
 
       - name: Frontend build
-        run: |
-          cd frontend
-          npm run build
+        working-directory: frontend
+        run: npm run build
 
       - name: Version consistency
-        run: |
-          python scripts/check_version_consistency.py
+        run: python scripts/check_version_consistency.py
 
       - name: Package release zip
-        run: |
-          python scripts/package_release.py ./knowledge_workspace_release.zip
+        run: python scripts/package_release.py ./knowledge_workspace_release.zip
 
-      - name: Verify release zip exclusions
-        run: |
-          python scripts/verify_release_zip.py knowledge_workspace_release.zip
+      - name: Verify release zip
+        run: python scripts/verify_release_zip.py knowledge_workspace_release.zip
 
       - name: Start backend (for smoke)
         env:

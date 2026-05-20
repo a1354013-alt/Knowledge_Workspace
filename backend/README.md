@@ -1,6 +1,6 @@
 # Backend API
 
-Prereqs: Python 3.11 (matches `requires-python = ">=3.11,<3.12"` and CI).
+Prereqs: Python 3.11.x (matches `requires-python = ">=3.11,<3.12"` and CI).
 
 ## Start
 
@@ -48,6 +48,13 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 - Login, QA, generate, and knowledge/logbook create/update use JSON bodies
 - File upload uses multipart form data
 - Auth is handled only through bearer token dependency injection
+
+## Search reality
+
+- the current built-in vector path uses Chroma plus a deterministic lightweight hash embedding
+- that keeps demos, tests, and clean environments reproducible without external model dependencies
+- it is not a production-grade semantic model
+- adding Ollama embeddings, `sentence-transformers`, or an OpenAI-compatible embedding provider would be the next step for real semantic retrieval
 
 ## Tests
 

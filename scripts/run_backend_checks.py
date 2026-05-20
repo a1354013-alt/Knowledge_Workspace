@@ -6,27 +6,18 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BACKEND = ROOT / "backend"
 
 
 def run(command: list[str]) -> None:
     print(f"+ {' '.join(command)}")
-    subprocess.run(command, cwd=BACKEND, check=True)
+    subprocess.run(command, cwd=ROOT, check=True)
 
 
 def main() -> int:
-    version = sys.version_info
-    if not (version.major == 3 and version.minor == 11):
-        print(
-            "Backend checks must run on Python 3.11.x "
-            f"(current: {version.major}.{version.minor}.{version.micro}).",
-            file=sys.stderr,
-        )
-        return 2
-
-    run(["ruff", "check", "."])
-    run([sys.executable, "-m", "compileall", "app", "tests"])
-    run([sys.executable, "-m", "pytest"])
+    run([sys.executable, str(ROOT / "scripts" / "check_python_version.py")])
+    run([sys.executable, "-m", "ruff", "check", "backend", "scripts"])
+    run([sys.executable, str(ROOT / "scripts" / "safe_compileall.py"), "-q", "."])
+    run([sys.executable, "-m", "pytest", "-q"])
     return 0
 
 
