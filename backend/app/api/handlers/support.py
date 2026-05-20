@@ -174,6 +174,12 @@ async def lifespan(app: FastAPI):
         logger.warning("AutoTest startup recovery failed: %s", exc)
     
     yield
+    try:
+        from app.services.autotest import shutdown_autotest_workers
+
+        shutdown_autotest_workers()
+    except Exception as exc:
+        logger.warning("AutoTest worker shutdown failed: %s", exc)
     logger.info("Knowledge Workspace API stopped.")
 
 

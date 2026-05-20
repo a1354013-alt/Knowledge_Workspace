@@ -15,6 +15,7 @@ py -3.11 -m venv .venv
 .venv\Scripts\python -m ruff check ..\backend ..\scripts
 .venv\Scripts\python ..\scripts\safe_compileall.py -q ..
 .venv\Scripts\python -m pytest -q ..\
+.venv\Scripts\python ..\scripts\run_backend_tests.py
 ```
 
 After a Python 3.11 virtualenv is active, the repo-root helper runs the same checks:
@@ -31,7 +32,8 @@ Direct repo-root validation:
 python scripts/check_python_version.py
 python -m ruff check backend scripts
 python scripts/safe_compileall.py -q .
-pytest -q
+python -m pytest -q
+python scripts/run_backend_tests.py
 ```
 
 ## Frontend
@@ -75,3 +77,4 @@ The smoke check is part of the release gate, not a substitute for backend pytest
 There are currently no intentionally skipped core tests. If slow integration tests are added later, they should use pytest markers and CI should still run the core suite by default.
 
 Core pytest runs include `pytest-timeout` with a default 45-second per-test timeout using the cross-platform `thread` method so a hung test fails with a concrete test name instead of stalling CI indefinitely.
+CI additionally runs `python scripts/run_backend_tests.py`, which wraps `python -m pytest -q` in a whole-process timeout and fails if pytest prints passing results but never returns to the shell.

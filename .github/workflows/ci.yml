@@ -45,7 +45,8 @@ jobs:
           CHROMA_DB_PATH: ./ci_chroma
           AUTOTEST_DIR: ./ci_autotest
           AUTOTEST_MODE: simulated
-        run: python -m pytest -q
+          KNOWLEDGE_WORKSPACE_PYTEST_TIMEOUT: "180"
+        run: python scripts/run_backend_tests.py
 
       - name: Export OpenAPI schema
         run: python scripts/export_openapi.py

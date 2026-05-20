@@ -51,20 +51,14 @@ def _reload_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 
 
 @pytest.fixture
-def tmp_path() -> Path:
-    path = TEST_RUNTIME_DIR / f"case-{uuid.uuid4().hex}"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-@pytest.fixture
 def app_module(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     return _reload_app(monkeypatch, tmp_path)
 
 
 @pytest.fixture
 def client(app_module):
-    return TestClient(app_module.app)
+    with TestClient(app_module.app) as test_client:
+        yield test_client
 
 
 @pytest.fixture

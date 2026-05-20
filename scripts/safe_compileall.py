@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import py_compile
 import sys
+import tokenize
 from pathlib import Path
 
 
@@ -61,13 +61,15 @@ def compile_paths(paths: list[Path], quiet: bool) -> int:
     failures = 0
     for path in paths:
         try:
-            py_compile.compile(str(path), doraise=True)
+            with tokenize.open(path) as handle:
+                source = handle.read()
+            compile(source, str(path), "exec")
             if not quiet:
                 print(f"OK {path.relative_to(ROOT)}")
-        except py_compile.PyCompileError as exc:
+        except (OSError, SyntaxError, UnicodeDecodeError) as exc:
             failures += 1
             print(f"FAILED {path.relative_to(ROOT)}", file=sys.stderr)
-            print(exc.msg, file=sys.stderr)
+            print(str(exc), file=sys.stderr)
     if failures:
         return 1
     if quiet:

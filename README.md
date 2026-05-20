@@ -210,9 +210,10 @@ py -3.11 -m venv .venv
 .venv\Scripts\python -m ruff check ..\backend ..\scripts
 .venv\Scripts\python ..\scripts\safe_compileall.py -q ..
 .venv\Scripts\python -m pytest -q
+.venv\Scripts\python ..\scripts\run_backend_tests.py
 ```
 
-Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see `docs/LOCAL_TESTING.md` for the reproducible local flow.
+Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
 
 ### Frontend
 
@@ -236,7 +237,7 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 2. `python scripts/check_python_version.py`
 3. `python -m ruff check backend scripts`
 4. `python scripts/safe_compileall.py -q .`
-5. `python -m pytest -q`
+5. `python scripts/run_backend_tests.py`
 6. `python scripts/export_openapi.py`
 7. `python scripts/generate_api_types.py --check`
 8. `git diff --exit-code docs/openapi.json frontend/src/generated/api-types.ts`

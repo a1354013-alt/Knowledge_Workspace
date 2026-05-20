@@ -17,7 +17,7 @@ def main() -> int:
     run([sys.executable, str(ROOT / "scripts" / "check_python_version.py")])
     run([sys.executable, "-m", "ruff", "check", "backend", "scripts"])
     run([sys.executable, str(ROOT / "scripts" / "safe_compileall.py"), "-q", "."])
-    run([sys.executable, "-m", "pytest", "-q"])
+    run([sys.executable, str(ROOT / "scripts" / "run_backend_tests.py")])
     return 0
 
 

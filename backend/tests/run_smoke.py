@@ -50,31 +50,30 @@ def main() -> int:
         sys.path.insert(0, str(BACKEND_DIR))
 
     app_module = load_app()
-    client = TestClient(app_module.app)
+    with TestClient(app_module.app) as client:
+        ok = client.post('/api/login', json={'user_id': 'owner', 'password': 'OwnerPass123!'})
+        bad = client.post('/api/login', json={'user_id': 'owner', 'password': 'wrong-pass'})
+        assert ok.status_code == 200
+        assert bad.status_code == 401
+        print('PASS login success/failure')
 
-    ok = client.post('/api/login', json={'user_id': 'owner', 'password': 'OwnerPass123!'})
-    bad = client.post('/api/login', json={'user_id': 'owner', 'password': 'wrong-pass'})
-    assert ok.status_code == 200
-    assert bad.status_code == 401
-    print('PASS login success/failure')
+        owner_headers = auth_headers(client, 'owner', 'OwnerPass123!')
+        me = client.get('/api/me', headers=owner_headers)
+        assert me.status_code == 200 and me.json()['user_id'] == 'owner'
+        print('PASS /api/me')
 
-    owner_headers = auth_headers(client, 'owner', 'OwnerPass123!')
-    me = client.get('/api/me', headers=owner_headers)
-    assert me.status_code == 200 and me.json()['user_id'] == 'owner'
-    print('PASS /api/me')
-
-    uploads_dir = Path(app_module.UPLOAD_DIR)
-    uploads_dir.mkdir(parents=True, exist_ok=True)
-    doc_upload = client.post(
-        '/api/docs/upload',
-        headers=owner_headers,
-        files={'file': ('manual.txt', b'content', 'text/plain')},
-        data={'category': 'notes', 'tags': 'smoke'},
-    )
-    assert doc_upload.status_code == 200, doc_upload.text
-    docs = client.get('/api/docs', headers=owner_headers)
-    assert docs.status_code == 200 and len(docs.json()) == 1
-    print('PASS document upload/list')
+        uploads_dir = Path(app_module.UPLOAD_DIR)
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+        doc_upload = client.post(
+            '/api/docs/upload',
+            headers=owner_headers,
+            files={'file': ('manual.txt', b'content', 'text/plain')},
+            data={'category': 'notes', 'tags': 'smoke'},
+        )
+        assert doc_upload.status_code == 200, doc_upload.text
+        docs = client.get('/api/docs', headers=owner_headers)
+        assert docs.status_code == 200 and len(docs.json()) == 1
+        print('PASS document upload/list')
     return 0
 
 

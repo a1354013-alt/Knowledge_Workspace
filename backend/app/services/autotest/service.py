@@ -5,6 +5,7 @@ import logging
 import subprocess
 import threading
 import uuid
+from contextlib import suppress
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
@@ -49,6 +50,8 @@ from app.utils import generate_safe_filename, stream_write_file
 
 logger = logging.getLogger("knowledge_workspace")
 autotest_repository = AutoTestRepository(db)
+_worker_threads_lock = threading.Lock()
+_worker_threads: set[threading.Thread] = set()
 
 __all__ = [
     "analyze_github_repo",
@@ -69,6 +72,7 @@ __all__ = [
     "safe_extract_zip",
     "sanitize_path_for_report",
     "schedule_autotest_run_job",
+    "shutdown_autotest_workers",
     "save_run_timeline",
     "set_timeline_item",
     "subprocess",
@@ -168,18 +172,37 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
 
 
 def _run_autotest_job_thread(**kwargs: object) -> None:
+    current_thread = threading.current_thread()
     try:
         import asyncio
 
         asyncio.run(execute_autotest_run_job(**kwargs))
     except Exception:
         logger.exception("AutoTest background job failed before service-level failure handling could run.")
+    finally:
+        with suppress(RuntimeError):
+            with _worker_threads_lock:
+                _worker_threads.discard(current_thread)
 
 
 def schedule_autotest_run_job(**kwargs: object) -> threading.Thread:
     thread = threading.Thread(target=_run_autotest_job_thread, kwargs=kwargs, daemon=True)
+    with _worker_threads_lock:
+        _worker_threads.add(thread)
     thread.start()
     return thread
+
+
+def shutdown_autotest_workers(*, join_timeout_seconds: float = 5.0) -> None:
+    with _worker_threads_lock:
+        threads = [thread for thread in _worker_threads if thread.is_alive()]
+
+    for thread in threads:
+        thread.join(timeout=join_timeout_seconds)
+
+    still_running = [thread.name for thread in threads if thread.is_alive()]
+    if still_running:
+        logger.warning("AutoTest worker thread(s) still running during shutdown: %s", ", ".join(still_running))
 
 
 async def execute_autotest_run_job(

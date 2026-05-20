@@ -21,6 +21,7 @@ from app.services.autotest.service import (
     save_run_timeline,
     schedule_autotest_run_job,
     set_timeline_item,
+    shutdown_autotest_workers,
     suggest_fix_from_autotest,
 )
 
@@ -45,5 +46,6 @@ __all__ = [
     "save_run_timeline",
     "schedule_autotest_run_job",
     "set_timeline_item",
+    "shutdown_autotest_workers",
     "suggest_fix_from_autotest",
 ]

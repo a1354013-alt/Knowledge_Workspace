@@ -45,92 +45,89 @@ def auth_headers(client, user_id='owner', password='OwnerPass123!'):
 
 def test_login_success_and_failure(monkeypatch, tmp_path):
     main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
+    with TestClient(main.app) as client:
+        ok = client.post('/api/login', json={'user_id': 'owner', 'password': 'OwnerPass123!'})
+        bad = client.post('/api/login', json={'user_id': 'owner', 'password': 'wrong-pass'})
 
-    ok = client.post('/api/login', json={'user_id': 'owner', 'password': 'OwnerPass123!'})
-    bad = client.post('/api/login', json={'user_id': 'owner', 'password': 'wrong-pass'})
-
-    assert ok.status_code == 200
-    assert 'access_token' in ok.json()
-    assert bad.status_code == 401
+        assert ok.status_code == 200
+        assert 'access_token' in ok.json()
+        assert bad.status_code == 401
 
 
 def test_health_and_api_health_are_compatible(monkeypatch, tmp_path):
     main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
+    with TestClient(main.app) as client:
+        plain = client.get("/health")
+        api = client.get("/api/health")
 
-    plain = client.get("/health")
-    api = client.get("/api/health")
-
-    assert plain.status_code == 200, plain.text
-    assert api.status_code == 200, api.text
-    assert plain.json() == api.json()
-    assert plain.json().get("status") == "ok"
-    assert isinstance(plain.json().get("version"), str)
+        assert plain.status_code == 200, plain.text
+        assert api.status_code == 200, api.text
+        assert plain.json() == api.json()
+        assert plain.json().get("status") == "ok"
+        assert isinstance(plain.json().get("version"), str)
 
 
 def test_me_endpoint(monkeypatch, tmp_path):
     main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
+    with TestClient(main.app) as client:
+        response = client.get('/api/me', headers=auth_headers(client))
 
-    response = client.get('/api/me', headers=auth_headers(client))
-
-    assert response.status_code == 200
-    assert response.json()['user_id'] == 'owner'
+        assert response.status_code == 200
+        assert response.json()['user_id'] == 'owner'
 
 
 def test_document_upload_and_list(monkeypatch, tmp_path):
     main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
 
-    uploads_dir = Path(main.UPLOAD_DIR)
-    uploads_dir.mkdir(parents=True, exist_ok=True)
+        uploads_dir = Path(main.UPLOAD_DIR)
+        uploads_dir.mkdir(parents=True, exist_ok=True)
 
-    response = client.post(
-        '/api/docs/upload',
-        headers=headers,
-        files={'file': ('manual.txt', b'hello world', 'text/plain')},
-        data={'category': 'notes', 'tags': 'demo'},
-    )
-    assert response.status_code == 200, response.text
+        response = client.post(
+            '/api/docs/upload',
+            headers=headers,
+            files={'file': ('manual.txt', b'hello world', 'text/plain')},
+            data={'category': 'notes', 'tags': 'demo'},
+        )
+        assert response.status_code == 200, response.text
 
-    docs = client.get('/api/docs', headers=headers)
-    assert docs.status_code == 200
-    payload = docs.json()
-    assert len(payload) == 1
-    assert payload[0]['filename'] == 'manual.txt'
-    assert payload[0]['status'] == 'reviewed'
+        docs = client.get('/api/docs', headers=headers)
+        assert docs.status_code == 200
+        payload = docs.json()
+        assert len(payload) == 1
+        assert payload[0]['filename'] == 'manual.txt'
+        assert payload[0]['status'] == 'reviewed'
 
 
 def test_global_search_filters(monkeypatch, tmp_path):
     main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
 
-    create = client.post(
-        "/api/knowledge/entries",
-        headers=headers,
-        json={
-            "title": "Search marker",
-            "problem": "Problem ABC123",
-            "root_cause": "",
-            "solution": "Do X then Y",
-            "tags": "alpha,beta",
-            "notes": "",
-            "status": "draft",
-            "source_type": "manual",
-            "source_ref": "",
-            "related_item_ids": [],
-        },
-    )
-    assert create.status_code == 200, create.text
+        create = client.post(
+            "/api/knowledge/entries",
+            headers=headers,
+            json={
+                "title": "Search marker",
+                "problem": "Problem ABC123",
+                "root_cause": "",
+                "solution": "Do X then Y",
+                "tags": "alpha,beta",
+                "notes": "",
+                "status": "draft",
+                "source_type": "manual",
+                "source_ref": "",
+                "related_item_ids": [],
+            },
+        )
+        assert create.status_code == 200, create.text
 
-    results = client.get(
-        "/api/search",
-        headers=headers,
-        params={"q": "ABC123", "types": "knowledge", "status_filter": "draft", "tag": "alpha", "limit": 50},
-    )
-    assert results.status_code == 200, results.text
-    items = results.json().get("items") or []
-    assert any(item.get("item_id", "").startswith("knowledge:") for item in items)
+        results = client.get(
+            "/api/search",
+            headers=headers,
+            params={"q": "ABC123", "types": "knowledge", "status_filter": "draft", "tag": "alpha", "limit": 50},
+        )
+        assert results.status_code == 200, results.text
+        items = results.json().get("items") or []
+        assert any(item.get("item_id", "").startswith("knowledge:") for item in items)

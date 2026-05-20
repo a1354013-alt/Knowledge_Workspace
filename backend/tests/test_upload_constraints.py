@@ -40,66 +40,66 @@ def auth_headers(client: TestClient, user_id: str = "owner", password: str = "Ow
 def test_max_file_size_env_is_enforced(monkeypatch, tmp_path):
     monkeypatch.setenv("MAX_FILE_SIZE", "10")  # bytes
     main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
 
-    response = client.post(
-        "/api/docs/upload",
-        headers=headers,
-        files={"file": ("manual.txt", b"x" * 20, "text/plain")},
-        data={"category": "notes", "tags": "demo"},
-    )
-    assert response.status_code == 413, response.text
+        response = client.post(
+            "/api/docs/upload",
+            headers=headers,
+            files={"file": ("manual.txt", b"x" * 20, "text/plain")},
+            data={"category": "notes", "tags": "demo"},
+        )
+        assert response.status_code == 413, response.text
 
 
 def test_text_encoding_cp950_is_accepted(monkeypatch, tmp_path):
     main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
 
-    payload = "測試 cp950".encode("cp950")
-    response = client.post(
-        "/api/docs/upload",
-        headers=headers,
-        files={"file": ("manual.txt", payload, "text/plain")},
-        data={"category": "notes", "tags": "encoding"},
-    )
-    assert response.status_code == 200, response.text
+        payload = "皜祈岫 cp950".encode("cp950")
+        response = client.post(
+            "/api/docs/upload",
+            headers=headers,
+            files={"file": ("manual.txt", payload, "text/plain")},
+            data={"category": "notes", "tags": "encoding"},
+        )
+        assert response.status_code == 200, response.text
 
 
 def test_text_with_nul_is_rejected(monkeypatch, tmp_path):
     main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
 
-    response = client.post(
-        "/api/docs/upload",
-        headers=headers,
-        files={"file": ("manual.txt", b"abc\x00def", "text/plain")},
-        data={"category": "notes", "tags": "binary"},
-    )
-    assert response.status_code == 400, response.text
+        response = client.post(
+            "/api/docs/upload",
+            headers=headers,
+            files={"file": ("manual.txt", b"abc\x00def", "text/plain")},
+            data={"category": "notes", "tags": "binary"},
+        )
+        assert response.status_code == 400, response.text
 
 
 def test_ocr_status_reports_unavailable_when_tesseract_not_runnable(monkeypatch, tmp_path):
     monkeypatch.setenv("OCR_ENABLED", "1")
     main = load_app(monkeypatch, tmp_path)
-    client = TestClient(main.app)
-    headers = auth_headers(client)
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
 
-    ocr_service = importlib.import_module("app.ocr_service")
+        ocr_service = importlib.import_module("app.ocr_service")
 
-    if getattr(ocr_service, "PYTESSERACT_AVAILABLE", False):
-        monkeypatch.setattr(ocr_service, "_resolve_tesseract_cmd", lambda: "tesseract")
+        if getattr(ocr_service, "PYTESSERACT_AVAILABLE", False):
+            monkeypatch.setattr(ocr_service, "_resolve_tesseract_cmd", lambda: "tesseract")
 
-        def _boom():
-            raise RuntimeError("tesseract missing")
+            def _boom():
+                raise RuntimeError("tesseract missing")
 
-        monkeypatch.setattr(ocr_service.pytesseract, "get_tesseract_version", _boom)
+            monkeypatch.setattr(ocr_service.pytesseract, "get_tesseract_version", _boom)
 
-    response = client.get("/api/settings/ocr", headers=headers)
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["enabled"] is True
-    assert payload["available"] is False
-    assert isinstance(payload.get("details"), str)
+        response = client.get("/api/settings/ocr", headers=headers)
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["enabled"] is True
+        assert payload["available"] is False
+        assert isinstance(payload.get("details"), str)
