@@ -639,7 +639,8 @@
             "enum": [
               "pending",
               "indexed",
-              "failed"
+              "failed",
+              "unavailable"
             ],
             "title": "Index Status",
             "type": "string"
@@ -797,8 +798,32 @@
       "GitHubAnalyzeResponse": {
         "additionalProperties": false,
         "properties": {
+          "analysis_scope": {
+            "const": "queued_local_intake_only",
+            "default": "queued_local_intake_only",
+            "title": "Analysis Scope"
+          },
+          "execution_mode": {
+            "const": "simulated",
+            "default": "simulated",
+            "title": "Execution Mode"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "remote_clone_performed": {
+            "default": false,
+            "title": "Remote Clone Performed",
+            "type": "boolean"
+          },
           "repo_info": {
             "$ref": "#/components/schemas/GitHubRepoInfoResponse"
+          },
+          "report_ready": {
+            "default": false,
+            "title": "Report Ready",
+            "type": "boolean"
           },
           "run_id": {
             "title": "Run Id",
@@ -812,6 +837,7 @@
         "required": [
           "run_id",
           "status",
+          "message",
           "repo_info"
         ],
         "title": "GitHubAnalyzeResponse",
@@ -820,6 +846,11 @@
       "GitHubRepoInfoResponse": {
         "additionalProperties": false,
         "properties": {
+          "analysis_scope": {
+            "const": "queued_local_intake_only",
+            "default": "queued_local_intake_only",
+            "title": "Analysis Scope"
+          },
           "clone_supported": {
             "default": false,
             "title": "Clone Supported",
@@ -2085,7 +2116,8 @@
             "default": "indexed",
             "enum": [
               "indexed",
-              "failed"
+              "failed",
+              "unavailable"
             ],
             "title": "Index Status",
             "type": "string"
@@ -2301,7 +2333,8 @@
             "enum": [
               "pending",
               "indexed",
-              "failed"
+              "failed",
+              "unavailable"
             ],
             "title": "Index Status",
             "type": "string"

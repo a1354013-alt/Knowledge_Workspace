@@ -48,9 +48,9 @@ graph TD
 
 ### AutoTest
 
-- upload `.zip` projects or register GitHub repos for analysis
+- upload `.zip` projects or register GitHub repos for queued local analysis intake
 - simulated mode by default for demos, CI, and safe reproducibility
-- real mode is opt-in behind `AUTOTEST_MODE=real` plus `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`, and uses fixed timeouts, `shell=False`, output limits, path sanitization, and sensitive env scrubbing
+- real mode is opt-in behind `AUTOTEST_MODE=real` plus `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`, and uses fixed timeouts, `shell=False`, output limits, path sanitization, symlink/path-escape checks, and sensitive env scrubbing
 - backend is now split into:
   - `api/routes/autotest.py`: thin HTTP layer
   - `services/autotest_service.py`: compatibility shim for older imports
@@ -123,7 +123,7 @@ AutoTest is intentionally constrained, but it is not a sandbox.
 - default mode is `AUTOTEST_MODE=simulated`
 - real mode must be explicitly enabled with both `AUTOTEST_MODE=real` and `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
 - if `AUTOTEST_MODE=real` is set without that enable flag, the API rejects the run
-- real mode executes commands from uploaded projects
+- real mode executes commands from uploaded projects on the local trusted workspace host
 - Node installs use `npm ci --ignore-scripts --no-audit --no-fund`
 - Python dependency installation for uploaded projects is disabled until a stronger trusted sandbox policy is added
 - subprocess execution uses `shell=False`
@@ -162,12 +162,13 @@ Recommended usage:
 ### Backend
 
 ```bash
-cd backend
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+pip install -e ".[dev]"
 ```
 
-`requirements.txt` contains runtime dependencies only. Install `requirements-dev.txt` for CI-equivalent linting and tests.
+`backend/requirements.txt` and `backend/requirements-dev.txt` remain committed for pinned/runtime visibility, while the supported local verification flow uses `pip install -e ".[dev]"` from the repo root.
 
 Set environment variables:
 
@@ -203,17 +204,20 @@ npm run dev -- --host 127.0.0.1 --port 5173
 ### Backend
 
 ```bash
-cd backend
 py -3.11 -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\python -m ruff check ..\backend ..\scripts
-.venv\Scripts\python ..\scripts\safe_compileall.py -q ..
-.venv\Scripts\python -m pytest -q
-.venv\Scripts\python ..\scripts\run_backend_tests.py
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+pip install -e ".[dev]"
+python scripts/check_python_version.py
+python scripts/safe_compileall.py -q .
+python -m ruff check backend scripts
+python -m pytest backend/tests
+python scripts/export_openapi.py
+python scripts/generate_api_types.py --check
+python scripts/check_version_consistency.py
 ```
 
-Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
+Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md) and `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
 
 ### Frontend
 
@@ -240,7 +244,7 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 5. `python scripts/run_backend_tests.py`
 6. `python scripts/export_openapi.py`
 7. `python scripts/generate_api_types.py --check`
-8. `git diff --exit-code docs/openapi.json frontend/src/generated/api-types.ts`
+8. `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
 9. frontend `npm ci`
 10. frontend `npm audit --omit=dev --audit-level=high`
 11. frontend `npm run test:run`
@@ -275,7 +279,7 @@ Metric sources:
 
 ## AutoTest Modes
 
-`POST /api/autotest/run` creates an asynchronous job and returns `202 Accepted` with the queued run. The frontend polls `GET /api/autotest/runs/{run_id}` for timeline/log updates and downloads reports only after the run reaches `passed` or `failed`.
+`POST /api/autotest/run` creates an asynchronous job and returns `202 Accepted` with the queued run. The queued response summary explicitly states whether the backend is in `simulated` or `real` mode. The frontend polls `GET /api/autotest/runs/{run_id}` for timeline/log updates and downloads reports only after the run reaches `passed` or `failed`.
 
 ### `simulated`
 
@@ -325,16 +329,16 @@ Status meanings:
 ## Known Limitations
 
 - `legacy_main.py` is a compatibility shim for older imports and monkeypatch-based tests; remove it after all callers import concrete route/service modules directly
-- AutoTest real mode is constrained subprocess execution, not a hardened sandbox
+- AutoTest real mode is constrained local trusted-workspace subprocess execution, not a hardened sandbox
 - AutoTest uses an in-process background worker, not a durable external queue; backend process crashes can interrupt active jobs
-- GitHub analyze is currently a register/queue flow only: validated URL intake plus queued analysis metadata, not a remote clone-and-run executor
+- GitHub analyze is currently a queue-intake flow only: validated URL intake plus queued local-analysis metadata, not a remote clone-and-run executor or full repository scan
 - built-in vector search uses deterministic lightweight hash embeddings for demos/tests; it is not a production semantic retrieval model
 - Chroma emits third-party deprecation warnings in tests
 - frontend verification should be run with Node `20` to match CI
 
 ## Portfolio Case Study
 
-See [SECURITY_MODEL.md](SECURITY_MODEL.md), [API_CONTRACT.md](API_CONTRACT.md), [TESTING.md](TESTING.md), and [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the security, contract, verification, and release rules.
+See [SECURITY_MODEL.md](SECURITY_MODEL.md), [API_CONTRACT.md](API_CONTRACT.md), [TESTING.md](TESTING.md), [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md), and [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the security, contract, verification, and release rules.
 
 See [docs/AUTOTEST.md](docs/AUTOTEST.md) for the AutoTest architecture, modes, timeline contract, and safety boundary.
 

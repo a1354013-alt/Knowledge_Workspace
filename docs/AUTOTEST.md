@@ -53,6 +53,7 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 - default mode
 - safest option for CI and demos
 - does not execute real project commands
+- queued/API responses explicitly report that simulated mode is active
 - still creates a real run, timeline, and derived knowledge/logbook artifacts
 
 ### `real`
@@ -66,10 +67,12 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
   - fixed timeout
   - best-effort POSIX resource limits
   - sensitive environment variable scrubbing
+  - zip path traversal / absolute path / drive path / UNC path / symlink rejection
 
 ## Real Mode Safety Boundary
 
 Real mode is not a container sandbox. Treat it as trusted-code local execution only.
+It is a local trusted-workspace execution mode, not Docker isolation.
 
 Sensitive env vars are stripped when their names contain:
 
@@ -158,7 +161,7 @@ It should not infer success/failure from missing fields or command text alone.
 - real mode tasks fail if they exceed the configured backend command timeout
 - timeline/log updates currently use polling; SSE can be added later without changing the run contract
 - a process crash can interrupt an active worker, so a future queue should recover or requeue interrupted runs
-- GitHub analyze is still URL intake and queued analysis registration, not a full remote clone-and-run path
+- GitHub analyze is still URL intake and queued local-analysis registration, not a full remote clone-and-run path or complete repository scan
 - report export is generated on demand rather than persisted as a versioned artifact
 
 ## Interview Demo Flow

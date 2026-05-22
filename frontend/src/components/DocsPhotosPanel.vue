@@ -80,6 +80,17 @@
               field="status"
               header="Status"
             />
+            <Column header="Index">
+              <template #body="slotProps">
+                <div class="index-cell">
+                  <strong>{{ slotProps.data.index_status || 'pending' }}</strong>
+                  <span
+                    v-if="slotProps.data.index_error"
+                    class="muted"
+                  >{{ slotProps.data.index_error }}</span>
+                </div>
+              </template>
+            </Column>
             <Column header="Actions">
               <template #body="slotProps">
                 <div class="actions-inline">
@@ -750,6 +761,12 @@ async function deletePhoto(photo: PhotoResponse) {
 .actions-inline {
   display: flex;
   gap: 6px;
+}
+
+.index-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 @media (max-width: 1080px) {

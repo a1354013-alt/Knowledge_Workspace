@@ -17,14 +17,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install backend runtime dependencies
+      - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r backend/requirements.txt
-
-      - name: Install backend development dependencies
-        run: |
-          python -m pip install -r backend/requirements-dev.txt
+          python -m pip install -e ".[dev]"
 
       - name: Python runtime check
         run: python scripts/check_python_version.py
@@ -55,7 +51,7 @@ jobs:
         run: python scripts/generate_api_types.py --check
 
       - name: Check committed contract artifacts
-        run: git diff --exit-code docs/openapi.json frontend/src/generated/api-types.ts
+        run: git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
 
       - name: Set up Node
         uses: actions/setup-node@v4

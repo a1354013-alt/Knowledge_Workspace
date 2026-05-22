@@ -185,10 +185,11 @@ async function savePrompt() {
   saving.value = true
   try {
     const response = await post<SavedPromptResponse, SavedPromptCreateRequest>('/api/prompts', payload)
-    const detail = response.index_status === 'failed'
-      ? response.index_error || 'Prompt saved, but indexing failed.'
+    const indexingUnavailable = response.index_status === 'unavailable'
+    const detail = response.index_status === 'failed' || indexingUnavailable
+      ? response.index_error || (indexingUnavailable ? 'Prompt saved, but the vector index is unavailable.' : 'Prompt saved, but indexing failed.')
       : 'Prompt saved.'
-    toast.add({ severity: response.index_status === 'failed' ? 'warn' : 'success', summary: 'Saved', detail, life: 3500 })
+    toast.add({ severity: response.index_status === 'failed' || indexingUnavailable ? 'warn' : 'success', summary: 'Saved', detail, life: 3500 })
     resetForm()
     await loadPrompts()
   } catch (error: unknown) {

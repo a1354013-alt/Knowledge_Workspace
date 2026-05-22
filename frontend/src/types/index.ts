@@ -52,7 +52,7 @@ export type {
   TemplatesMetaResponse,
   UploadDocumentResponse,
   UploadPhotoResponse,
-} from '../generated/api-types'
+} from '../api/generated/api-types'
 
 import type {
   AutoTestRunResponse,
@@ -60,7 +60,7 @@ import type {
   AutoTestTimelineItemResponse,
   DocumentResponse,
   KnowledgeEntryResponse,
-} from '../generated/api-types'
+} from '../api/generated/api-types'
 
 export type KnowledgeStatus = NonNullable<KnowledgeEntryResponse['status']>
 export type KnowledgeSourceType = NonNullable<KnowledgeEntryResponse['source_type']>

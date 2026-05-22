@@ -12,6 +12,7 @@ from app.database import DocumentDatabase, add_to_vector_db, query_kb_vector_db,
 from app.llm import get_llm_provider
 from app.models import Source
 from app.text_files import read_text_file
+from app.vector_db import vector_db_unavailable_reason
 
 logger = logging.getLogger("knowledge_workspace")
 
@@ -82,7 +83,7 @@ def process_file(
         raise ValueError('No readable content found in document.')
 
     if not add_to_vector_db(doc_id, texts, metadatas):
-        raise RuntimeError(f'Vector indexing failed for {doc_id}.')
+        raise RuntimeError(f"{vector_db_unavailable_reason()} Document {doc_id} could not be indexed.")
     return doc_id
 
 

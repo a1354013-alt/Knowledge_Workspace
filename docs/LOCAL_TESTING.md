@@ -5,17 +5,16 @@
 Use Python 3.11.x. The backend package declares `requires-python = ">=3.11,<3.12"`, so Python 3.12/3.13 results are not accepted as release evidence unless dependency constraints are updated.
 
 ```bash
-python scripts/check_python_version.py
 py -3.11 -m venv .venv
-.venv\Scripts\python -m pip install --upgrade pip
-.venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python -m pip install -r requirements-dev.txt
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
 copy .env.example .env
-.venv\Scripts\python ..\scripts\check_python_version.py
-.venv\Scripts\python -m ruff check ..\backend ..\scripts
-.venv\Scripts\python ..\scripts\safe_compileall.py -q ..
-.venv\Scripts\python -m pytest -q ..\
-.venv\Scripts\python ..\scripts\run_backend_tests.py
+python scripts/check_python_version.py
+python -m ruff check backend scripts
+python scripts/safe_compileall.py -q .
+python -m pytest backend/tests
+python scripts/run_backend_tests.py
 ```
 
 Equivalent single command from the repo root after dependencies are installed:
@@ -45,10 +44,10 @@ npm run build
 ```bash
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
-git diff --exit-code docs/openapi.json frontend/src/generated/api-types.ts
+git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
 ```
 
-When the API contract intentionally changes, run `python scripts/generate_api_types.py` and commit `docs/openapi.json` with `frontend/src/generated/api-types.ts`.
+When the API contract intentionally changes, run `python scripts/generate_api_types.py` and commit `docs/openapi.json` with `frontend/src/api/generated/api-types.ts`.
 
 ## Release And Smoke
 

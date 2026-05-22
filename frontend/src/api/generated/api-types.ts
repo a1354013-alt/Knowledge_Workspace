@@ -133,7 +133,7 @@ export interface DocumentResponse {
   filename: string;
   id: string;
   index_error?: string;
-  index_status?: "pending" | "indexed" | "failed";
+  index_status?: "pending" | "indexed" | "failed" | "unavailable";
   indexed_at?: string;
   status?: "draft" | "reviewed" | "verified" | "archived";
   tags: string;
@@ -162,12 +162,18 @@ export interface GitHubAnalyzeRequest {
 }
 
 export interface GitHubAnalyzeResponse {
+  analysis_scope?: "queued_local_intake_only";
+  execution_mode?: "simulated";
+  message: string;
+  remote_clone_performed?: boolean;
   repo_info: GitHubRepoInfoResponse;
+  report_ready?: boolean;
   run_id: string;
   status: "queued";
 }
 
 export interface GitHubRepoInfoResponse {
+  analysis_scope?: "queued_local_intake_only";
   clone_supported?: boolean;
   default_branch?: string;
   owner: string;
@@ -394,7 +400,7 @@ export interface SavedPromptResponse {
   created_at: string;
   id: string;
   index_error?: string;
-  index_status?: "indexed" | "failed";
+  index_status?: "indexed" | "failed" | "unavailable";
   tags: string;
   title: string;
   updated_at: string;
@@ -442,7 +448,7 @@ export interface UploadDocumentResponse {
   filename: string;
   id: string;
   index_error?: string;
-  index_status?: "pending" | "indexed" | "failed";
+  index_status?: "pending" | "indexed" | "failed" | "unavailable";
   indexed_at?: string;
   message: string;
   status?: "draft" | "reviewed" | "verified" | "archived";

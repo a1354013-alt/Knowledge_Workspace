@@ -80,8 +80,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Verify release zip exclusions and required docs.")
     parser.add_argument("zip_path", nargs="?", default="knowledge_workspace_release.zip")
     args = parser.parse_args()
-    verify(Path(args.zip_path))
-    print(f"OK: verified {args.zip_path}")
+    root_dir = Path(__file__).resolve().parents[1]
+    zip_path = Path(args.zip_path)
+    if not zip_path.is_absolute():
+        zip_path = root_dir / zip_path
+    verify(zip_path)
+    print(f"OK: verified {zip_path}")
     return 0
 
 

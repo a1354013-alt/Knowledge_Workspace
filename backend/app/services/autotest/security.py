@@ -21,9 +21,11 @@ def get_autotest_capabilities() -> AutoTestCapabilitiesResponse:
     enabled = is_real_autotest_enabled()
     available = requested and enabled
     message = (
-        "Real AutoTest mode is enabled. Run only trusted projects inside a sandbox/container."
+        "Real AutoTest mode is enabled. This is local trusted-workspace execution, not a Docker sandbox. "
+        "Run only trusted projects inside your own isolated environment."
         if available
-        else "Safe simulated mode is active. Real command execution requires AUTOTEST_MODE=real and KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1."
+        else "Safe simulated mode is active. No uploaded project commands will run. "
+        "Real command execution requires AUTOTEST_MODE=real and KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1."
     )
     return AutoTestCapabilitiesResponse(
         mode="real" if available else "simulated",

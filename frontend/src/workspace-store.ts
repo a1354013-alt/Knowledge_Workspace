@@ -88,6 +88,13 @@ function nowMs() {
   return Date.now()
 }
 
+function ensureArrayResponse<T>(value: unknown, label: string): T[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} API returned an invalid payload. Expected an array.`)
+  }
+  return value as T[]
+}
+
 function shouldUseCache(lastLoadedAt: number, force?: boolean) {
   if (force) {
     return false
@@ -133,27 +140,39 @@ export function useWorkspaceStore(): WorkspaceStore {
   }
 
   async function refreshDocuments(opts?: { force?: boolean }) {
-    await refreshOne('documents', () => get<DocumentResponse[]>('/api/docs'), opts)
+    await refreshOne('documents', async () => ensureArrayResponse<DocumentResponse>(await get('/api/docs'), 'Documents'), opts)
   }
 
   async function refreshPhotos(opts?: { force?: boolean }) {
-    await refreshOne('photos', () => get<PhotoResponse[]>('/api/photos'), opts)
+    await refreshOne('photos', async () => ensureArrayResponse<PhotoResponse>(await get('/api/photos'), 'Photos'), opts)
   }
 
   async function refreshKnowledgeEntries(opts?: { force?: boolean }) {
-    await refreshOne('knowledgeEntries', () => get<KnowledgeEntryResponse[]>('/api/knowledge/entries'), opts)
+    await refreshOne(
+      'knowledgeEntries',
+      async () => ensureArrayResponse<KnowledgeEntryResponse>(await get('/api/knowledge/entries'), 'Knowledge entries'),
+      opts
+    )
   }
 
   async function refreshLogbookEntries(opts?: { force?: boolean }) {
-    await refreshOne('logbookEntries', () => get<LogbookEntryResponse[]>('/api/logbook/entries'), opts)
+    await refreshOne(
+      'logbookEntries',
+      async () => ensureArrayResponse<LogbookEntryResponse>(await get('/api/logbook/entries'), 'Logbook entries'),
+      opts
+    )
   }
 
   async function refreshAutotestRuns(opts?: { force?: boolean }) {
-    await refreshOne('autotestRuns', () => get<AutoTestRunListItemResponse[]>('/api/autotest/runs'), opts)
+    await refreshOne(
+      'autotestRuns',
+      async () => ensureArrayResponse<AutoTestRunListItemResponse>(await get('/api/autotest/runs'), 'AutoTest runs'),
+      opts
+    )
   }
 
   async function refreshPrompts(opts?: { force?: boolean }) {
-    await refreshOne('prompts', () => get<SavedPromptResponse[]>('/api/prompts'), opts)
+    await refreshOne('prompts', async () => ensureArrayResponse<SavedPromptResponse>(await get('/api/prompts'), 'Prompts'), opts)
   }
 
   async function refreshAll(opts?: { force?: boolean }) {

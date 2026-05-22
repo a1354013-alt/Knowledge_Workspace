@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import sqlite3
+import subprocess
 import time
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -77,6 +78,7 @@ def test_autotest_run_success_creates_knowledge_draft(client: TestClient, auth_h
     assert response.status_code == 202, response.text
     queued_payload = response.json()
     assert queued_payload["status"] in {"queued", "running", "passed"}
+    assert "simulated mode" in queued_payload["summary"].lower()
     payload = wait_for_autotest_run(client, auth_headers, queued_payload["id"])
     assert payload["status"] == "passed"
     assert payload["execution_mode"] == "simulated"
@@ -313,6 +315,32 @@ def test_autotest_real_mode_executes_commands_when_enabled(
     assert any(command[:2] == ["npm", "ci"] and "--ignore-scripts" in command for command in calls)
 
 
+def test_autotest_real_mode_timeout_is_terminal_failed(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
+
+    def fake_run_command(*, argv, cwd, timeout_seconds):
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=timeout_seconds)
+
+    monkeypatch.setattr(app_module.autotest_service, "_run_command", fake_run_command)
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(), "application/zip")},
+    )
+    assert response.status_code == 202, response.text
+    payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
+    assert payload["status"] == "failed"
+    assert "timed out" in payload["failed_reason"].lower()
+    assert payload["timeline"][-1]["status"] == "failed"
+
+
 def test_autotest_simulated_mode_does_not_execute_real_commands(
     app_module,
     client: TestClient,
@@ -360,7 +388,7 @@ def test_autotest_run_returns_queued_response_before_background_execution(
     assert response.status_code == 202, response.text
     payload = response.json()
     assert payload["status"] == "queued"
-    assert payload["summary"] == "AutoTest queued."
+    assert "queued in simulated mode" in payload["summary"].lower()
     assert payload["steps"]
     assert all(step["status"] == "queued" for step in payload["steps"])
     assert scheduled
@@ -437,6 +465,7 @@ def test_autotest_startup_recovery_fails_stale_running_run(app_module):
     assert "worker_interrupted" in run["failed_reason"]
     assert "server_restarted" in run["failed_reason"]
     assert "stale_running_job" in run["failed_reason"]
+    assert run["summary"].startswith("AutoTest run failed")
 
 
 def test_autotest_startup_recovery_fails_stale_queued_run(app_module):
@@ -453,6 +482,24 @@ def test_autotest_startup_recovery_fails_stale_queued_run(app_module):
     assert run["status"] == "failed"
     assert "server_restarted" in run["failed_reason"]
     assert "stale_queued_job" in run["failed_reason"]
+
+
+def test_failed_recovered_run_detail_is_not_reported_as_running(app_module, client: TestClient, auth_headers: dict[str, str]):
+    from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
+
+    _create_recovery_run(app_module, run_id="recovered-detail", status="running")
+    recovered = recover_interrupted_autotest_runs(
+        now=datetime.now(timezone.utc) + timedelta(minutes=31),
+        stale_after_minutes=30,
+    )
+
+    assert recovered == 1
+    detail = client.get("/api/autotest/runs/recovered-detail", headers=auth_headers)
+    assert detail.status_code == 200, detail.text
+    payload = detail.json()
+    assert payload["status"] == "failed"
+    assert payload["timeline"][-1]["status"] == "failed"
+    assert payload["timeline"][-1]["message"]
 
 
 def test_autotest_startup_recovery_keeps_recent_running_run(app_module):

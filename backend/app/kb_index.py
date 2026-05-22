@@ -4,6 +4,7 @@ from typing import Any
 
 from app.database import add_to_kb_vector_db, delete_from_kb_vector_db
 from app.services.core import split_text
+from app.vector_db import vector_db_unavailable_reason
 
 
 def _build_metadata(
@@ -53,7 +54,9 @@ def index_knowledge_entry(entry: dict[str, Any]) -> bool:
         owner_user_id=str(entry.get("created_by", "") or ""),
         is_active=int(entry.get("is_active", 1)),
     )
-    return add_to_kb_vector_db(item_id, chunks, [dict(metadata) for _ in chunks])
+    if not add_to_kb_vector_db(item_id, chunks, [dict(metadata) for _ in chunks]):
+        raise RuntimeError(f"{vector_db_unavailable_reason()} Knowledge entry {item_id} was not indexed.")
+    return True
 
 
 def index_logbook_entry(entry: dict[str, Any]) -> bool:
@@ -84,7 +87,9 @@ def index_logbook_entry(entry: dict[str, Any]) -> bool:
         owner_user_id=str(entry.get("created_by", "") or ""),
         is_active=int(entry.get("is_active", 1)),
     )
-    return add_to_kb_vector_db(item_id, chunks, [dict(metadata) for _ in chunks])
+    if not add_to_kb_vector_db(item_id, chunks, [dict(metadata) for _ in chunks]):
+        raise RuntimeError(f"{vector_db_unavailable_reason()} Logbook entry {item_id} was not indexed.")
+    return True
 
 
 def index_photo(entry: dict[str, Any]) -> bool:
@@ -111,7 +116,9 @@ def index_photo(entry: dict[str, Any]) -> bool:
         owner_user_id=str(entry.get("uploaded_by", "") or ""),
         is_active=int(entry.get("is_active", 1)),
     )
-    return add_to_kb_vector_db(item_id, chunks, [dict(metadata) for _ in chunks])
+    if not add_to_kb_vector_db(item_id, chunks, [dict(metadata) for _ in chunks]):
+        raise RuntimeError(f"{vector_db_unavailable_reason()} Photo {item_id} was not indexed.")
+    return True
 
 
 def index_saved_prompt(entry: dict[str, Any]) -> bool:
@@ -136,4 +143,6 @@ def index_saved_prompt(entry: dict[str, Any]) -> bool:
         owner_user_id=str(entry.get("created_by", "") or ""),
         is_active=int(entry.get("is_active", 1)),
     )
-    return add_to_kb_vector_db(item_id, chunks, [dict(metadata) for _ in chunks])
+    if not add_to_kb_vector_db(item_id, chunks, [dict(metadata) for _ in chunks]):
+        raise RuntimeError(f"{vector_db_unavailable_reason()} Prompt {item_id} was not indexed.")
+    return True

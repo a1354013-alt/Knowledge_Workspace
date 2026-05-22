@@ -8,7 +8,6 @@ facade: `from app.db import DocumentDatabase`.
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 from contextlib import contextmanager
 from typing import Any
@@ -145,26 +144,8 @@ class DocumentDatabase(
         migrations.migrate_saved_prompts_table(cursor)
 
     def _seed_owner_user(self, cursor: sqlite3.Cursor) -> None:
-        cursor.execute("SELECT COUNT(*) FROM users")
-        if cursor.fetchone()[0] > 0:
-            return
-
-        default_password = os.getenv("DEFAULT_OWNER_PASSWORD")
-        if not default_password:
-            raise RuntimeError(
-                "DEFAULT_OWNER_PASSWORD must be set to seed the initial 'owner' account "
-                "(or create users in the database before starting the app)."
-            )
-        now = utc_now_iso()
-        password_hash = hash_password(default_password)
-        cursor.execute(
-            """
-            INSERT INTO users (user_id, password_hash, display_name, role, is_active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            ("owner", password_hash, "Owner", "owner", 1, now, now),
-        )
-        logger.warning("Seeded initial owner account 'owner'. Change DEFAULT_OWNER_PASSWORD for production.")
+        migrations.seed_owner_user(cursor)
+        migrations.ensure_owner_password_is_current(cursor)
 
     def get_user(self, user_id: str) -> dict[str, Any] | None:
         with self._connection() as conn:

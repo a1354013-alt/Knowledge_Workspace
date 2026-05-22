@@ -5,17 +5,15 @@
 Use Python 3.11.x. The backend is intentionally pinned to `>=3.11,<3.12`; Python 3.12/3.13 passing locally is not release evidence unless dependency constraints are updated.
 
 ```bash
-python scripts/check_python_version.py
-cd backend
 py -3.11 -m venv .venv
-.venv\Scripts\python -m pip install --upgrade pip
-.venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\python ..\scripts\check_python_version.py
-.venv\Scripts\python -m ruff check ..\backend ..\scripts
-.venv\Scripts\python ..\scripts\safe_compileall.py -q ..
-.venv\Scripts\python -m pytest -q ..\
-.venv\Scripts\python ..\scripts\run_backend_tests.py
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+python scripts/check_python_version.py
+python -m ruff check backend scripts
+python scripts/safe_compileall.py -q .
+python -m pytest backend/tests
+python scripts/run_backend_tests.py
 ```
 
 After a Python 3.11 virtualenv is active, the repo-root helper runs the same checks:
@@ -55,7 +53,7 @@ Use Node 20.19+ LTS to match CI and the Vite/Vitest toolchain engine range.
 ```bash
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
-git diff --exit-code docs/openapi.json frontend/src/generated/api-types.ts
+git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
 python scripts/check_version_consistency.py
 python scripts/package_release.py /tmp/kw_release.zip
 python scripts/verify_release_zip.py /tmp/kw_release.zip

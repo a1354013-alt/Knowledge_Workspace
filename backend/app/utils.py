@@ -117,7 +117,7 @@ def validate_file_magic_bytes(file_content: bytes, filename: str) -> bool:
 
 def normalize_roles(roles: str | Iterable[str] | None, *, default: list[str] | None = None) -> list[str]:
     if default is None:
-        default = ["user"]
+        default = [ROLE_VALUES[0]]
 
     if roles is None:
         normalized = list(default)

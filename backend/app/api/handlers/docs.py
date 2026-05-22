@@ -81,7 +81,7 @@ async def upload_document(
             await sync_document_index(document)
         except Exception as exc:
             logger.warning("Document indexing failed for %s: %s", doc_id, exc)
-            message = "Document uploaded, but indexing failed."
+            message = f"Document uploaded, but indexing failed: {exc}"
         document = db.get_document(doc_id) or document
     logger.info("Uploaded document %s by %s", doc_id, current_user["sub"])
     return UploadDocumentResponse(
@@ -141,8 +141,8 @@ async def update_document(doc_id: str, request: DocumentUpdateRequest, current_u
     warning = None
     try:
         await sync_document_index(updated)
-    except Exception:
-        warning = "Document indexing failed."
+    except Exception as exc:
+        warning = f"Document indexing failed: {exc}"
     return MessageResponse(message=_side_effect_warning("Document updated.", warning))
 
 

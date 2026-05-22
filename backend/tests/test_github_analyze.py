@@ -37,6 +37,11 @@ def test_analyze_github_repo_success_trigger(app_module, client: TestClient, aut
     assert response.json() == {
         "run_id": response.json()["run_id"],
         "status": "queued",
+        "execution_mode": "simulated",
+        "analysis_scope": "queued_local_intake_only",
+        "remote_clone_performed": False,
+        "report_ready": False,
+        "message": "GitHub repository registered for queued local analysis intake. Remote clone, remote test execution, and full repository scan are not performed.",
         "repo_info": {
             "owner": "a1354013-alt",
             "repo": "Knowledge_Workspace",
@@ -44,6 +49,7 @@ def test_analyze_github_repo_success_trigger(app_module, client: TestClient, aut
             "default_branch": "",
             "provider": "github",
             "clone_supported": False,
+            "analysis_scope": "queued_local_intake_only",
         },
     }
 
@@ -60,8 +66,9 @@ def test_analyze_github_repo_run_detail_uses_honest_summary(client: TestClient, 
     assert detail.status_code == 200, detail.text
     payload = detail.json()
     assert payload["execution_mode"] == "simulated"
-    assert "registered for queued analysis" in payload["summary"].lower()
+    assert "queued local analysis intake" in payload["summary"].lower()
     assert "clone" in payload["summary"].lower()
+    assert "full repository scan" in response.json()["message"].lower()
 
 
 def test_get_repo_info():
@@ -74,4 +81,5 @@ def test_get_repo_info():
         "default_branch": "",
         "provider": "github",
         "clone_supported": False,
+        "analysis_scope": "queued_local_intake_only",
     }

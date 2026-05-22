@@ -17,7 +17,6 @@ from app.api.handlers.support import (
     item_id_from_parts,
     maybe_link_source_item,
     normalize_related_item_ids,
-    settings,
     status,
     sync_source_ref_link,
     uuid,
@@ -220,5 +219,3 @@ async def delete_logbook_entry(entry_id: str, current_user: dict = Depends(get_c
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Logbook entry not found.")
     return MessageResponse(message=_side_effect_warning("Logbook entry deleted.", warning))
 
-
-PHOTO_DIR = settings.PHOTO_DIR

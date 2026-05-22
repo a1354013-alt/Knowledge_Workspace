@@ -25,6 +25,8 @@ def _parse_iso_datetime(value: object) -> datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
 def _latest_activity_at(run_row: dict, step_rows: list[dict]) -> datetime | None:
     candidates = [
         _parse_iso_datetime(run_row.get("updated_at")),

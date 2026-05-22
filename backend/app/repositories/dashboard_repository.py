@@ -25,7 +25,7 @@ class DashboardRepository:
                 (user_id,),
             ).fetchone()[0]
             failed_documents = conn.execute(
-                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status = 'failed'",
+                "SELECT COUNT(*) FROM documents WHERE uploaded_by = ? AND is_active = 1 AND index_status IN ('failed', 'unavailable')",
                 (user_id,),
             ).fetchone()[0]
             archived_documents = conn.execute(

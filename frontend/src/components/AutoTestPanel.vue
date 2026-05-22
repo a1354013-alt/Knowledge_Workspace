@@ -362,7 +362,12 @@ async function runAutoTest() {
     formData.append('file', selectedZip.value)
     const response = await startAutoTest(formData)
     selectedRun.value = response
-    toast.add({ severity: 'info', summary: 'Run queued', detail: `AutoTest job ${response.id} started.`, life: 3000 })
+    toast.add({
+      severity: 'info',
+      summary: 'Run queued',
+      detail: response.summary || `AutoTest job ${response.id} started.`,
+      life: 3000,
+    })
     selectedZip.value = null
     if (zipInput.value) {
       zipInput.value.value = ''

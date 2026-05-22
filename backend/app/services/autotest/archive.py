@@ -23,6 +23,23 @@ def safe_unlink(path: Path) -> None:
         logger.warning("Could not delete file %s because it is locked by the OS.", path)
 
 
+def _is_unsafe_zip_member_name(name: str) -> bool:
+    normalized = str(name or "").replace("\\", "/").strip()
+    if not normalized:
+        return True
+    if normalized.startswith(("/", "\\")):
+        return True
+    path = Path(normalized)
+    if path.is_absolute() or ".." in path.parts:
+        return True
+    first_part = path.parts[0] if path.parts else ""
+    if first_part.startswith("\\\\") or first_part.startswith("//"):
+        return True
+    if ":" in first_part:
+        return True
+    return False
+
+
 def safe_extract_zip(zip_path: Path, dest_dir: Path) -> None:
     max_files = int(settings.AUTOTEST_MAX_FILES)
     max_unzipped_bytes = int(settings.AUTOTEST_MAX_UNZIPPED_BYTES)
@@ -37,14 +54,20 @@ def safe_extract_zip(zip_path: Path, dest_dir: Path) -> None:
             total_bytes += int(getattr(member, "file_size", 0) or 0)
             if total_bytes > max_unzipped_bytes:
                 raise ValueError("Zip expands beyond allowed size.")
-            member_path = Path(member.filename)
-            if member_path.is_absolute() or ".." in member_path.parts:
-                raise ValueError("Zip contains unsafe paths.")
-            if ":" in member_path.parts[0] or str(member.filename).startswith(("\\\\", "//")):
+            if _is_unsafe_zip_member_name(member.filename):
                 raise ValueError("Zip contains unsafe paths.")
             is_symlink = (member.external_attr >> 16) & 0o170000 == 0o120000
             if is_symlink:
                 raise ValueError("Zip contains symlinks, which are not allowed.")
+        dest_root = dest_dir.resolve()
+        for member in members:
+            if _is_unsafe_zip_member_name(member.filename):
+                raise ValueError("Zip contains unsafe paths.")
+            target_path = (dest_dir / member.filename).resolve()
+            try:
+                target_path.relative_to(dest_root)
+            except ValueError as exc:
+                raise ValueError("Zip contains unsafe paths.") from exc
         archive.extractall(dest_dir)
 
 

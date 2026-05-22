@@ -49,6 +49,15 @@ export function useProjectHealth() {
     error.value = ''
     try {
       const response = await get<DashboardHealthResponse>('/api/dashboard/health')
+      if (!response || typeof response !== 'object' || Array.isArray(response)) {
+        throw new Error('Dashboard API returned an invalid payload.')
+      }
+      const requiredSections = ['knowledge', 'logbook', 'autotest', 'documents', 'recent_activity'] as const
+      for (const key of requiredSections) {
+        if (!(key in response)) {
+          throw new Error(`Dashboard API payload is missing '${key}'.`)
+        }
+      }
       data.value = adaptDashboardHealth(response)
     } catch (err: unknown) {
       const apiError = err as { message?: string; detail?: string }

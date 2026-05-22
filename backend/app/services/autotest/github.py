@@ -40,6 +40,7 @@ def get_repo_info(repo_url: str) -> dict[str, object]:
         "default_branch": "",
         "provider": "github",
         "clone_supported": False,
+        "analysis_scope": "queued_local_intake_only",
     }
 
 

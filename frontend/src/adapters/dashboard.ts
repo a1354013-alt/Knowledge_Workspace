@@ -1,4 +1,4 @@
-import type { DashboardHealthResponse } from '../generated/api-types'
+import type { DashboardHealthResponse } from '../api/generated/api-types'
 
 export type DashboardHealthViewModel = Omit<DashboardHealthResponse, 'knowledge' | 'autotest'> & {
   knowledge: Omit<DashboardHealthResponse['knowledge'], 'by_status'> & {

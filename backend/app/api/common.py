@@ -290,15 +290,26 @@ def side_effect_warning(base_message: str, warning: str | None) -> str:
     return f"{base_message} Warning: {detail}"
 
 
+def _detailed_side_effect_warning(*, action: str, label: str, exc: Exception | None = None, fallback: str = "") -> str:
+    detail = str(exc or "").strip() or fallback.strip()
+    if detail:
+        return f"{label} {action} failed: {detail}"
+    return f"{label} {action} failed."
+
+
 def run_index_side_effect(*, label: str, item_id: str, operation: Callable[[], object]) -> str | None:
     try:
         result = operation()
     except Exception as exc:
         logger.warning("%s indexing failed for %s: %s", label, item_id, exc)
-        return f"{label} indexing failed."
+        return _detailed_side_effect_warning(action="indexing", label=label, exc=exc)
     if result is False:
         logger.warning("%s indexing failed for %s without an exception", label, item_id)
-        return f"{label} indexing failed."
+        return _detailed_side_effect_warning(
+            action="indexing",
+            label=label,
+            fallback="The vector index is unavailable or the indexing operation returned a degraded status.",
+        )
     return None
 
 
@@ -307,10 +318,14 @@ def run_deindex_side_effect(*, label: str, item_id: str, operation: Callable[[],
         result = operation()
     except Exception as exc:
         logger.warning("%s de-index failed for %s: %s", label, item_id, exc)
-        return f"{label} de-index failed."
+        return _detailed_side_effect_warning(action="de-index", label=label, exc=exc)
     if result is False:
         logger.warning("%s de-index failed for %s without an exception", label, item_id)
-        return f"{label} de-index failed."
+        return _detailed_side_effect_warning(
+            action="de-index",
+            label=label,
+            fallback="The vector index is unavailable or the de-index operation returned a degraded status.",
+        )
     return None
 
 

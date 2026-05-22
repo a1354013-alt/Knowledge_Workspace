@@ -121,10 +121,11 @@ async def sync_document_index(document: dict) -> None:
             int(document["is_active"]),
         )
     except Exception as exc:
+        detail = str(exc)
         db.update_document(
             document["doc_id"],
-            index_status="failed",
-            index_error=str(exc),
+            index_status="unavailable" if "vector index unavailable" in detail.lower() else "failed",
+            index_error=detail,
             indexed_at="",
         )
         raise

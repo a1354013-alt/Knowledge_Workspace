@@ -20,6 +20,12 @@ _COLLECTION = None
 _KB_COLLECTION = None
 
 
+def vector_db_unavailable_reason() -> str:
+    if chromadb is None:
+        return "Vector index unavailable: chromadb is not installed."
+    return "Vector index unavailable: chromadb could not be initialized."
+
+
 def get_embedding_function():
     global _EMBEDDING_FUNCTION
     if _EMBEDDING_FUNCTION is not None:
@@ -92,10 +98,11 @@ def get_kb_collection():
 
 def add_to_vector_db(doc_id: str, chunks: list[str], metadata_list: list[dict[str, Any]]) -> bool:
     if chromadb is None:
-        logger.warning('chromadb not installed; skipping vector indexing for %s.', doc_id)
-        return True
+        logger.warning("%s Document %s was not indexed.", vector_db_unavailable_reason(), doc_id)
+        return False
     collection = get_collection()
     if collection is None:
+        logger.warning("%s Document %s was not indexed.", vector_db_unavailable_reason(), doc_id)
         return False
     try:
         ids = [f"{doc_id}_{index}" for index in range(len(chunks))]
@@ -128,10 +135,11 @@ def query_vector_db(question: str, user_id: str, n_results: int = 5) -> list[tup
 
 def add_to_kb_vector_db(item_id: str, chunks: list[str], metadata_list: list[dict[str, Any]]) -> bool:
     if chromadb is None:
-        logger.warning('chromadb not installed; skipping kb vector indexing for %s.', item_id)
-        return True
+        logger.warning("%s Knowledge item %s was not indexed.", vector_db_unavailable_reason(), item_id)
+        return False
     collection = get_kb_collection()
     if collection is None:
+        logger.warning("%s Knowledge item %s was not indexed.", vector_db_unavailable_reason(), item_id)
         return False
     try:
         ids = [f"{item_id}_{index}" for index in range(len(chunks))]
@@ -164,10 +172,11 @@ def query_kb_vector_db(question: str, user_id: str, n_results: int = 5) -> list[
 
 def delete_from_vector_db(doc_id: str) -> bool:
     if chromadb is None:
-        logger.warning('chromadb not installed; nothing to delete for %s.', doc_id)
-        return True
+        logger.warning("%s Document %s was not de-indexed.", vector_db_unavailable_reason(), doc_id)
+        return False
     collection = get_collection()
     if collection is None:
+        logger.warning("%s Document %s was not de-indexed.", vector_db_unavailable_reason(), doc_id)
         return False
     try:
         collection.delete(where={"doc_id": doc_id})
@@ -179,10 +188,11 @@ def delete_from_vector_db(doc_id: str) -> bool:
 
 def delete_from_kb_vector_db(item_id: str) -> bool:
     if chromadb is None:
-        logger.warning('chromadb not installed; nothing to delete for %s.', item_id)
-        return True
+        logger.warning("%s Knowledge item %s was not de-indexed.", vector_db_unavailable_reason(), item_id)
+        return False
     collection = get_kb_collection()
     if collection is None:
+        logger.warning("%s Knowledge item %s was not de-indexed.", vector_db_unavailable_reason(), item_id)
         return False
     try:
         collection.delete(where={"item_id": item_id})

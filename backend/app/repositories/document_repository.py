@@ -28,7 +28,7 @@ class DocumentRepositoryMixin:
     ) -> bool:
         if status not in DOC_STATUS_VALUES and status not in WORKFLOW_STATUS_VALUES:
             raise ValueError(f"Unsupported document status: {status}")
-        if index_status not in {"pending", "indexed", "failed"}:
+        if index_status not in {"pending", "indexed", "failed", "unavailable"}:
             raise ValueError(f"Unsupported document index_status: {index_status}")
         now = utc_now_iso()
         is_active = 0 if status == "archived" else 1
@@ -117,7 +117,7 @@ class DocumentRepositoryMixin:
                 params.append(0 if status_value == "archived" else 1)
         if "index_status" in updates:
             index_status = str(updates["index_status"] or "").strip()
-            if index_status not in {"pending", "indexed", "failed"}:
+            if index_status not in {"pending", "indexed", "failed", "unavailable"}:
                 raise ValueError(f"Unsupported document index_status: {index_status}")
             columns.append("index_status = ?")
             params.append(index_status)

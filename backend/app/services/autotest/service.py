@@ -85,6 +85,7 @@ __all__ = [
 def get_autotest_capabilities() -> AutoTestCapabilitiesResponse:
     return _get_autotest_capabilities()
 
+
 async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunResponse:
     user_id = current_user["sub"]
     if is_real_autotest_requested() and not is_real_autotest_enabled():
@@ -115,6 +116,11 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
     timeline = initial_autotest_timeline(source_ref=source_ref, created_at=created_at)
     execution_mode = current_autotest_execution_mode()
     project_name = Path(file.filename).stem or "uploaded-project"
+    summary = (
+        "AutoTest queued in simulated mode. No uploaded project commands will run."
+        if execution_mode == "simulated"
+        else "AutoTest queued in real mode. Commands will run only inside the trusted local workspace policy."
+    )
 
     created = autotest_repository.create_run(
         run_id=run_id,
@@ -126,7 +132,7 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
         project_name=project_name,
         project_type="zip",
         status="queued",
-        summary="AutoTest queued.",
+        summary=summary,
         suggestion="",
         prompt_output="",
         failed_reason="",
@@ -288,7 +294,10 @@ def analyze_github_repo(payload: GitHubAnalyzeRequest, current_user: dict) -> Gi
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid GitHub URL. Use https://github.com/{owner}/{repo}.")
     repo_info_data = get_repo_info(repo_url)
     run_id = str(uuid.uuid4())
-    summary = "GitHub repository registered for queued analysis. Remote clone and remote test execution are not performed."
+    summary = (
+        "GitHub repository registered for queued local analysis intake. "
+        "Remote clone, remote test execution, and full repository scan are not performed."
+    )
     created = autotest_repository.create_run(
         run_id=run_id,
         source_type="github_repo",
@@ -309,4 +318,13 @@ def analyze_github_repo(payload: GitHubAnalyzeRequest, current_user: dict) -> Gi
     if not created:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create AutoTest run.")
     repo_info = GitHubRepoInfoResponse(**repo_info_data)
-    return GitHubAnalyzeResponse(run_id=run_id, status="queued", repo_info=repo_info)
+    return GitHubAnalyzeResponse(
+        run_id=run_id,
+        status="queued",
+        execution_mode="simulated",
+        analysis_scope="queued_local_intake_only",
+        remote_clone_performed=False,
+        report_ready=False,
+        message=summary,
+        repo_info=repo_info,
+    )

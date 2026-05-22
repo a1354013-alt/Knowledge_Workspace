@@ -55,6 +55,9 @@ async def create_saved_prompt(request: SavedPromptCreateRequest, current_user: d
         )
     else:
         warning = None
+    index_status = "indexed"
+    if warning:
+        index_status = "unavailable" if "vector index unavailable" in warning.lower() else "failed"
     return SavedPromptResponse(
         id=prompt_id,
         title=str(prompt.get("title", "")),
@@ -62,7 +65,7 @@ async def create_saved_prompt(request: SavedPromptCreateRequest, current_user: d
         tags=str(prompt.get("tags", "")),
         created_at=str(prompt.get("created_at", "")),
         updated_at=str(prompt.get("updated_at", "")),
-        index_status="failed" if warning else "indexed",
+        index_status=index_status,
         index_error=str(warning or ""),
     )
 

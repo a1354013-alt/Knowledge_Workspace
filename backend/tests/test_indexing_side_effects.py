@@ -46,6 +46,32 @@ def test_document_update_keeps_success_when_indexing_fails(
     assert "vector offline" in document["index_error"]
 
 
+def test_document_upload_reports_vector_index_unavailable(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        app_module.legacy_main,
+        "process_file",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("Vector index unavailable: chromadb is not installed.")),
+    )
+
+    response = client.post(
+        "/api/docs/upload",
+        headers=auth_headers,
+        files={"file": ("demo.txt", b"hello world", "text/plain")},
+        data={"category": "notes", "tags": "demo"},
+    )
+    assert response.status_code == 200, response.text
+    assert "vector index unavailable" in response.json()["message"].lower()
+
+    documents = app_module.db.list_documents(user_id="owner", include_archived=False)
+    assert documents[0]["index_status"] == "unavailable"
+    assert "chromadb is not installed" in documents[0]["index_error"].lower()
+
+
 def test_document_delete_keeps_success_when_deindex_fails(
     app_module,
     client: TestClient,
@@ -201,6 +227,29 @@ def test_saved_prompt_create_keeps_success_when_indexing_fails(
 
     prompts = app_module.db.list_saved_prompts(user_id="owner", limit=200)
     assert len(prompts) == 1
+
+
+def test_saved_prompt_create_reports_unavailable_vector_index(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        app_module.legacy_main,
+        "index_saved_prompt",
+        lambda prompt: (_ for _ in ()).throw(RuntimeError("Vector index unavailable: chromadb is not installed.")),
+    )
+
+    response = client.post(
+        "/api/prompts",
+        headers=auth_headers,
+        json={"title": "Prompt", "content": "Body", "tags": "demo"},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["index_status"] == "unavailable"
+    assert "vector index unavailable" in payload["index_error"].lower()
 
 
 def test_saved_prompt_delete_keeps_success_when_deindex_fails(

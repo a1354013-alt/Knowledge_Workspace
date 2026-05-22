@@ -10,21 +10,26 @@ from app.services.autotest.security import current_autotest_execution_mode
 from app.services.autotest.timeline import clamp_output
 
 logger = logging.getLogger("knowledge_workspace")
+SENSITIVE_ENV_TOKENS = ("TOKEN", "KEY", "SECRET", "PASSWORD", "DATABASE_URL")
+
+
+def _scrubbed_autotest_env(base_env: dict[str, str] | None = None) -> dict[str, str]:
+    env = dict(os.environ if base_env is None else base_env)
+    if current_autotest_execution_mode() == "real":
+        for key in list(env):
+            normalized = key.upper()
+            if any(token in normalized for token in SENSITIVE_ENV_TOKENS):
+                env.pop(key, None)
+    env.setdefault("CI", "true")
+    env.setdefault("PYTHONUNBUFFERED", "1")
+    env.setdefault("PIP_DISABLE_PIP_VERSION_CHECK", "1")
+    return env
 
 
 def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[int, str, str]:
     if not argv:
         raise ValueError("Missing command argv.")
-    env = os.environ.copy()
-    if current_autotest_execution_mode() == "real":
-        sensitive_tokens = ("TOKEN", "KEY", "SECRET", "PASSWORD", "DATABASE_URL")
-        for key in list(env):
-            normalized = key.upper()
-            if any(token in normalized for token in sensitive_tokens):
-                env.pop(key, None)
-    env.setdefault("CI", "true")
-    env.setdefault("PYTHONUNBUFFERED", "1")
-    env.setdefault("PIP_DISABLE_PIP_VERSION_CHECK", "1")
+    env = _scrubbed_autotest_env()
     preexec_fn = None
     if os.name == "posix":
         try:

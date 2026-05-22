@@ -77,7 +77,7 @@ class DocumentResponse(StrictModel):
     updated_at: str
     file_size: int
     uploaded_by: str | None = None
-    index_status: Literal["pending", "indexed", "failed"] = "pending"
+    index_status: Literal["pending", "indexed", "failed", "unavailable"] = "pending"
     index_error: str = ""
     indexed_at: str = ""
 
@@ -282,7 +282,7 @@ class SavedPromptResponse(StrictModel):
     tags: str
     created_at: str
     updated_at: str
-    index_status: Literal["indexed", "failed"] = "indexed"
+    index_status: Literal["indexed", "failed", "unavailable"] = "indexed"
     index_error: str = ""
 
 
@@ -392,11 +392,17 @@ class GitHubRepoInfoResponse(StrictModel):
     default_branch: str = ""
     provider: str = "github"
     clone_supported: bool = False
+    analysis_scope: Literal["queued_local_intake_only"] = "queued_local_intake_only"
 
 
 class GitHubAnalyzeResponse(StrictModel):
     run_id: str
     status: Literal["queued"]
+    execution_mode: Literal["simulated"] = "simulated"
+    analysis_scope: Literal["queued_local_intake_only"] = "queued_local_intake_only"
+    remote_clone_performed: bool = False
+    report_ready: bool = False
+    message: str
     repo_info: GitHubRepoInfoResponse
 
 

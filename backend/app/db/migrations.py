@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
 import uuid
 from datetime import datetime, timezone
 
-from app.core.config import get_settings
 from app.db import schema
 from app.passwords import hash_password
 
@@ -271,8 +271,7 @@ def migrate_knowledge_revisions_table(cursor: sqlite3.Cursor) -> None:
 
 
 def seed_owner_user(cursor: sqlite3.Cursor) -> None:
-    settings = get_settings()
-    password = str(settings.DEFAULT_OWNER_PASSWORD or "").strip()
+    password = str(os.getenv("DEFAULT_OWNER_PASSWORD", "")).strip()
     if not password:
         logger.warning("DEFAULT_OWNER_PASSWORD is not set; skipping owner seed.")
         return
@@ -292,8 +291,7 @@ def seed_owner_user(cursor: sqlite3.Cursor) -> None:
 
 
 def ensure_owner_password_is_current(cursor: sqlite3.Cursor) -> None:
-    settings = get_settings()
-    password = str(settings.DEFAULT_OWNER_PASSWORD or "").strip()
+    password = str(os.getenv("DEFAULT_OWNER_PASSWORD", "")).strip()
     if not password:
         return
     # If the DB already has an owner user, do not overwrite the password (security boundary).

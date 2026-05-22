@@ -61,4 +61,15 @@ describe('ProjectHealthDashboard', () => {
     expect(wrapper.text()).not.toContain('QA Count')
     expect(wrapper.text()).not.toContain('skipped')
   })
+
+  it('shows an error state when the dashboard API returns a malformed payload', async () => {
+    mocks.get.mockResolvedValueOnce([] as never)
+
+    const wrapper = mount(ProjectHealthDashboard, { global: { stubs: PrimeStubs } })
+    await Promise.resolve()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('Dashboard API returned an invalid payload.')
+    expect(wrapper.text()).toContain('Retry')
+  })
 })

@@ -48,7 +48,12 @@ describe('AutoTestPanel flows', () => {
   })
 
   it('runs autotest upload through the shared API client helper', async () => {
-    autotestMocks.startAutoTest.mockResolvedValueOnce({ id: 'r1', status: 'passed', steps: [] })
+    autotestMocks.startAutoTest.mockResolvedValueOnce({
+      id: 'r1',
+      status: 'passed',
+      summary: 'AutoTest queued in simulated mode. No uploaded project commands will run.',
+      steps: [],
+    })
 
     const wrapper = mount(AutoTestPanel, { global: { stubs: PrimeStubs } })
     const vm = wrapper.vm as any
@@ -61,7 +66,12 @@ describe('AutoTestPanel flows', () => {
   })
 
   it('polls the async autotest run until it reaches a terminal state', async () => {
-    autotestMocks.startAutoTest.mockResolvedValueOnce({ id: 'r-queued', status: 'queued', steps: [] })
+    autotestMocks.startAutoTest.mockResolvedValueOnce({
+      id: 'r-queued',
+      status: 'queued',
+      summary: 'AutoTest queued in simulated mode. No uploaded project commands will run.',
+      steps: [],
+    })
     autotestMocks.getAutoTestRun.mockResolvedValueOnce({ id: 'r-queued', status: 'passed', steps: [] })
 
     const wrapper = mount(AutoTestPanel, { global: { stubs: PrimeStubs } })
@@ -71,7 +81,12 @@ describe('AutoTestPanel flows', () => {
     await vm.runAutoTest()
 
     expect(autotestMocks.getAutoTestRun).toHaveBeenCalledWith('r-queued')
-    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ summary: 'Run queued' }))
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: 'Run queued',
+        detail: expect.stringContaining('simulated mode'),
+      })
+    )
     expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ summary: 'Run completed', detail: 'passed' }))
   })
 

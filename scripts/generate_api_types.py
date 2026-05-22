@@ -9,7 +9,19 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OPENAPI_PATH = ROOT / "docs" / "openapi.json"
-OUT_PATH = ROOT / "frontend" / "src" / "generated" / "api-types.ts"
+OUT_PATH = ROOT / "frontend" / "src" / "api" / "generated" / "api-types.ts"
+
+
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        normalized = str(value).strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(normalized)
+    return ordered
 
 
 def schema_to_ts(name: str, schema: dict) -> str:
@@ -25,15 +37,27 @@ def schema_to_ts(name: str, schema: dict) -> str:
     return f"export type {name} = {type_to_ts(schema)};"
 
 
+def object_to_ts(schema: dict) -> str:
+    props = schema.get("properties", {})
+    if not props:
+        return "Record<string, unknown>"
+    required = set(schema.get("required", []))
+    entries: list[str] = []
+    for key, prop in sorted(props.items()):
+        optional = "" if key in required else "?"
+        entries.append(f"{key}{optional}: {type_to_ts(prop)}")
+    return "{ " + "; ".join(entries) + " }"
+
+
 def type_to_ts(schema: dict) -> str:
     if "$ref" in schema:
         return str(schema["$ref"]).rsplit("/", 1)[-1]
     if "const" in schema:
         return json.dumps(schema["const"])
     if "anyOf" in schema:
-        return " | ".join(type_to_ts(item) for item in schema["anyOf"])
+        return " | ".join(_dedupe_preserve_order([type_to_ts(item) for item in schema["anyOf"]]))
     if "enum" in schema:
-        return " | ".join(json.dumps(value) for value in schema["enum"])
+        return " | ".join(_dedupe_preserve_order([json.dumps(value) for value in schema["enum"]]))
     kind = schema.get("type")
     if kind == "array":
         return f"{type_to_ts(schema.get('items', {}))}[]"
@@ -42,7 +66,7 @@ def type_to_ts(schema: dict) -> str:
     if kind == "boolean":
         return "boolean"
     if kind == "object":
-        return "Record<string, unknown>"
+        return object_to_ts(schema)
     if kind == "null":
         return "null"
     return "string" if kind == "string" else "unknown"
