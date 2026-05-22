@@ -36,7 +36,7 @@ export default defineConfig({
           if (!id.includes('node_modules')) {
             return undefined
           }
-          // Split heavy UI dependencies into multiple predictable chunks to reduce first-load pressure.
+          // Split shared UI dependencies by usage profile so the app shell does not inherit the full PrimeVue surface area.
           if (id.includes('axios')) {
             return 'http-vendor'
           }
@@ -44,9 +44,21 @@ export default defineConfig({
             return 'prime-style'
           }
           if (id.includes('primevue')) {
-            const heavy = ['/datatable', '/column', '/dialog', '/dropdown', '/chips', '/textarea', '/password']
-            if (heavy.some((part) => id.includes(part))) {
-              return 'prime-heavy'
+            const shell = ['/button', '/card', '/inputtext', '/password']
+            const feedback = ['/toast', '/toastservice', '/usetoast']
+            const dataEntry = ['/dialog', '/dropdown', '/multiselect', '/chips', '/textarea']
+            const dataGrid = ['/datatable', '/column']
+            if (shell.some((part) => id.includes(part))) {
+              return 'prime-shell'
+            }
+            if (feedback.some((part) => id.includes(part))) {
+              return 'prime-feedback'
+            }
+            if (dataEntry.some((part) => id.includes(part))) {
+              return 'prime-data-entry'
+            }
+            if (dataGrid.some((part) => id.includes(part))) {
+              return 'prime-data-grid'
             }
             return 'prime-core'
           }

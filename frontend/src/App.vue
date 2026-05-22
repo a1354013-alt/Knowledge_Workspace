@@ -69,164 +69,51 @@
       </header>
 
       <main class="main-grid">
-        <TabView :lazy="true">
-          <TabPanel
-            header="Health"
-            value="health"
+        <nav
+          class="tab-strip"
+          aria-label="Workspace sections"
+        >
+          <button
+            v-for="tab in tabs"
+            :key="tab.key"
+            type="button"
+            class="tab-chip"
+            :class="{ 'tab-chip-active': tab.key === activeTabKey }"
+            :aria-pressed="tab.key === activeTabKey"
+            @click="selectTab(tab.key)"
+            @mouseenter="tab.preload()"
+            @focus="tab.preload()"
           >
-            <Suspense>
-              <ProjectHealthDashboard />
-              <template #fallback>
-                <div class="panel-loading">
-                  Loading…
-                </div>
-              </template>
-            </Suspense>
-          </TabPanel>
-          <TabPanel
-            header="Activity"
-            value="activity"
-          >
-            <Suspense>
-              <ActivityDashboard />
-              <template #fallback>
-                <div class="panel-loading">
-                  Loading…
-                </div>
-              </template>
-            </Suspense>
-          </TabPanel>
-          <TabPanel
-            header="Search"
-            value="search"
-          >
-            <Suspense>
-              <GlobalSearchPanel />
-              <template #fallback>
-                <div class="panel-loading">
-                  Loading…
-                </div>
-              </template>
-            </Suspense>
-          </TabPanel>
-          <TabPanel
-            header="Knowledge Base"
-            value="knowledge"
-          >
-            <Suspense>
-              <KnowledgeBase />
-              <template #fallback>
-                <div class="panel-loading">
-                  Loading…
-                </div>
-              </template>
-            </Suspense>
-          </TabPanel>
-          <TabPanel
-            header="Problem Logbook"
-            value="logbook"
-          >
-            <Suspense>
-              <LogbookPanel />
-              <template #fallback>
-                <div class="panel-loading">
-                  Loading…
-                </div>
-              </template>
-            </Suspense>
-          </TabPanel>
-          <TabPanel
-            header="Documents & Photos"
-            value="docsPhotos"
-          >
-            <Suspense>
-              <DocsPhotosPanel />
-              <template #fallback>
-                <div class="panel-loading">
-                  Loading…
-                </div>
-              </template>
-            </Suspense>
-          </TabPanel>
-          <TabPanel
-            header="Auto Test"
-            value="autotest"
-          >
-            <Suspense>
-              <AutoTestPanel />
-              <template #fallback>
-                <div class="panel-loading">
-                  Loading…
-                </div>
-              </template>
-            </Suspense>
-          </TabPanel>
-          <TabPanel
-            header="Prompts"
-            value="prompts"
-          >
-            <Suspense>
-              <PromptsPanel />
-              <template #fallback>
-                <div class="panel-loading">
-                  Loading…
-                </div>
-              </template>
-            </Suspense>
-          </TabPanel>
-          <TabPanel
-            header="Generator"
-            value="generator"
-          >
-            <Suspense>
-              <TemplateGeneratorPanel />
-              <template #fallback>
-                <div class="panel-loading">
-                  Loading…
-                </div>
-              </template>
-            </Suspense>
-          </TabPanel>
-          <TabPanel
-            header="Settings"
-            value="settings"
-          >
-            <Suspense>
-              <SettingsPanel :current-user="currentUser" />
-              <template #fallback>
-                <div class="panel-loading">
-                  Loading…
-                </div>
-              </template>
-            </Suspense>
-          </TabPanel>
-        </TabView>
+            {{ tab.label }}
+          </button>
+        </nav>
+
+        <section class="tab-panel-shell">
+          <Suspense>
+            <component
+              :is="activeTab.component"
+              v-bind="activeTabProps"
+            />
+            <template #fallback>
+              <div class="panel-loading">
+                Loading...
+              </div>
+            </template>
+          </Suspense>
+        </section>
       </main>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, markRaw, onBeforeUnmount, onMounted, ref, type AsyncComponentLoader, type Component } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
-import TabPanel from 'primevue/tabpanel'
-import TabView from 'primevue/tabview'
 import Toast from 'primevue/toast'
-
-const ProjectHealthDashboard = defineAsyncComponent(() => import('./components/ProjectHealthDashboard.vue'))
-const ActivityDashboard = defineAsyncComponent(() => import('./components/ActivityDashboard.vue'))
-const GlobalSearchPanel = defineAsyncComponent(() => import('./components/GlobalSearchPanel.vue'))
-const KnowledgeBase = defineAsyncComponent(() => import('./components/KnowledgeBase.vue'))
-const LogbookPanel = defineAsyncComponent(() => import('./components/LogbookPanel.vue'))
-const DocsPhotosPanel = defineAsyncComponent(() => import('./components/DocsPhotosPanel.vue'))
-const AutoTestPanel = defineAsyncComponent(() => import('./components/AutoTestPanel.vue'))
-const PromptsPanel = defineAsyncComponent(() => import('./components/PromptsPanel.vue'))
-const TemplateGeneratorPanel = defineAsyncComponent(() => import('./components/TemplateGeneratorPanel.vue'))
-const SettingsPanel = defineAsyncComponent(() => import('./components/SettingsPanel.vue'))
 
 import { createInitialUser } from './app-state'
 import { get, post } from './api'
@@ -234,14 +121,63 @@ import { clearToken, onUnauthorized, restoreToken, setToken } from './auth'
 import { useWorkspaceStore } from './workspace-store'
 import type { LoginRequest, LoginResponse, MeResponse } from './types'
 
+type TabKey =
+  | 'health'
+  | 'activity'
+  | 'search'
+  | 'knowledge'
+  | 'logbook'
+  | 'docsPhotos'
+  | 'autotest'
+  | 'prompts'
+  | 'generator'
+  | 'settings'
+
+type LazyTab = {
+  key: TabKey
+  label: string
+  component: Component
+  preload: AsyncComponentLoader<Component>
+}
+
+function lazyTab(key: TabKey, label: string, loader: AsyncComponentLoader<Component>): LazyTab {
+  return {
+    key,
+    label,
+    component: markRaw(defineAsyncComponent(loader)),
+    preload: loader,
+  }
+}
+
+const tabs: readonly LazyTab[] = [
+  lazyTab('health', 'Health', () => import('./components/ProjectHealthDashboard.vue')),
+  lazyTab('activity', 'Activity', () => import('./components/ActivityDashboard.vue')),
+  lazyTab('search', 'Search', () => import('./components/GlobalSearchPanel.vue')),
+  lazyTab('knowledge', 'Knowledge Base', () => import('./components/KnowledgeBase.vue')),
+  lazyTab('logbook', 'Problem Logbook', () => import('./components/LogbookPanel.vue')),
+  lazyTab('docsPhotos', 'Documents & Photos', () => import('./components/DocsPhotosPanel.vue')),
+  lazyTab('autotest', 'Auto Test', () => import('./components/AutoTestPanel.vue')),
+  lazyTab('prompts', 'Prompts', () => import('./components/PromptsPanel.vue')),
+  lazyTab('generator', 'Generator', () => import('./components/TemplateGeneratorPanel.vue')),
+  lazyTab('settings', 'Settings', () => import('./components/SettingsPanel.vue')),
+]
+
 const toast = useToast()
 
 const loginLoading = ref(false)
 const currentUser = ref(createInitialUser())
 const loginForm = ref<LoginRequest>({ user_id: '', password: '' })
 const workspaceStore = useWorkspaceStore()
+const activeTabKey = ref<TabKey>('health')
 
 const isLoggedIn = computed(() => Boolean(currentUser.value.user_id))
+const activeTab = computed(() => tabs.find((tab) => tab.key === activeTabKey.value) ?? tabs[0])
+const activeTabProps = computed(() => (activeTab.value.key === 'settings' ? { currentUser: currentUser.value } : {}))
+
+function selectTab(tabKey: TabKey) {
+  activeTabKey.value = tabKey
+  activeTab.value.preload()
+}
 
 async function login() {
   if (!loginForm.value.user_id || !loginForm.value.password) {
@@ -293,6 +229,7 @@ const removeUnauthorizedListener = onUnauthorized((event) => {
 })
 
 onMounted(async () => {
+  activeTab.value.preload()
   try {
     await bootstrapSession()
   } catch (error: unknown) {
@@ -358,6 +295,47 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 20px;
+}
+
+.tab-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.tab-chip {
+  border: 1px solid rgba(38, 63, 103, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: #1f2f46;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.tab-chip:hover,
+.tab-chip:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.12);
+  outline: none;
+}
+
+.tab-chip-active {
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+}
+
+.tab-panel-shell {
+  min-width: 0;
 }
 
 .stack-md {
