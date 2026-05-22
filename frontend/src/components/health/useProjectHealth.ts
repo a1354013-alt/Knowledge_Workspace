@@ -2,6 +2,7 @@ import { onMounted, ref } from 'vue'
 
 import { adaptDashboardHealth, type DashboardHealthViewModel } from '../../adapters/dashboard'
 import { get } from '../../api'
+import { apiPaths } from '../../api/endpoints'
 import type { DashboardHealthResponse } from '../../types'
 
 export function formatPercentage(value: number | undefined): string {
@@ -48,7 +49,7 @@ export function useProjectHealth() {
     loading.value = true
     error.value = ''
     try {
-      const response = await get<DashboardHealthResponse>('/api/dashboard/health')
+      const response = await get<DashboardHealthResponse>(apiPaths.dashboard.health)
       if (!response || typeof response !== 'object' || Array.isArray(response)) {
         throw new Error('Dashboard API returned an invalid payload.')
       }

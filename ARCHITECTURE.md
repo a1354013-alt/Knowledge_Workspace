@@ -18,7 +18,7 @@ flowchart LR
 
 ## Frontend
 
-The Vue app uses typed API helpers in `frontend/src/api.ts` and domain helpers such as `frontend/src/autotest-api.ts`. Shared hand-maintained types remain in `frontend/src/types`, and generated OpenAPI types are written to `frontend/src/api/generated/api-types.ts`.
+The backend OpenAPI schema is the API contract source of truth. The Vue app uses typed API helpers in `frontend/src/api.ts`, centralized endpoint helpers in `frontend/src/api/endpoints.ts`, and generated contract types in `frontend/src/api/generated/api-types.ts`. `frontend/src/types` should only re-export generated contract types plus UI-only client state types that do not belong in the backend schema.
 
 ## Database
 
@@ -30,6 +30,22 @@ ZIP upload -> guarded extraction -> stack detection -> fixed command plan -> sim
 
 Real mode requires `AUTOTEST_MODE=real` and `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`.
 
+The current worker model is intentionally local-first and in-process:
+
+- `/api/autotest/run` persists a queued run, then starts a daemon thread in the backend process
+- run status heartbeats use `updated_at` refreshes during execution
+- startup recovery marks stale queued/running jobs failed so runs do not stay stuck forever after a restart
+- this is not a production-durable queue; a crash can still interrupt active work until RQ/Celery/another external worker is introduced
+
+Real mode is guarded execution, not a true sandbox. For production-style isolation, use:
+
+- container or VM isolation
+- non-root execution
+- read-only workspace/root filesystem
+- network egress restriction
+- CPU, memory, and disk quotas
+- disposable workspace directories
+
 ## Search Flow
 
 Global search returns typed item summaries. The built-in index uses a deterministic lightweight hash embedding so the project stays reproducible in CI and dependency-light local environments. It is useful for demos and stable tests, but it is not a full semantic understanding model. When vector indexing is unavailable, the app falls back further to deterministic keyword-style matching. A real embedding-provider integration would be the path to production-grade semantic search.
@@ -37,3 +53,7 @@ Global search returns typed item summaries. The built-in index uses a determinis
 ## Release Flow
 
 Release packaging copies backend, frontend, scripts, and docs into a temporary tree, builds the frontend, removes runtime artifacts, creates a ZIP, and verifies required docs plus forbidden paths.
+
+## Deprecation Status
+
+`backend/app/api/legacy_main.py` and `backend/app/db/legacy_database.py` are compatibility bridges, not the preferred architecture entrypoints. See `docs/DEPRECATION.md` for the current role and removal conditions.

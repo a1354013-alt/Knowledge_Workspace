@@ -286,6 +286,48 @@ def test_autotest_report_generation_failure_sets_failed(app_module, client: Test
     assert payload["failed_reason"] == ""
 
 
+def test_autotest_pass_side_effect_failure_keeps_terminal_status(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
+    from app.services.autotest import job_reporter
+
+    monkeypatch.setattr(
+        job_reporter,
+        "create_passed_knowledge_draft",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("knowledge side effect exploded")),
+    )
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(), "application/zip")},
+    )
+    assert response.status_code == 202, response.text
+    payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
+    assert payload["status"] == "passed"
+    assert payload["failed_reason"] == ""
+    assert payload["timeline"][-1]["status"] == "skipped"
+
+
+def test_autotest_failed_side_effect_failure_keeps_terminal_status(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
+    from app.services.autotest import job_reporter
+
+    monkeypatch.setattr(
+        job_reporter,
+        "create_failed_logbook_draft",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("logbook side effect exploded")),
+    )
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_zip(marker_fail_step="test"), "application/zip")},
+    )
+    assert response.status_code == 202, response.text
+    payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
+    assert payload["status"] == "failed"
+    assert payload["failed_reason"]
+    assert payload["timeline"][-1]["status"] == "failed"
+
+
 def test_autotest_real_mode_executes_commands_when_enabled(
     app_module,
     client: TestClient,

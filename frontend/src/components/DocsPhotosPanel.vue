@@ -9,6 +9,13 @@
       </template>
       <template #content>
         <div class="stack-md">
+          <p
+            v-if="docLoadMessage"
+            class="inline-status"
+            :class="{ 'inline-status-warning': showDocReloadWarning }"
+          >
+            {{ docLoadMessage }}
+          </p>
           <div class="row">
             <input
               ref="docInput"
@@ -152,6 +159,13 @@
       </template>
       <template #content>
         <div class="stack-md">
+          <p
+            v-if="photoLoadMessage"
+            class="inline-status"
+            :class="{ 'inline-status-warning': showPhotoReloadWarning }"
+          >
+            {{ photoLoadMessage }}
+          </p>
           <div class="row">
             <input
               ref="photoInput"
@@ -362,6 +376,7 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
 import { del, get, patch, post } from '../api'
+import { apiPaths } from '../api/endpoints'
 import { useWorkspaceStore } from '../workspace-store'
 import { downloadBlob, openBlobInNewTab } from '../utils/blob'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
@@ -424,6 +439,10 @@ const filteredDocuments = computed(() => {
     return haystack.includes(query)
   })
 })
+const docLoadMessage = computed(() => store.state.error.documents || '')
+const photoLoadMessage = computed(() => store.state.error.photos || '')
+const showDocReloadWarning = computed(() => store.state.status.documents === 'error' && documents.value.length > 0)
+const showPhotoReloadWarning = computed(() => store.state.status.photos === 'error' && photos.value.length > 0)
 
 function openDocPicker() {
   docInput.value?.click()
@@ -448,8 +467,15 @@ async function loadDocuments() {
   try {
     await store.refreshDocuments({ force: true })
     documents.value = store.state.lists.documents || []
-  } catch {
-    documents.value = []
+  } catch (error: unknown) {
+    documents.value = store.state.lists.documents || []
+    const apiError = error as { message?: string }
+    toast.add({
+      severity: documents.value.length ? 'warn' : 'error',
+      summary: 'Documents reload failed',
+      detail: apiError?.message || store.state.error.documents || 'Request failed.',
+      life: 4000,
+    })
   } finally {
     loadingDocs.value = false
   }
@@ -467,7 +493,7 @@ async function uploadDoc() {
     formData.append('file', selectedDoc.value)
     formData.append('category', docCategory.value || '')
     formData.append('tags', docTags.value || '')
-    const response = await post<UploadDocumentResponse, FormData>('/api/docs/upload', formData, {
+    const response = await post<UploadDocumentResponse, FormData>(apiPaths.docs.upload, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     toast.add({ severity: 'success', summary: 'Uploaded', detail: response.message || 'Document uploaded.', life: 3000 })
@@ -491,8 +517,15 @@ async function loadPhotos() {
   try {
     await store.refreshPhotos({ force: true })
     photos.value = store.state.lists.photos || []
-  } catch {
-    photos.value = []
+  } catch (error: unknown) {
+    photos.value = store.state.lists.photos || []
+    const apiError = error as { message?: string }
+    toast.add({
+      severity: photos.value.length ? 'warn' : 'error',
+      summary: 'Photos reload failed',
+      detail: apiError?.message || store.state.error.photos || 'Request failed.',
+      life: 4000,
+    })
   } finally {
     loadingPhotos.value = false
   }
@@ -510,7 +543,7 @@ async function uploadPhoto() {
     formData.append('file', selectedPhoto.value)
     formData.append('tags', photoTags.value || '')
     formData.append('description', photoDescription.value || '')
-    const response = await post<UploadPhotoResponse, FormData>('/api/photos/upload', formData, {
+    const response = await post<UploadPhotoResponse, FormData>(apiPaths.photos.upload, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     toast.add({ severity: 'success', summary: 'Uploaded', detail: response.message || 'Image saved.', life: 3000 })
@@ -552,7 +585,7 @@ async function previewDocument(doc: DocumentResponse) {
     return
   }
   try {
-    const blob = await get<Blob>(`/api/docs/${doc.id}/download`, { params: { inline: 1 }, responseType: 'blob' })
+    const blob = await get<Blob>(apiPaths.docs.download(doc.id), { params: { inline: 1 }, responseType: 'blob' })
     openBlobInNewTab(blob)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
@@ -565,7 +598,7 @@ async function downloadDocument(doc: DocumentResponse) {
     return
   }
   try {
-    const blob = await get<Blob>(`/api/docs/${doc.id}/download`, { responseType: 'blob' })
+    const blob = await get<Blob>(apiPaths.docs.download(doc.id), { responseType: 'blob' })
     downloadBlob(blob, doc.filename || `document-${doc.id}`)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
@@ -597,7 +630,7 @@ async function saveDocEditor() {
       tags: String(docEditor.value.tags || ''),
       status: docEditor.value.status || 'reviewed',
     }
-    await patch<MessageResponse, DocumentUpdateRequest>(`/api/docs/${docEditor.value.id}`, payload)
+    await patch<MessageResponse, DocumentUpdateRequest>(apiPaths.docs.detail(docEditor.value.id), payload)
     toast.add({ severity: 'success', summary: 'Saved', detail: 'Document updated.', life: 2500 })
     docEditorVisible.value = false
     await loadDocuments()
@@ -617,7 +650,7 @@ async function archiveDocument(doc: DocumentResponse) {
     return
   }
   try {
-    await patch<MessageResponse, DocumentUpdateRequest>(`/api/docs/${doc.id}`, { status: 'archived' })
+    await patch<MessageResponse, DocumentUpdateRequest>(apiPaths.docs.detail(doc.id), { status: 'archived' })
     toast.add({ severity: 'success', summary: 'Archived', detail: 'Document archived.', life: 2500 })
     await loadDocuments()
   } catch (error: unknown) {
@@ -634,7 +667,7 @@ async function deleteDocument(doc: DocumentResponse) {
     return
   }
   try {
-    await del<MessageResponse>(`/api/docs/${doc.id}`)
+    await del<MessageResponse>(apiPaths.docs.detail(doc.id))
     toast.add({ severity: 'success', summary: 'Deleted', detail: 'Document deleted.', life: 2500 })
     await loadDocuments()
     if (selectedRelatedItemId.value === `document:${doc.id}`) {
@@ -651,7 +684,7 @@ async function previewPhoto(photo: PhotoResponse) {
     return
   }
   try {
-    const blob = await get<Blob>(`/api/photos/${photo.id}/download`, { params: { inline: 1 }, responseType: 'blob' })
+    const blob = await get<Blob>(apiPaths.photos.download(photo.id), { params: { inline: 1 }, responseType: 'blob' })
     openBlobInNewTab(blob)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
@@ -664,7 +697,7 @@ async function downloadPhoto(photo: PhotoResponse) {
     return
   }
   try {
-    const blob = await get<Blob>(`/api/photos/${photo.id}/download`, { responseType: 'blob' })
+    const blob = await get<Blob>(apiPaths.photos.download(photo.id), { responseType: 'blob' })
     downloadBlob(blob, photo.filename || `photo-${photo.id}`)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
@@ -696,7 +729,7 @@ async function savePhotoEditor() {
       description: String(photoEditor.value.description || ''),
       status: photoEditor.value.status || 'reviewed',
     }
-    await patch<MessageResponse, PhotoUpdateRequest>(`/api/photos/${photoEditor.value.id}`, payload)
+    await patch<MessageResponse, PhotoUpdateRequest>(apiPaths.photos.detail(photoEditor.value.id), payload)
     toast.add({ severity: 'success', summary: 'Saved', detail: 'Photo updated.', life: 2500 })
     photoEditorVisible.value = false
     await loadPhotos()
@@ -716,7 +749,7 @@ async function deletePhoto(photo: PhotoResponse) {
     return
   }
   try {
-    await del<MessageResponse>(`/api/photos/${photo.id}`)
+    await del<MessageResponse>(apiPaths.photos.detail(photo.id))
     toast.add({ severity: 'success', summary: 'Deleted', detail: 'Photo deleted.', life: 2500 })
     await loadPhotos()
     if (selectedRelatedItemId.value === `photo:${photo.id}`) {
@@ -756,6 +789,16 @@ async function deletePhoto(photo: PhotoResponse) {
 .muted {
   color: #51606f;
   font-size: 13px;
+}
+
+.inline-status {
+  margin: 0;
+  color: #b45309;
+  font-size: 13px;
+}
+
+.inline-status-warning {
+  font-weight: 600;
 }
 
 .actions-inline {

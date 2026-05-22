@@ -6,13 +6,15 @@
 import axios, { AxiosError, type AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios'
 import type { AxiosInstance } from 'axios'
 import { clearToken, getToken, notifyUnauthorized } from './auth'
+import { API_TIMEOUT_MS, apiPaths } from './api/endpoints'
 import type { ApiError } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean }
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: API_TIMEOUT_MS,
 })
 
 // Request interceptor: attach auth token
@@ -45,7 +47,7 @@ apiClient.interceptors.response.use(
     }
 
     // Handle 401 Unauthorized
-    if (status === 401 && !requestUrl.includes('/api/login')) {
+    if (status === 401 && !requestUrl.includes(apiPaths.auth.login)) {
       clearToken()
       notifyUnauthorized(detail)
       return Promise.reject({
@@ -92,32 +94,32 @@ apiClient.interceptors.response.use(
 )
 
 // Export typed helper functions
-export async function get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+export async function get<T>(url: string, config?: ApiRequestConfig): Promise<T> {
   const response = await apiClient.get<T>(url, config)
   return response.data
 }
 
-export async function post<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> {
+export async function post<T, D = unknown>(url: string, data?: D, config?: ApiRequestConfig): Promise<T> {
   const response = await apiClient.post<T>(url, data, config)
   return response.data
 }
 
-export async function patch<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> {
+export async function patch<T, D = unknown>(url: string, data?: D, config?: ApiRequestConfig): Promise<T> {
   const response = await apiClient.patch<T>(url, data, config)
   return response.data
 }
 
-export async function put<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> {
+export async function put<T, D = unknown>(url: string, data?: D, config?: ApiRequestConfig): Promise<T> {
   const response = await apiClient.put<T>(url, data, config)
   return response.data
 }
 
-export async function del<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+export async function del<T>(url: string, config?: ApiRequestConfig): Promise<T> {
   const response = await apiClient.delete<T>(url, config)
   return response.data
 }
 
-export async function getBlob(url: string, config?: AxiosRequestConfig): Promise<Blob> {
+export async function getBlob(url: string, config?: ApiRequestConfig): Promise<Blob> {
   const response = await apiClient.get(url, { ...config, responseType: 'blob' })
   return response.data as Blob
 }

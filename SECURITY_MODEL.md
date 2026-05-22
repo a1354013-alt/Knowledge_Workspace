@@ -24,6 +24,17 @@ If `AUTOTEST_MODE=real` is set without the explicit enable flag, the API rejects
 
 AutoTest real mode is constrained command execution, not a hardened sandbox. Real mode should be run only inside an isolated local environment. It uses `shell=False`, fixed command timeouts, output truncation, sanitized report paths, and environment scrubbing, but those controls are not a full sandbox.
 
+Do not treat guarded execution as safe for arbitrary public ZIP uploads. Real mode is appropriate for controlled/local inputs that you trust, not for exposing uploaded code execution to unknown internet users.
+
+If you need production-style execution, add all of the following:
+
+- container or VM isolation
+- non-root user
+- read-only workspace/root filesystem
+- network egress restriction
+- CPU, memory, and disk quotas
+- disposable per-run workspace
+
 ## AutoTest Command Policy
 
 - Node install uses `npm ci --ignore-scripts --no-audit --no-fund`.
@@ -39,6 +50,8 @@ ZIP extraction rejects path traversal, absolute paths, Windows drive paths, syml
 ## Auth And Storage Limits
 
 JWT auth is intended for a local owner workflow. Frontend token storage uses browser storage, so XSS would be a serious risk in a public deployment. Use HTTPS, stronger session handling, CSRF review, and separate user roles before multi-user or public use.
+
+Password hashing is currently local-first PBKDF2-HMAC-SHA256. New hashes include the algorithm and iteration metadata, and legacy two-part PBKDF2 hashes remain readable so existing users can still log in. This is acceptable for the current local-first scope, but Argon2id would be the preferred production upgrade path if the deployment model expands.
 
 ## Dependency Audit Policy
 

@@ -1,8 +1,9 @@
-"""SQLite + vector DB persistence layer (legacy implementation).
+"""SQLite + vector DB persistence layer (legacy compatibility facade).
 
 This module is kept as the stable behavior reference while `app/db/schema.py`
 and `app/db/migrations.py` are introduced. New code should import the public
-facade: `from app.db import DocumentDatabase`.
+facade: `from app.db import DocumentDatabase`. Treat this file as a transition
+adapter, not the preferred place for new service/repository logic.
 """
 
 from __future__ import annotations

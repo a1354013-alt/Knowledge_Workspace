@@ -115,6 +115,9 @@ Responsibility split:
 - `services/*`: workflow orchestration, safety checks, formatting, and side effects
 - `repositories/*`: focused persistence queries/updates
 - `db/schema.py` + `db/migrations.py`: database contract and schema evolution
+- `docs/openapi.json`: API contract source of truth
+- `frontend/src/api/generated/api-types.ts`: generated frontend types from OpenAPI
+- `frontend/src/types/index.ts`: re-export layer plus UI-only client types
 
 ## AutoTest Safety Boundary
 
@@ -129,7 +132,7 @@ AutoTest is intentionally constrained, but it is not a sandbox.
 - subprocess execution uses `shell=False`
 - command timeout is fixed via `AUTOTEST_TIMEOUT_SECONDS`
 - `/api/autotest/run` creates an in-process background job; a backend process crash can interrupt an active run until a durable external queue is added
-- startup recovery marks stale queued/running AutoTest runs failed after `AUTOTEST_STALE_RUN_MINUTES` (default 30) with a `worker_interrupted: server_restarted` failure reason
+- the worker refreshes `updated_at` heartbeats during execution, and startup recovery marks stale queued/running AutoTest runs failed after `AUTOTEST_STALE_RUN_MINUTES` (default 30) with a `worker_interrupted: server_restarted` failure reason
 - real mode strips env vars containing:
   - `TOKEN`
   - `KEY`
@@ -145,10 +148,11 @@ Recommended usage:
 - use `real` mode only with trusted local projects
 - recommended future hardening direction:
   - Docker or Podman sandboxing
+  - disposable workspace per run
   - no-network execution
   - non-root user
-  - read-only root filesystem
-  - CPU / memory / file-size limits
+  - read-only workspace/root filesystem
+  - CPU / memory / disk / file-size limits
   - durable job queue
   - persistent logs / timeline
 
@@ -335,6 +339,7 @@ Status meanings:
 - built-in vector search uses deterministic lightweight hash embeddings for demos/tests; it is not a production semantic retrieval model
 - Chroma emits third-party deprecation warnings in tests
 - frontend verification should be run with Node `20` to match CI
+- `legacy_main.py` and `legacy_database.py` remain compatibility bridges during the refactor; see [docs/DEPRECATION.md](docs/DEPRECATION.md) for removal conditions
 
 ## Portfolio Case Study
 

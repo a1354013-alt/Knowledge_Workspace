@@ -5,19 +5,32 @@ import hmac
 import secrets
 
 PASSWORD_ITERATIONS = 120000
+PBKDF2_SCHEME = "pbkdf2_sha256"
 
 
-def hash_password(password: str, salt: str | None = None) -> str:
-    salt = salt or secrets.token_hex(16)
-    derived = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), PASSWORD_ITERATIONS)
-    return f'{salt}${derived.hex()}'
+def _derive_pbkdf2_sha256(password: str, salt: str, iterations: int) -> str:
+    derived = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), iterations)
+    return derived.hex()
+
+
+def hash_password(password: str, salt: str | None = None, *, iterations: int = PASSWORD_ITERATIONS) -> str:
+    resolved_salt = salt or secrets.token_hex(16)
+    derived = _derive_pbkdf2_sha256(password, resolved_salt, iterations)
+    return f"{PBKDF2_SCHEME}${iterations}${resolved_salt}${derived}"
 
 
 def verify_password_hash(password: str, stored_hash: str) -> bool:
-    try:
-        salt, expected = stored_hash.split('$', 1)
-    except ValueError:
-        return False
-    computed = hash_password(password, salt).split('$', 1)[1]
-    return hmac.compare_digest(computed, expected)
-
+    parts = str(stored_hash or "").split("$")
+    if len(parts) == 2:
+        salt, expected = parts
+        computed = _derive_pbkdf2_sha256(password, salt, PASSWORD_ITERATIONS)
+        return hmac.compare_digest(computed, expected)
+    if len(parts) == 4 and parts[0] == PBKDF2_SCHEME:
+        _scheme, raw_iterations, salt, expected = parts
+        try:
+            iterations = int(raw_iterations)
+        except ValueError:
+            return False
+        computed = _derive_pbkdf2_sha256(password, salt, iterations)
+        return hmac.compare_digest(computed, expected)
+    return False

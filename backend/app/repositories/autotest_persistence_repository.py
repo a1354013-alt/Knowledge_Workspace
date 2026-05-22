@@ -142,8 +142,6 @@ class AutoTestPersistenceRepositoryMixin:
             if key in updates:
                 columns.append(f"{key} = ?")
                 params.append(str(updates[key]))
-        if not columns:
-            return False
         columns.append("updated_at = ?")
         params.append(str(updates.get("updated_at") or utc_now_iso()))
         params.append(run_id)

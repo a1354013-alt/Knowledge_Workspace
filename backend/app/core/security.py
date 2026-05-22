@@ -13,8 +13,10 @@ from app.core.config import get_settings
 
 class JWTHelper:
     """Helper class for JWT token operations with enhanced security."""
-    
-    ALGORITHM = "HS256"
+
+    @staticmethod
+    def _algorithm() -> str:
+        return get_settings().JWT_ALGORITHM
     
     @classmethod
     def create_access_token(
@@ -37,7 +39,7 @@ class JWTHelper:
             "jti": str(uuid.uuid4()),  # Unique ID for blacklisting
         }
         
-        return jwt.encode(payload, settings.JWT_SECRET, algorithm=cls.ALGORITHM)
+        return jwt.encode(payload, settings.JWT_SECRET, algorithm=cls._algorithm())
     
     @classmethod
     def create_refresh_token(cls, user_id: str) -> str:
@@ -53,7 +55,7 @@ class JWTHelper:
             "jti": str(uuid.uuid4()),
         }
         
-        return jwt.encode(payload, settings.JWT_SECRET, algorithm=cls.ALGORITHM)
+        return jwt.encode(payload, settings.JWT_SECRET, algorithm=cls._algorithm())
     
     @classmethod
     def verify_token(cls, token: str, token_type: str = "access") -> dict[str, Any]:
@@ -64,7 +66,7 @@ class JWTHelper:
             payload = jwt.decode(
                 token, 
                 settings.JWT_SECRET, 
-                algorithms=[cls.ALGORITHM]
+                algorithms=[cls._algorithm()]
             )
             
             # Validate token type
@@ -108,7 +110,7 @@ class JWTHelper:
             payload = jwt.decode(
                 token, 
                 settings.JWT_SECRET, 
-                algorithms=[cls.ALGORITHM],
+                algorithms=[cls._algorithm()],
                 options={"verify_exp": False}
             )
             return payload.get("jti")

@@ -24,6 +24,7 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
   - durable failed-state marking after worker interruption
 - `backend/app/services/autotest/job_executor.py`
   - async in-process worker lifecycle
+  - run status heartbeat / `updated_at` refreshes
   - project extraction, stack detection, step ordering, and failure finalization
 - `backend/app/services/autotest/step_runner.py`
   - command step execution entrypoint
@@ -73,6 +74,8 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 
 Real mode is not a container sandbox. Treat it as trusted-code local execution only.
 It is a local trusted-workspace execution mode, not Docker isolation.
+
+Do not accept arbitrary public ZIP uploads into real mode. Guarded execution is still host execution.
 
 Sensitive env vars are stripped when their names contain:
 
@@ -136,6 +139,7 @@ Any exception after run creation must end in a consistent terminal state:
 - later phases marked `skipped` when appropriate
 - in-flight steps finalized so the frontend does not look stuck
 - ZIP/temp folders removed in `finally`
+- non-critical side effects (draft linking/indexing) must not leave the run stuck in `running`
 
 ## Frontend Expectations
 
@@ -158,6 +162,7 @@ It should not infer success/failure from missing fields or command text alone.
 
 - no container or VM isolation
 - AutoTest jobs run in an in-process background worker, not an external durable queue
+- a restart/crash is handled by stale-run recovery, but interrupted work is not resumed
 - real mode tasks fail if they exceed the configured backend command timeout
 - timeline/log updates currently use polling; SSE can be added later without changing the run contract
 - a process crash can interrupt an active worker, so a future queue should recover or requeue interrupted runs

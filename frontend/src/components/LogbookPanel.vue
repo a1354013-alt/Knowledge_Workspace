@@ -9,6 +9,13 @@
       </template>
       <template #content>
         <div class="stack-md">
+          <p
+            v-if="loadMessage"
+            class="inline-status"
+            :class="{ 'inline-status-warning': showReloadWarning }"
+          >
+            {{ loadMessage }}
+          </p>
           <div class="row">
             <Button
               label="Refresh"
@@ -268,6 +275,7 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
 import { del, patch, post } from '../api'
+import { apiPaths } from '../api/endpoints'
 import { useWorkspaceStore } from '../workspace-store'
 import type {
   AutoTestRunListItemResponse,
@@ -343,6 +351,8 @@ function createBlankEditor(): LogbookEditorModel {
 function resetForm() {
   form.value = createBlankForm()
 }
+const loadMessage = computed(() => store.state.error.logbookEntries || '')
+const showReloadWarning = computed(() => store.state.status.logbookEntries === 'error' && entries.value.length > 0)
 
 async function loadEntries() {
   loading.value = true
@@ -350,9 +360,14 @@ async function loadEntries() {
     await store.refreshLogbookEntries({ force: true })
     entries.value = store.state.lists.logbookEntries || []
   } catch (error: unknown) {
-    entries.value = []
+    entries.value = store.state.lists.logbookEntries || []
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Load failed', detail: apiError?.message || 'Request failed.', life: 3500 })
+    toast.add({
+      severity: entries.value.length ? 'warn' : 'error',
+      summary: 'Load failed',
+      detail: apiError?.message || store.state.error.logbookEntries || 'Request failed.',
+      life: 3500,
+    })
   } finally {
     loading.value = false
   }
@@ -377,7 +392,7 @@ async function saveEntry() {
 
   saving.value = true
   try {
-    await post<MessageResponse, LogbookEntryCreateRequest>('/api/logbook/entries', payload)
+    await post<MessageResponse, LogbookEntryCreateRequest>(apiPaths.logbook.list, payload)
     toast.add({ severity: 'success', summary: 'Saved', detail: 'Logbook entry indexed.', life: 3000 })
     resetForm()
     await loadEntries()
@@ -394,7 +409,7 @@ async function deleteEntry(item: LogbookEntryResponse) {
     return
   }
   try {
-    await del<MessageResponse>(`/api/logbook/entries/${item.id}`)
+    await del<MessageResponse>(apiPaths.logbook.detail(item.id))
     await loadEntries()
     toast.add({ severity: 'success', summary: 'Deleted', detail: 'Entry removed.', life: 3000 })
   } catch (error: unknown) {
@@ -411,7 +426,7 @@ async function promoteEntry(item: LogbookEntryResponse) {
     return
   }
   try {
-    const response = await post<PromoteToKnowledgeResponse>(`/api/logbook/entries/${item.id}/promote-to-knowledge`)
+    const response = await post<PromoteToKnowledgeResponse>(apiPaths.logbook.promote(item.id))
     await loadEntries()
     toast.add({ severity: 'success', summary: 'Promoted', detail: `Knowledge entry: ${response.knowledge_entry_id}`, life: 4500 })
   } catch (error: unknown) {
@@ -523,7 +538,7 @@ async function saveEditor() {
   }
   editorSaving.value = true
   try {
-    await patch<MessageResponse, LogbookEntryUpdateRequest>(`/api/logbook/entries/${editor.value.id}`, payload)
+    await patch<MessageResponse, LogbookEntryUpdateRequest>(apiPaths.logbook.detail(editor.value.id), payload)
     toast.add({ severity: 'success', summary: 'Saved', detail: 'Logbook entry updated.', life: 2500 })
     editorVisible.value = false
     await loadEntries()
@@ -560,6 +575,16 @@ async function saveEditor() {
 .actions-inline {
   display: flex;
   gap: 6px;
+}
+
+.inline-status {
+  margin: 0;
+  color: #b45309;
+  font-size: 13px;
+}
+
+.inline-status-warning {
+  font-weight: 600;
 }
 
 .picker {

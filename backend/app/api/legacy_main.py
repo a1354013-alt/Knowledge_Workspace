@@ -75,8 +75,11 @@ class _LegacyMainModule(ModuleType):
     """Compatibility bridge for tests and older imports.
 
     Older tests monkeypatch names on `app.api.legacy_main` and expect those
-    patches to reach split handler modules. Keep this bridge until tests and
-    external imports patch the concrete modules directly.
+    patches to reach split handler modules. This module is deprecated as a
+    primary entrypoint. Keep it only until:
+    1. tests patch concrete route/service modules directly,
+    2. runtime imports use `app.api.app_factory` plus routers/services, and
+    3. release notes have announced the compatibility bridge removal.
     """
 
     def __setattr__(self, name: str, value: object) -> None:

@@ -16,6 +16,7 @@
    - `python scripts/run_backend_tests.py`
    - `python scripts/export_openapi.py`
    - `python scripts/generate_api_types.py --check`
+   - `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
    - `python scripts/check_version_consistency.py`
 3. Frontend verification:
    - `cd frontend`
@@ -29,4 +30,4 @@
    - `python scripts/package_release.py --output dist`
    - `python scripts/verify_release_zip.py dist/knowledge_workspace_release.zip`
    - release zip is a clean source package; it does not include `frontend/dist`
-   - release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts
+   - release verification rejects `node_modules`, `dist`, `.env`, runtime databases/journals, caches, uploads, AutoTest workdirs, and test artifacts

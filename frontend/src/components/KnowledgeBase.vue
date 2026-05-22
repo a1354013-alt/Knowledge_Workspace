@@ -22,8 +22,10 @@
     <KnowledgeEntryList
       :filter-text="recentFilterText"
       :items="filteredRecent"
+      :load-message="loadRecentMessage"
       :loading-recent="loadingRecent"
       :selected-related-item-id="selectedRelatedItemId"
+      :show-reload-warning="showLoadRecentWarning"
       @update:filter-text="updateRecentFilterText"
       @refresh="loadRecent"
       @edit="openEditor"
@@ -68,6 +70,7 @@ const {
   entry,
   filteredRecent,
   loadRecent,
+  loadRecentMessage,
   loadingRecent,
   openEditor,
   pickerOptions,
@@ -84,6 +87,7 @@ const {
   sources,
   statusOptions,
   submitQA,
+  showLoadRecentWarning,
 } = useKnowledgeEntries()
 
 function updateEntry(value: KnowledgeEntryCreateRequest) {

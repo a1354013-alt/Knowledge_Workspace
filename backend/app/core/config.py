@@ -86,7 +86,7 @@ class Settings(BaseModel):
             repo_root = Path(__file__).resolve().parents[3]
             version_path = repo_root / "VERSION"
             app_version = version_path.read_text(encoding="utf-8").strip() or "0.0.0"
-        except Exception:
+        except OSError:
             app_version = "0.0.0"
         
         # Get allowed origins

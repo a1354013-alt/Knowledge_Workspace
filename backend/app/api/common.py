@@ -113,6 +113,60 @@ def parse_item_id(item_id: str) -> tuple[str, str]:
     return prefix, rest
 
 
+def _item_summary(
+    *,
+    item_id: str,
+    item_type: str,
+    title: str,
+    status: str,
+    created_at: str,
+    updated_at: str,
+    source_type: str = "",
+    source_ref: str = "",
+) -> ItemSummary:
+    return ItemSummary(
+        item_id=item_id,
+        item_type=item_type,
+        title=title,
+        status=status,
+        created_at=created_at,
+        updated_at=updated_at,
+        source_type=source_type,
+        source_ref=source_ref,
+    )
+
+
+def _resolve_owned_summary(
+    *,
+    item_id: str,
+    user_id: str,
+    raw_id: str,
+    getter: Callable[[str], dict[str, Any] | None],
+    owner_key: str,
+    item_type: str,
+    title_field: str,
+    default_title: str,
+    status_value: str,
+    created_key: str,
+    updated_key: str,
+    source_type_key: str = "",
+    source_ref_key: str = "",
+) -> ItemSummary | None:
+    row = getter(raw_id)
+    if not row or str(row.get(owner_key, "")) != user_id:
+        return None
+    return _item_summary(
+        item_id=item_id,
+        item_type=item_type,
+        title=str(row.get(title_field, "") or default_title),
+        status=str(row.get("status", "") or status_value),
+        created_at=str(row.get(created_key, "") or ""),
+        updated_at=str(row.get(updated_key, "") or ""),
+        source_type=str(row.get(source_type_key, "") or "") if source_type_key else "",
+        source_ref=str(row.get(source_ref_key, "") or "") if source_ref_key else "",
+    )
+
+
 def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
     try:
         prefix, raw_id = parse_item_id(item_id)
@@ -120,79 +174,89 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
         return None
 
     if prefix == "knowledge":
-        entry = db.get_knowledge_entry(raw_id)
-        if not entry or str(entry.get("created_by", "")) != user_id:
-            return None
-        return ItemSummary(
+        return _resolve_owned_summary(
             item_id=item_id,
+            user_id=user_id,
+            raw_id=raw_id,
+            getter=db.get_knowledge_entry,
+            owner_key="created_by",
             item_type="knowledge_entry",
-            title=str(entry.get("title", "") or "Knowledge note"),
-            status=str(entry.get("status", "") or "draft"),
-            created_at=str(entry.get("created_at", "") or ""),
-            updated_at=str(entry.get("updated_at", "") or ""),
-            source_type=str(entry.get("source_type", "") or ""),
-            source_ref=str(entry.get("source_ref", "") or ""),
+            title_field="title",
+            default_title="Knowledge note",
+            status_value="draft",
+            created_key="created_at",
+            updated_key="updated_at",
+            source_type_key="source_type",
+            source_ref_key="source_ref",
         )
 
     if prefix == "logbook":
-        entry = db.get_logbook_entry(raw_id)
-        if not entry or str(entry.get("created_by", "")) != user_id:
-            return None
-        return ItemSummary(
+        return _resolve_owned_summary(
             item_id=item_id,
+            user_id=user_id,
+            raw_id=raw_id,
+            getter=db.get_logbook_entry,
+            owner_key="created_by",
             item_type="logbook_entry",
-            title=str(entry.get("title", "") or "Logbook note"),
-            status=str(entry.get("status", "") or "draft"),
-            created_at=str(entry.get("created_at", "") or ""),
-            updated_at=str(entry.get("updated_at", "") or ""),
-            source_type=str(entry.get("source_type", "") or ""),
-            source_ref=str(entry.get("source_ref", "") or ""),
+            title_field="title",
+            default_title="Logbook note",
+            status_value="draft",
+            created_key="created_at",
+            updated_key="updated_at",
+            source_type_key="source_type",
+            source_ref_key="source_ref",
         )
 
     if prefix == "document":
-        doc = db.get_document(raw_id)
-        if not doc or str(doc.get("uploaded_by", "")) != user_id:
-            return None
-        return ItemSummary(
+        return _resolve_owned_summary(
             item_id=item_id,
+            user_id=user_id,
+            raw_id=raw_id,
+            getter=db.get_document,
+            owner_key="uploaded_by",
             item_type="document",
-            title=str(doc.get("filename", "") or "Document"),
-            status=str(doc.get("status", "") or "reviewed"),
-            created_at=str(doc.get("uploaded_at", "") or ""),
-            updated_at=str(doc.get("updated_at", "") or ""),
+            title_field="filename",
+            default_title="Document",
+            status_value="reviewed",
+            created_key="uploaded_at",
+            updated_key="updated_at",
         )
 
     if prefix == "photo":
-        photo = db.get_photo(raw_id)
-        if not photo or str(photo.get("uploaded_by", "")) != user_id:
-            return None
-        return ItemSummary(
+        return _resolve_owned_summary(
             item_id=item_id,
+            user_id=user_id,
+            raw_id=raw_id,
+            getter=db.get_photo,
+            owner_key="uploaded_by",
             item_type="photo",
-            title=str(photo.get("filename", "") or "Photo"),
-            status=str(photo.get("status", "") or "reviewed"),
-            created_at=str(photo.get("created_at", "") or ""),
-            updated_at=str(photo.get("updated_at", "") or ""),
+            title_field="filename",
+            default_title="Photo",
+            status_value="reviewed",
+            created_key="created_at",
+            updated_key="updated_at",
         )
 
     if prefix == "prompt":
-        prompt = db.get_saved_prompt(raw_id)
-        if not prompt or str(prompt.get("created_by", "")) != user_id:
-            return None
-        return ItemSummary(
+        return _resolve_owned_summary(
             item_id=item_id,
+            user_id=user_id,
+            raw_id=raw_id,
+            getter=db.get_saved_prompt,
+            owner_key="created_by",
             item_type="saved_prompt",
-            title=str(prompt.get("title", "") or "Saved prompt"),
-            status="active",
-            created_at=str(prompt.get("created_at", "") or ""),
-            updated_at=str(prompt.get("updated_at", "") or ""),
+            title_field="title",
+            default_title="Saved prompt",
+            status_value="active",
+            created_key="created_at",
+            updated_key="updated_at",
         )
 
     if prefix == "autotest_run":
         run = db.get_autotest_run(run_id=raw_id, created_by=user_id)
         if not run:
             return None
-        return ItemSummary(
+        return _item_summary(
             item_id=item_id,
             item_type="autotest_run",
             title=str(run.get("project_name", "") or run.get("source_ref", "") or "AutoTest run"),

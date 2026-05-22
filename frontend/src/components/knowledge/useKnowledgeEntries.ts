@@ -2,6 +2,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
 
 import { patch, post } from '../../api'
+import { apiPaths } from '../../api/endpoints'
 import { useWorkspaceStore } from '../../workspace-store'
 import type {
   AutoTestRunListItemResponse,
@@ -120,6 +121,8 @@ export function useKnowledgeEntries() {
       return haystack.includes(query)
     })
   })
+  const loadRecentMessage = computed(() => store.state.error.knowledgeEntries || '')
+  const showLoadRecentWarning = computed(() => store.state.status.knowledgeEntries === 'error' && recent.value.length > 0)
 
   function clearResult() {
     answer.value = ''
@@ -138,7 +141,7 @@ export function useKnowledgeEntries() {
 
     asking.value = true
     try {
-      const response = await post<QAResponse, QARequest>('/api/qa', { question: question.value.trim() })
+      const response = await post<QAResponse, QARequest>(apiPaths.qa.ask, { question: question.value.trim() })
       answer.value = response.answer
       sources.value = response.sources || []
     } catch (error: unknown) {
@@ -175,7 +178,7 @@ export function useKnowledgeEntries() {
 
     saving.value = true
     try {
-      await post<MessageResponse, KnowledgeEntryCreateRequest>('/api/knowledge/entries', payload)
+      await post<MessageResponse, KnowledgeEntryCreateRequest>(apiPaths.knowledge.list, payload)
       toast.add({ severity: 'success', summary: 'Saved', detail: 'Knowledge note indexed.', life: 3000 })
       resetEntry()
       await loadRecent()
@@ -189,16 +192,21 @@ export function useKnowledgeEntries() {
 
   async function loadRecent() {
     loadingRecent.value = true
-    try {
-      await store.refreshKnowledgeEntries({ force: true })
-      recent.value = store.state.lists.knowledgeEntries || []
-    } catch (error: unknown) {
-      recent.value = []
-      const apiError = error as { message?: string }
-      toast.add({ severity: 'error', summary: 'Load failed', detail: apiError?.message || 'Request failed.', life: 3500 })
-    } finally {
-      loadingRecent.value = false
-    }
+  try {
+    await store.refreshKnowledgeEntries({ force: true })
+    recent.value = store.state.lists.knowledgeEntries || []
+  } catch (error: unknown) {
+    recent.value = store.state.lists.knowledgeEntries || []
+    const apiError = error as { message?: string }
+    toast.add({
+      severity: recent.value.length ? 'warn' : 'error',
+      summary: 'Load failed',
+      detail: apiError?.message || store.state.error.knowledgeEntries || 'Request failed.',
+      life: 3500,
+    })
+  } finally {
+    loadingRecent.value = false
+  }
   }
 
   async function loadPickers() {
@@ -274,7 +282,7 @@ export function useKnowledgeEntries() {
     }
     editorSaving.value = true
     try {
-      await patch<MessageResponse, KnowledgeEntryUpdateRequest>(`/api/knowledge/entries/${editor.value.id}`, payload)
+      await patch<MessageResponse, KnowledgeEntryUpdateRequest>(apiPaths.knowledge.detail(editor.value.id), payload)
       toast.add({ severity: 'success', summary: 'Saved', detail: 'Knowledge entry updated.', life: 2500 })
       editorVisible.value = false
       await loadRecent()
@@ -295,7 +303,7 @@ export function useKnowledgeEntries() {
       return
     }
     try {
-      await patch<MessageResponse, KnowledgeEntryUpdateRequest>(`/api/knowledge/entries/${item.id}`, { status: 'archived' })
+      await patch<MessageResponse, KnowledgeEntryUpdateRequest>(apiPaths.knowledge.detail(item.id), { status: 'archived' })
       toast.add({ severity: 'success', summary: 'Archived', detail: 'Entry archived.', life: 2200 })
       await loadRecent()
       if (selectedRelatedItemId.value === `knowledge:${item.id}`) {
@@ -320,6 +328,7 @@ export function useKnowledgeEntries() {
     entry,
     filteredRecent,
     loadRecent,
+    loadRecentMessage,
     loadingRecent,
     openEditor,
     pickerOptions,
@@ -332,6 +341,7 @@ export function useKnowledgeEntries() {
     saving,
     selectForRelated,
     selectedRelatedItemId,
+    showLoadRecentWarning,
     sourceTypes,
     sources,
     statusOptions,

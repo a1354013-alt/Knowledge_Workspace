@@ -5,6 +5,13 @@
     </template>
     <template #content>
       <div class="stack-md">
+        <p
+          v-if="loadMessage"
+          class="inline-status"
+          :class="{ 'inline-status-warning': showReloadWarning }"
+        >
+          {{ loadMessage }}
+        </p>
         <Button
           label="Refresh"
           outlined
@@ -96,8 +103,10 @@ import RelatedItemsPanel from '../RelatedItemsPanel.vue'
 defineProps<{
   filterText: string
   items: KnowledgeEntryResponse[]
+  loadMessage: string
   loadingRecent: boolean
   selectedRelatedItemId: string
+  showReloadWarning: boolean
 }>()
 
 const emit = defineEmits<{
@@ -123,5 +132,15 @@ function emitFilterText(value: string | undefined) {
 .actions-inline {
   display: flex;
   gap: 6px;
+}
+
+.inline-status {
+  margin: 0;
+  color: #b45309;
+  font-size: 13px;
+}
+
+.inline-status-warning {
+  font-weight: 600;
 }
 </style>

@@ -23,6 +23,13 @@ python scripts/run_backend_checks.py
 
 Backend tests use isolated temporary SQLite databases and upload directories. AutoTest defaults to simulated mode in tests; real-mode tests patch the subprocess runner and explicitly enable the real-mode gate. See `backend/.env.example` and `docs/LOCAL_TESTING.md` for the local environment contract.
 
+AutoTest is still a local-first in-process worker in tests and runtime:
+
+- queued/running jobs live in SQLite plus an in-process daemon thread
+- execution heartbeats refresh `updated_at`
+- startup recovery marks stale queued/running jobs failed after restart
+- this is not equivalent to a durable queue such as RQ or Celery
+
 Direct repo-root validation:
 
 ```powershell
@@ -56,6 +63,19 @@ python scripts/check_version_consistency.py
 python scripts/package_release.py /tmp/kw_release.zip
 python scripts/verify_release_zip.py /tmp/kw_release.zip
 ```
+
+Recommended full verification flow before release:
+
+1. `python scripts/check_python_version.py`
+2. `python -m compileall backend`
+3. `pytest backend/tests`
+4. `python scripts/export_openapi.py`
+5. `python scripts/generate_api_types.py --check`
+6. `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
+7. `python scripts/check_version_consistency.py`
+8. `cd frontend && npm ci && npm audit --omit=dev --audit-level=high && npm run lint && npm run typecheck && npm run test && npm run build`
+9. `python scripts/package_release.py ./knowledge_workspace_release.zip`
+10. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
 
 Release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts.
 The release zip is a clean source package and intentionally does not include `frontend/dist`; build frontend assets after extracting the package.

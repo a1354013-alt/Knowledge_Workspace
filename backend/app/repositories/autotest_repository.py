@@ -13,6 +13,9 @@ class AutoTestRepository:
     def update_run(self, run_id: str, **updates: Any) -> bool:
         return bool(self._db.update_autotest_run(run_id, **updates))
 
+    def touch_run(self, run_id: str, *, updated_at: str | None = None) -> bool:
+        return bool(self._db.update_autotest_run(run_id, updated_at=updated_at))
+
     def get_run(self, *, run_id: str, created_by: str) -> dict[str, Any] | None:
         return self._db.get_autotest_run(run_id=run_id, created_by=created_by)
 

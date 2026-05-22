@@ -61,6 +61,13 @@
       </template>
       <template #content>
         <div class="stack-md">
+          <p
+            v-if="runsLoadMessage"
+            class="inline-status"
+            :class="{ 'inline-status-warning': showRunsReloadWarning }"
+          >
+            {{ runsLoadMessage }}
+          </p>
           <DataTable
             :value="runs"
             :loading="loadingRuns"
@@ -291,6 +298,8 @@ const reportActionHint = computed(() => {
   }
   return 'Exports use deterministic filenames and include the current run detail report.'
 })
+const runsLoadMessage = computed(() => store.state.error.autotestRuns || '')
+const showRunsReloadWarning = computed(() => store.state.status.autotestRuns === 'error' && runs.value.length > 0)
 
 function openZipPicker() {
   zipInput.value?.click()
@@ -343,8 +352,15 @@ async function loadRuns() {
     capabilities.value = await getAutoTestCapabilities()
     await store.refreshAutotestRuns({ force: true })
     runs.value = store.state.lists.autotestRuns || []
-  } catch {
-    runs.value = []
+  } catch (error: unknown) {
+    runs.value = store.state.lists.autotestRuns || []
+    const apiError = error as { message?: string }
+    toast.add({
+      severity: runs.value.length ? 'warn' : 'error',
+      summary: 'Reload failed',
+      detail: apiError?.message || store.state.error.autotestRuns || 'Request failed.',
+      life: 4500,
+    })
   } finally {
     loadingRuns.value = false
   }
@@ -514,6 +530,16 @@ onMounted(loadRuns)
   margin: 0;
   color: #51606f;
   font-size: 13px;
+}
+
+.inline-status {
+  margin: 0;
+  color: #b45309;
+  font-size: 13px;
+}
+
+.inline-status-warning {
+  font-weight: 600;
 }
 
 .result-box {

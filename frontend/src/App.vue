@@ -117,6 +117,7 @@ import Toast from 'primevue/toast'
 
 import { createInitialUser } from './app-state'
 import { get, post } from './api'
+import { apiPaths } from './api/endpoints'
 import { clearToken, onUnauthorized, restoreToken, setToken } from './auth'
 import { useWorkspaceStore } from './workspace-store'
 import type { LoginRequest, LoginResponse, MeResponse } from './types'
@@ -187,7 +188,7 @@ async function login() {
 
   loginLoading.value = true
   try {
-    const response = await post<LoginResponse, LoginRequest>('/api/login', loginForm.value, { skipAuth: true })
+    const response = await post<LoginResponse, LoginRequest>(apiPaths.auth.login, loginForm.value, { skipAuth: true })
     setToken(response.access_token)
     await bootstrapSession()
     toast.add({ severity: 'success', summary: 'Signed in', detail: 'Workspace ready.', life: 3000 })
@@ -217,7 +218,7 @@ async function bootstrapSession() {
   if (!token) {
     return
   }
-  const me = await get<MeResponse>('/api/me')
+  const me = await get<MeResponse>(apiPaths.auth.me)
   currentUser.value = me
 }
 

@@ -1,4 +1,5 @@
 import { get, getBlob, post } from './api'
+import { API_UPLOAD_TIMEOUT_MS, apiPaths } from './api/endpoints'
 import { downloadBlob } from './utils/blob'
 import type {
   AutoTestExportFormat,
@@ -9,30 +10,30 @@ import type {
 } from './types'
 
 export async function listAutoTestRuns(): Promise<AutoTestRunListItemResponse[]> {
-  return get<AutoTestRunListItemResponse[]>('/api/autotest/runs')
+  return get<AutoTestRunListItemResponse[]>(apiPaths.autotest.listRuns)
 }
 
 export async function getAutoTestCapabilities(): Promise<AutoTestCapabilitiesResponse> {
-  return get<AutoTestCapabilitiesResponse>('/api/autotest/capabilities')
+  return get<AutoTestCapabilitiesResponse>(apiPaths.autotest.capabilities)
 }
 
 export async function getAutoTestRun(runId: string): Promise<AutoTestRunResponse> {
-  return get<AutoTestRunResponse>(`/api/autotest/runs/${runId}`)
+  return get<AutoTestRunResponse>(apiPaths.autotest.detail(runId))
 }
 
 export async function startAutoTest(formData: FormData): Promise<AutoTestRunResponse> {
-  return post<AutoTestRunResponse, FormData>('/api/autotest/run', formData, {
+  return post<AutoTestRunResponse, FormData>(apiPaths.autotest.run, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 60 * 1000,
+    timeout: API_UPLOAD_TIMEOUT_MS,
   })
 }
 
 export async function promoteAutoTestProblem(entryId: string): Promise<PromoteToKnowledgeResponse> {
-  return post<PromoteToKnowledgeResponse>(`/api/logbook/entries/${entryId}/promote-to-knowledge`)
+  return post<PromoteToKnowledgeResponse>(apiPaths.logbook.promote(entryId))
 }
 
 export async function downloadAutoTestReport(runId: string, format: AutoTestExportFormat): Promise<void> {
-  const blob = await getBlob(`/api/autotest/${runId}/export`, {
+  const blob = await getBlob(apiPaths.autotest.exportReport(runId), {
     params: { format },
   })
   downloadBlob(blob, `autotest-report-${runId}.${format}`)

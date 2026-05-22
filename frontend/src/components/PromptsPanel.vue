@@ -9,6 +9,13 @@
       </template>
       <template #content>
         <div class="stack-md">
+          <p
+            v-if="loadMessage"
+            class="inline-status"
+            :class="{ 'inline-status-warning': showReloadWarning }"
+          >
+            {{ loadMessage }}
+          </p>
           <div class="row">
             <Button
               label="Refresh"
@@ -125,6 +132,7 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
 import { del, post } from '../api'
+import { apiPaths } from '../api/endpoints'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import { useWorkspaceStore } from '../workspace-store'
 import type { MessageResponse, SavedPromptCreateRequest, SavedPromptResponse } from '../types'
@@ -158,14 +166,23 @@ const filteredPrompts = computed(() => {
     return haystack.includes(query)
   })
 })
+const loadMessage = computed(() => store.state.error.prompts || '')
+const showReloadWarning = computed(() => store.state.status.prompts === 'error' && prompts.value.length > 0)
 
 async function loadPrompts() {
   loading.value = true
   try {
     await store.refreshPrompts({ force: true })
     prompts.value = store.state.lists.prompts || []
-  } catch {
-    prompts.value = []
+  } catch (error: unknown) {
+    prompts.value = store.state.lists.prompts || []
+    const apiError = error as { message?: string }
+    toast.add({
+      severity: prompts.value.length ? 'warn' : 'error',
+      summary: 'Prompts reload failed',
+      detail: apiError?.message || store.state.error.prompts || 'Request failed.',
+      life: 4000,
+    })
   } finally {
     loading.value = false
   }
@@ -184,7 +201,7 @@ async function savePrompt() {
 
   saving.value = true
   try {
-    const response = await post<SavedPromptResponse, SavedPromptCreateRequest>('/api/prompts', payload)
+    const response = await post<SavedPromptResponse, SavedPromptCreateRequest>(apiPaths.prompts.list, payload)
     const indexingUnavailable = response.index_status === 'unavailable'
     const detail = response.index_status === 'failed' || indexingUnavailable
       ? response.index_error || (indexingUnavailable ? 'Prompt saved, but the vector index is unavailable.' : 'Prompt saved, but indexing failed.')
@@ -208,7 +225,7 @@ async function deletePrompt(item: SavedPromptResponse) {
     return
   }
   try {
-    await del<MessageResponse>(`/api/prompts/${item.id}`)
+    await del<MessageResponse>(apiPaths.prompts.detail(item.id))
     await loadPrompts()
     toast.add({ severity: 'success', summary: 'Deleted', detail: 'Prompt removed.', life: 3000 })
   } catch (error: unknown) {
@@ -263,6 +280,16 @@ onMounted(loadPrompts)
 .actions-inline {
   display: flex;
   gap: 6px;
+}
+
+.inline-status {
+  margin: 0;
+  color: #b45309;
+  font-size: 13px;
+}
+
+.inline-status-warning {
+  font-weight: 600;
 }
 
 @media (max-width: 1080px) {

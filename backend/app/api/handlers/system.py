@@ -28,7 +28,7 @@ async def handle_validation_error(_request, exc: RequestValidationError):
         errors = exc.errors()
         if errors:
             detail = errors[0].get("msg") or detail
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
         pass
     return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": detail})
 

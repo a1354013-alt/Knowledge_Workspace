@@ -12,6 +12,36 @@ logger = logging.getLogger("knowledge_workspace")
 autotest_repository = AutoTestRepository(db)
 
 
+def _safe_update_run_link(*, run_id: str, field: str, value: str) -> None:
+    try:
+        autotest_repository.update_run(run_id, **{field: value})
+    except Exception as exc:
+        logger.warning("AutoTest run %s could not persist %s=%s: %s", run_id, field, value, exc)
+
+
+def _safe_add_link(*, from_item_id: str, to_item_id: str, link_type: str) -> None:
+    try:
+        db.add_link(from_item_id, to_item_id, link_type=link_type)
+    except Exception as exc:
+        logger.warning(
+            "AutoTest link side effect failed (%s -> %s, type=%s): %s",
+            from_item_id,
+            to_item_id,
+            link_type,
+            exc,
+        )
+
+
+def _safe_index_entry(*, run_id: str, item_kind: str, item_id: str, entry: dict | None, indexer: Callable[[dict], object]) -> None:
+    _safe_autotest_index_entry(
+        run_id=run_id,
+        item_kind=item_kind,
+        item_id=item_id,
+        entry=entry,
+        indexer=indexer,
+    )
+
+
 def create_passed_knowledge_draft(
     *,
     run_id: str,
@@ -37,10 +67,10 @@ def create_passed_knowledge_draft(
     )
     if not candidate_ok:
         return ""
-    autotest_repository.update_run(run_id, solution_entry_id=knowledge_id)
-    db.add_link(f"autotest_run:{run_id}", f"knowledge:{knowledge_id}", link_type="produced")
-    db.add_link(f"knowledge:{knowledge_id}", f"autotest_run:{run_id}", link_type="derived_from")
-    _safe_autotest_index_entry(
+    _safe_update_run_link(run_id=run_id, field="solution_entry_id", value=knowledge_id)
+    _safe_add_link(from_item_id=f"autotest_run:{run_id}", to_item_id=f"knowledge:{knowledge_id}", link_type="produced")
+    _safe_add_link(from_item_id=f"knowledge:{knowledge_id}", to_item_id=f"autotest_run:{run_id}", link_type="derived_from")
+    _safe_index_entry(
         run_id=run_id,
         item_kind="knowledge",
         item_id=knowledge_id,
@@ -75,10 +105,10 @@ def create_failed_logbook_draft(
     )
     if not created_problem:
         return ""
-    autotest_repository.update_run(run_id, problem_entry_id=logbook_id, status="failed")
-    db.add_link(f"autotest_run:{run_id}", f"logbook:{logbook_id}", link_type="produced")
-    db.add_link(f"logbook:{logbook_id}", f"autotest_run:{run_id}", link_type="derived_from")
-    _safe_autotest_index_entry(
+    _safe_update_run_link(run_id=run_id, field="problem_entry_id", value=logbook_id)
+    _safe_add_link(from_item_id=f"autotest_run:{run_id}", to_item_id=f"logbook:{logbook_id}", link_type="produced")
+    _safe_add_link(from_item_id=f"logbook:{logbook_id}", to_item_id=f"autotest_run:{run_id}", link_type="derived_from")
+    _safe_index_entry(
         run_id=run_id,
         item_kind="logbook",
         item_id=logbook_id,

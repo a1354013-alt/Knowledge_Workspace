@@ -1,5 +1,6 @@
 import { computed, reactive } from 'vue'
 import { get } from './api'
+import { apiPaths } from './api/endpoints'
 import type {
   AutoTestRunListItemResponse,
   DocumentResponse,
@@ -9,7 +10,7 @@ import type {
   PhotoResponse,
 } from './types'
 
-type LoadState = 'idle' | 'loading' | 'ready' | 'error'
+type LoadState = 'idle' | 'loading' | 'success' | 'error'
 
 type WorkspaceLists = {
   documents: DocumentResponse[]
@@ -105,6 +106,15 @@ function shouldUseCache(lastLoadedAt: number, force?: boolean) {
   return nowMs() - lastLoadedAt < CACHE_TTL_MS
 }
 
+function hasCachedData(value: readonly unknown[]) {
+  return Array.isArray(value) && value.length > 0
+}
+
+function buildLoadErrorMessage(label: string, err: unknown, hasPreviousData: boolean) {
+  const message = (err as { message?: string })?.message || 'Request failed.'
+  return hasPreviousData ? `${label} reload failed. Showing the last successful data. ${message}` : message
+}
+
 let singleton: WorkspaceStore | null = null
 
 export function useWorkspaceStore(): WorkspaceStore {
@@ -119,38 +129,40 @@ export function useWorkspaceStore(): WorkspaceStore {
 
   async function refreshOne<K extends keyof WorkspaceLists>(
     key: K,
+    label: string,
     loader: () => Promise<WorkspaceLists[K]>,
     opts?: { force?: boolean }
   ) {
     if (shouldUseCache(lastLoadedAt[key], opts?.force)) {
       return
     }
+    const previouslyLoaded = hasCachedData(lists[key])
     status[key] = 'loading'
     error[key] = ''
     try {
       const data = await loader()
-      lists[key] = Array.isArray(data) ? (data as WorkspaceLists[K]) : ([] as unknown as WorkspaceLists[K])
-      status[key] = 'ready'
+      lists[key] = data
+      status[key] = 'success'
       lastLoadedAt[key] = nowMs()
     } catch (err: unknown) {
       status[key] = 'error'
-      error[key] = (err as { message?: string })?.message || 'Request failed.'
-      lists[key] = [] as unknown as WorkspaceLists[K]
+      error[key] = buildLoadErrorMessage(label, err, previouslyLoaded)
     }
   }
 
   async function refreshDocuments(opts?: { force?: boolean }) {
-    await refreshOne('documents', async () => ensureArrayResponse<DocumentResponse>(await get('/api/docs'), 'Documents'), opts)
+    await refreshOne('documents', 'Documents', async () => ensureArrayResponse<DocumentResponse>(await get(apiPaths.docs.list), 'Documents'), opts)
   }
 
   async function refreshPhotos(opts?: { force?: boolean }) {
-    await refreshOne('photos', async () => ensureArrayResponse<PhotoResponse>(await get('/api/photos'), 'Photos'), opts)
+    await refreshOne('photos', 'Photos', async () => ensureArrayResponse<PhotoResponse>(await get(apiPaths.photos.list), 'Photos'), opts)
   }
 
   async function refreshKnowledgeEntries(opts?: { force?: boolean }) {
     await refreshOne(
       'knowledgeEntries',
-      async () => ensureArrayResponse<KnowledgeEntryResponse>(await get('/api/knowledge/entries'), 'Knowledge entries'),
+      'Knowledge entries',
+      async () => ensureArrayResponse<KnowledgeEntryResponse>(await get(apiPaths.knowledge.list), 'Knowledge entries'),
       opts
     )
   }
@@ -158,7 +170,8 @@ export function useWorkspaceStore(): WorkspaceStore {
   async function refreshLogbookEntries(opts?: { force?: boolean }) {
     await refreshOne(
       'logbookEntries',
-      async () => ensureArrayResponse<LogbookEntryResponse>(await get('/api/logbook/entries'), 'Logbook entries'),
+      'Logbook entries',
+      async () => ensureArrayResponse<LogbookEntryResponse>(await get(apiPaths.logbook.list), 'Logbook entries'),
       opts
     )
   }
@@ -166,13 +179,14 @@ export function useWorkspaceStore(): WorkspaceStore {
   async function refreshAutotestRuns(opts?: { force?: boolean }) {
     await refreshOne(
       'autotestRuns',
-      async () => ensureArrayResponse<AutoTestRunListItemResponse>(await get('/api/autotest/runs'), 'AutoTest runs'),
+      'AutoTest runs',
+      async () => ensureArrayResponse<AutoTestRunListItemResponse>(await get(apiPaths.autotest.listRuns), 'AutoTest runs'),
       opts
     )
   }
 
   async function refreshPrompts(opts?: { force?: boolean }) {
-    await refreshOne('prompts', async () => ensureArrayResponse<SavedPromptResponse>(await get('/api/prompts'), 'Prompts'), opts)
+    await refreshOne('prompts', 'Prompts', async () => ensureArrayResponse<SavedPromptResponse>(await get(apiPaths.prompts.list), 'Prompts'), opts)
   }
 
   async function refreshAll(opts?: { force?: boolean }) {

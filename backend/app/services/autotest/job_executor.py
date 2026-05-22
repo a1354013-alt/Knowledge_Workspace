@@ -7,7 +7,7 @@ from app.context import db
 from app.repositories.autotest_repository import AutoTestRepository
 from app.services.autotest.archive import safe_extract_zip
 from app.services.autotest.archive_extractor import prepare_extracted_archive
-from app.services.autotest.execution_plan import build_execution_plan
+from app.services.autotest.execution_plan import PlannedStep, build_execution_plan
 from app.services.autotest.job_reporter import (
     current_failed_phase,
     finalize_failed_run,
@@ -34,6 +34,173 @@ logger = logging.getLogger("knowledge_workspace")
 autotest_repository = AutoTestRepository(db)
 
 
+def _touch_run(run_id: str) -> None:
+    autotest_repository.touch_run(run_id, updated_at=utc_now_iso())
+
+
+def _persist_run_update(run_id: str, **updates: object) -> None:
+    autotest_repository.update_run(run_id, **updates)
+    _touch_run(run_id)
+
+
+def _save_timeline(run_id: str, timeline: list[dict[str, object]]) -> None:
+    save_run_timeline(run_id, timeline)
+    _touch_run(run_id)
+
+
+def _set_timeline(
+    run_id: str,
+    timeline: list[dict[str, object]],
+    key: str,
+    **updates: object,
+) -> list[dict[str, object]]:
+    timeline = set_timeline_item(timeline, key, **updates)
+    _save_timeline(run_id, timeline)
+    return timeline
+
+
+def _mark_run_running(run_id: str) -> None:
+    _persist_run_update(run_id, status="running", summary="AutoTest worker started.")
+
+
+def _extract_archive(*, run_id: str, timeline: list[dict[str, object]], zip_path: Path, destination: Path) -> list[dict[str, object]]:
+    _persist_run_update(run_id, summary="Extracting uploaded ZIP archive.")
+    timeline = _set_timeline(
+        run_id,
+        timeline,
+        "extracted",
+        status="running",
+        started_at=utc_now_iso(),
+        message="extracting",
+    )
+    safe_extract_zip(zip_path, destination)
+    return _set_timeline(
+        run_id,
+        timeline,
+        "extracted",
+        status="success",
+        finished_at=utc_now_iso(),
+        message="extracted",
+    )
+
+
+def _detect_project(
+    *,
+    run_id: str,
+    timeline: list[dict[str, object]],
+    extracted_dir: Path,
+    project_name: str,
+) -> tuple[list[dict[str, object]], object]:
+    timeline = _set_timeline(run_id, timeline, "detected_stack", status="running", started_at=utc_now_iso())
+    detected_project = detect_project(
+        extracted_dir=extracted_dir,
+        fallback_project_name=project_name,
+    )
+    _persist_run_update(
+        run_id,
+        project_type_detected=detected_project.project_type_detected,
+        working_directory=detected_project.working_dir_rel,
+        project_name=detected_project.project_name,
+        project_type=detected_project.project_type_detected,
+        summary=f"Detected {detected_project.project_type_detected or 'unknown'} project.",
+    )
+    timeline = _set_timeline(
+        run_id,
+        timeline,
+        "detected_stack",
+        status="success",
+        finished_at=utc_now_iso(),
+        message=detected_project.project_type_detected or "unknown",
+    )
+    return timeline, detected_project
+
+
+def _load_fail_step_marker(marker_path: Path) -> str:
+    if not marker_path.exists():
+        return ""
+    return marker_path.read_text(encoding="utf-8").strip()
+
+
+def _mark_ran_tests_running(run_id: str, timeline: list[dict[str, object]]) -> list[dict[str, object]]:
+    return _set_timeline(
+        run_id,
+        timeline,
+        "ran_tests",
+        status="running",
+        started_at=utc_now_iso(),
+    )
+
+
+def _record_skipped_step(
+    *,
+    run_id: str,
+    timeline: list[dict[str, object]],
+    step: PlannedStep,
+) -> list[dict[str, object]]:
+    if step.name == "install":
+        return mark_prepare_phase_skipped(timeline=timeline, run_id=run_id, step_name=step.name)
+    _touch_run(run_id)
+    return timeline
+
+
+def _record_finished_step(
+    *,
+    run_id: str,
+    timeline: list[dict[str, object]],
+    step: PlannedStep,
+    finished_at: str,
+) -> list[dict[str, object]]:
+    timeline = mark_prepare_phase_success(
+        timeline=timeline,
+        run_id=run_id,
+        step_name=step.name,
+        finished_at=finished_at,
+    )
+    _touch_run(run_id)
+    return timeline
+
+
+def _record_failed_step(
+    *,
+    run_id: str,
+    timeline: list[dict[str, object]],
+    step: PlannedStep,
+    finished_at: str,
+) -> list[dict[str, object]]:
+    timeline = mark_failed_phase(
+        timeline=timeline,
+        run_id=run_id,
+        step_name=step.name,
+        finished_at=finished_at,
+    )
+    _touch_run(run_id)
+    return timeline
+
+
+def _persist_unexpected_failure(
+    *,
+    run_id: str,
+    timeline: list[dict[str, object]],
+    failed_reason: str,
+    failed_step_name: str,
+) -> None:
+    _persist_run_update(
+        run_id,
+        status="failed",
+        summary=f"AutoTest run failed: {failed_reason}",
+        prompt_output="",
+        suggestion="",
+        failed_reason=failed_reason,
+    )
+    timeline = finalize_autotest_timeline_failure(
+        timeline=timeline,
+        failed_phase=current_failed_phase(timeline, failed_reason),
+        failed_reason=failed_reason,
+    )
+    _save_timeline(run_id, timeline)
+    mark_unfinished_command_steps(run_id=run_id, current_failed_step=failed_step_name)
+
+
 async def execute_autotest_run_job(
     *,
     run_id: str,
@@ -50,39 +217,21 @@ async def execute_autotest_run_job(
     failed_step_name = ""
 
     try:
-        autotest_repository.update_run(run_id, status="running", summary="Extracting uploaded ZIP archive.")
-        timeline = set_timeline_item(timeline, "extracted", status="running", started_at=utc_now_iso(), message="extracting")
-        save_run_timeline(run_id, timeline)
-        safe_extract_zip(zip_path, extracted_archive.extracted_dir)
-        timeline = set_timeline_item(timeline, "extracted", status="success", finished_at=utc_now_iso(), message="extracted")
-        save_run_timeline(run_id, timeline)
-
-        timeline = set_timeline_item(timeline, "detected_stack", status="running", started_at=utc_now_iso())
-        save_run_timeline(run_id, timeline)
-        detected_project = detect_project(
+        _mark_run_running(run_id)
+        timeline = _extract_archive(
+            run_id=run_id,
+            timeline=timeline,
+            zip_path=zip_path,
+            destination=extracted_archive.extracted_dir,
+        )
+        timeline, detected_project = _detect_project(
+            run_id=run_id,
+            timeline=timeline,
             extracted_dir=extracted_archive.extracted_dir,
-            fallback_project_name=project_name,
+            project_name=project_name,
         )
         project_name = detected_project.project_name
-        autotest_repository.update_run(
-            run_id,
-            project_type_detected=detected_project.project_type_detected,
-            working_directory=detected_project.working_dir_rel,
-            project_name=project_name,
-            project_type=detected_project.project_type_detected,
-            summary=f"Detected {detected_project.project_type_detected or 'unknown'} project.",
-        )
-        timeline = set_timeline_item(
-            timeline,
-            "detected_stack",
-            status="success",
-            finished_at=utc_now_iso(),
-            message=detected_project.project_type_detected or "unknown",
-        )
-        save_run_timeline(run_id, timeline)
-
-        fail_step_marker = detected_project.working_dir / ".autotest_fail_step"
-        fail_step = fail_step_marker.read_text(encoding="utf-8").strip() if fail_step_marker.exists() else ""
+        fail_step = _load_fail_step_marker(detected_project.working_dir / ".autotest_fail_step")
         execution_plan = build_execution_plan(
             project_type_detected=detected_project.project_type_detected,
             working_dir=detected_project.working_dir,
@@ -90,17 +239,16 @@ async def execute_autotest_run_job(
         )
 
         skipped_steps: list[str] = []
-        ran_tests_started_at: str | None = None
+        ran_tests_started = False
         overall_ok = True
 
         for step in execution_plan:
             step_id = step_ids[step.name]
             commands_by_step[step.name] = step.command
 
-            if ran_tests_started_at is None:
-                ran_tests_started_at = utc_now_iso()
-                timeline = set_timeline_item(timeline, "ran_tests", status="running", started_at=ran_tests_started_at)
-                save_run_timeline(run_id, timeline)
+            if not ran_tests_started:
+                timeline = _mark_ran_tests_running(run_id, timeline)
+                ran_tests_started = True
 
             result = execute_planned_step(
                 step=step,
@@ -114,19 +262,29 @@ async def execute_autotest_run_job(
             if str(result["status"]) == "skipped":
                 skipped_steps.append(step.name)
                 outputs[step.name] = str(result["output_text"])
-                if step.name == "install":
-                    timeline = mark_prepare_phase_skipped(timeline=timeline, run_id=run_id, step_name=step.name)
+                timeline = _record_skipped_step(run_id=run_id, timeline=timeline, step=step)
                 continue
 
             outputs[step.name], finished_at = persist_step_result(step_id, result)
+            _touch_run(run_id)
 
             if not bool(result["ok"]):
                 overall_ok = False
                 failed_step_name = step.name
-                timeline = mark_failed_phase(timeline=timeline, run_id=run_id, step_name=step.name, finished_at=finished_at)
+                timeline = _record_failed_step(
+                    run_id=run_id,
+                    timeline=timeline,
+                    step=step,
+                    finished_at=finished_at,
+                )
                 break
 
-            timeline = mark_prepare_phase_success(timeline=timeline, run_id=run_id, step_name=step.name, finished_at=finished_at)
+            timeline = _record_finished_step(
+                run_id=run_id,
+                timeline=timeline,
+                step=step,
+                finished_at=finished_at,
+            )
 
         if overall_ok:
             await finalize_passed_run(
@@ -137,6 +295,7 @@ async def execute_autotest_run_job(
                 project_type_detected=detected_project.project_type_detected,
                 skipped_steps=skipped_steps,
             )
+            _touch_run(run_id)
         else:
             await finalize_failed_run(
                 run_id=run_id,
@@ -148,23 +307,15 @@ async def execute_autotest_run_job(
                 outputs=outputs,
                 failed_step_name=failed_step_name,
             )
+            _touch_run(run_id)
     except Exception as exc:
         failed_reason = str(exc) or "AutoTest run failed unexpectedly."
         logger.exception("AutoTest run %s failed unexpectedly", run_id)
-        autotest_repository.update_run(
-            run_id,
-            summary=f"AutoTest run failed: {failed_reason}",
-            prompt_output="",
-            suggestion="",
-            failed_reason=failed_reason,
-        )
-        timeline = finalize_autotest_timeline_failure(
+        _persist_unexpected_failure(
+            run_id=run_id,
             timeline=timeline,
-            failed_phase=current_failed_phase(timeline, failed_reason),
             failed_reason=failed_reason,
+            failed_step_name=failed_step_name,
         )
-        save_run_timeline(run_id, timeline)
-        mark_unfinished_command_steps(run_id=run_id, current_failed_step=failed_step_name)
-        autotest_repository.update_run(run_id, status="failed")
     finally:
         cleanup_autotest_workspace(zip_path=zip_path, work_dir=extracted_archive.work_dir)

@@ -34,41 +34,69 @@ def serialize_autotest_step(step: dict) -> dict[str, object]:
     }
 
 
-def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTestTimelineItemResponse]:
-    timeline_json = str(run_row.get("timeline_json", "") or "").strip()
-    if timeline_json:
-        try:
-            items = json.loads(timeline_json)
-            if isinstance(items, list):
-                normalized: list[AutoTestTimelineItemResponse] = []
-                for raw in items:
-                    if not isinstance(raw, dict):
-                        continue
-                    key = str(raw.get("key", "") or "")
-                    label = str(raw.get("label", "") or raw.get("name", "") or "")
-                    if not key or not label:
-                        continue
-                    normalized.append(
-                        AutoTestTimelineItemResponse(
-                            key=key,
-                            label=label,
-                            name=str(raw.get("name", "") or label),
-                            status=normalize_timeline_status(str(raw.get("status", "") or "pending")),
-                            started_at=str(raw.get("started_at", "") or "") or None,
-                            finished_at=str(raw.get("finished_at", "") or "") or None,
-                            duration_ms=int_or_duration(
-                                raw.get("duration_ms"),
-                                started_at=raw.get("started_at"),
-                                finished_at=raw.get("finished_at"),
-                            ),
-                            message=str(raw.get("message", "") or "") or None,
-                        )
-                    )
-                if normalized:
-                    return normalized
-        except json.JSONDecodeError:
-            logger.warning("Invalid timeline_json for AutoTest run %s", run_row.get("run_id", ""))
+def _build_item(
+    key: str,
+    label: str,
+    *,
+    status: str,
+    started_at: str | None = None,
+    finished_at: str | None = None,
+    message: str | None = None,
+) -> AutoTestTimelineItemResponse:
+    return AutoTestTimelineItemResponse(
+        key=key,
+        label=label,
+        name=label,
+        status=normalize_timeline_status(status),
+        started_at=started_at,
+        finished_at=finished_at,
+        duration_ms=duration_ms(started_at, finished_at),
+        message=message,
+    )
 
+
+def _normalize_json_timeline(items: object) -> list[AutoTestTimelineItemResponse]:
+    if not isinstance(items, list):
+        return []
+    normalized: list[AutoTestTimelineItemResponse] = []
+    for raw in items:
+        if not isinstance(raw, dict):
+            continue
+        key = str(raw.get("key", "") or "")
+        label = str(raw.get("label", "") or raw.get("name", "") or "")
+        if not key or not label:
+            continue
+        normalized.append(
+            AutoTestTimelineItemResponse(
+                key=key,
+                label=label,
+                name=str(raw.get("name", "") or label),
+                status=normalize_timeline_status(str(raw.get("status", "") or "pending")),
+                started_at=str(raw.get("started_at", "") or "") or None,
+                finished_at=str(raw.get("finished_at", "") or "") or None,
+                duration_ms=int_or_duration(
+                    raw.get("duration_ms"),
+                    started_at=raw.get("started_at"),
+                    finished_at=raw.get("finished_at"),
+                ),
+                message=str(raw.get("message", "") or "") or None,
+            )
+        )
+    return normalized
+
+
+def _timeline_from_json(run_row: dict) -> list[AutoTestTimelineItemResponse]:
+    timeline_json = str(run_row.get("timeline_json", "") or "").strip()
+    if not timeline_json:
+        return []
+    try:
+        return _normalize_json_timeline(json.loads(timeline_json))
+    except json.JSONDecodeError:
+        logger.warning("Invalid timeline_json for AutoTest run %s", run_row.get("run_id", ""))
+        return []
+
+
+def _derived_run_state(run_row: dict, step_rows: list[dict]) -> dict[str, object]:
     run_status = str(run_row.get("status", "") or "").lower()
     created_at = str(run_row.get("created_at", "") or "") or None
     has_workdir = bool(str(run_row.get("working_directory", "") or "").strip())
@@ -77,61 +105,77 @@ def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTe
     has_started_steps = any(str(step.get("status", "") or "").lower() not in {"queued", "pending", ""} for step in step_rows)
     failed_step = next((step for step in step_rows if str(step.get("status", "")).lower() == "failed"), None)
     latest_step = step_rows[-1] if step_rows else None
+    return {
+        "run_status": run_status,
+        "created_at": created_at,
+        "has_workdir": has_workdir,
+        "detected_stack": detected_stack,
+        "has_report": has_report,
+        "has_started_steps": has_started_steps,
+        "failed_step": failed_step,
+        "latest_step": latest_step,
+    }
 
-    ran_tests_status = "pending"
+
+def _ran_tests_status(*, run_status: str, step_rows: list[dict], failed_step: dict | None, has_started_steps: bool) -> str:
     if failed_step:
-        ran_tests_status = "failed"
-    elif run_status == "running" or any(str(step.get("status", "")).lower() == "running" for step in step_rows):
-        ran_tests_status = "running"
-    elif step_rows and all(str(step.get("status", "")).lower() in {"passed", "skipped", "unavailable"} for step in step_rows):
-        ran_tests_status = "done"
-    elif has_started_steps:
-        ran_tests_status = "running"
+        return "failed"
+    if run_status == "running" or any(str(step.get("status", "")).lower() == "running" for step in step_rows):
+        return "running"
+    if step_rows and all(str(step.get("status", "")).lower() in {"passed", "skipped", "unavailable"} for step in step_rows):
+        return "done"
+    if has_started_steps:
+        return "running"
+    return "pending"
 
-    generated_report_status = "pending"
+
+def _generated_report_status(*, run_status: str, has_report: bool) -> str:
     if run_status == "running" and has_report:
-        generated_report_status = "running"
-    elif run_status in {"passed", "failed"} and has_report:
-        generated_report_status = "done"
+        return "running"
+    if run_status in {"passed", "failed"} and has_report:
+        return "done"
+    return "pending"
 
-    extracted_status = "done" if has_workdir else ("running" if run_status == "running" else "pending")
-    detected_status = "done" if detected_stack else ("running" if extracted_status in {"done", "running"} and run_status == "running" else "pending")
-    failed_reason_status = "failed" if run_status == "failed" else ("skipped" if run_status == "passed" else "pending")
 
-    failed_message = None
+def _failed_message(*, run_row: dict, run_status: str, failed_step: dict | None) -> str | None:
     if failed_step:
-        failed_message = str(
+        return str(
             failed_step.get("stderr_summary")
             or failed_step.get("output")
             or run_row.get("failed_reason")
             or run_row.get("summary")
             or "AutoTest run failed."
         )
-    elif run_status == "failed":
-        failed_message = str(run_row.get("failed_reason") or run_row.get("summary") or "AutoTest run failed.")
+    if run_status == "failed":
+        return str(run_row.get("failed_reason") or run_row.get("summary") or "AutoTest run failed.")
+    return None
 
-    def build_item(
-        key: str,
-        label: str,
-        *,
-        status: str,
-        started_at: str | None = None,
-        finished_at: str | None = None,
-        message: str | None = None,
-    ) -> AutoTestTimelineItemResponse:
-        return AutoTestTimelineItemResponse(
-            key=key,
-            label=label,
-            name=label,
-            status=normalize_timeline_status(status),
-            started_at=started_at,
-            finished_at=finished_at,
-            duration_ms=duration_ms(started_at, finished_at),
-            message=message,
-        )
+
+def _fallback_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTestTimelineItemResponse]:
+    state = _derived_run_state(run_row, step_rows)
+    run_status = str(state["run_status"])
+    created_at = state["created_at"]
+    has_workdir = bool(state["has_workdir"])
+    detected_stack = str(state["detected_stack"])
+    has_report = bool(state["has_report"])
+    has_started_steps = bool(state["has_started_steps"])
+    failed_step = state["failed_step"]
+    latest_step = state["latest_step"]
+
+    ran_tests_status = _ran_tests_status(
+        run_status=run_status,
+        step_rows=step_rows,
+        failed_step=failed_step,
+        has_started_steps=has_started_steps,
+    )
+    generated_report_status = _generated_report_status(run_status=run_status, has_report=has_report)
+    extracted_status = "done" if has_workdir else ("running" if run_status == "running" else "pending")
+    detected_status = "done" if detected_stack else ("running" if extracted_status in {"done", "running"} and run_status == "running" else "pending")
+    failed_reason_status = "failed" if run_status == "failed" else ("skipped" if run_status == "passed" else "pending")
+    failed_message = _failed_message(run_row=run_row, run_status=run_status, failed_step=failed_step)
 
     items = {
-        "uploaded": build_item(
+        "uploaded": _build_item(
             "uploaded",
             "Uploaded",
             status="success",
@@ -139,7 +183,7 @@ def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTe
             finished_at=created_at,
             message=str(run_row.get("source_ref", "") or "") or None,
         ),
-        "extracted": build_item(
+        "extracted": _build_item(
             "extracted",
             "Extracted",
             status=extracted_status,
@@ -147,7 +191,7 @@ def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTe
             finished_at=created_at if has_workdir else None,
             message=str(run_row.get("working_directory", "") or "") or None,
         ),
-        "detected_stack": build_item(
+        "detected_stack": _build_item(
             "detected_stack",
             "Detected stack",
             status=detected_status,
@@ -155,7 +199,7 @@ def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTe
             finished_at=created_at if detected_stack else None,
             message=detected_stack or None,
         ),
-        "prepared_environment": build_item(
+        "prepared_environment": _build_item(
             "prepared_environment",
             "Installed dependencies / Prepared environment",
             status="success" if step_rows else ("running" if run_status == "running" else "pending"),
@@ -163,7 +207,7 @@ def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTe
             finished_at=str((step_rows[0] if step_rows else {}).get("finished_at", "") or "") or None,
             message=str((step_rows[0] if step_rows else {}).get("name", "") or "") or None,
         ),
-        "ran_tests": build_item(
+        "ran_tests": _build_item(
             "ran_tests",
             "Ran tests",
             status=ran_tests_status,
@@ -171,7 +215,7 @@ def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTe
             finished_at=str((failed_step or latest_step or {}).get("finished_at") or (latest_step or {}).get("started_at") or "") or None,
             message=str((failed_step or latest_step or {}).get("name", "") or "") or None,
         ),
-        "generated_report": build_item(
+        "generated_report": _build_item(
             "generated_report",
             "Generated report",
             status=generated_report_status,
@@ -179,7 +223,7 @@ def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTe
             finished_at=created_at if has_report else None,
             message=str(run_row.get("summary", "") or "") or None,
         ),
-        "failed_reason": build_item(
+        "failed_reason": _build_item(
             "failed_reason",
             "Failed reason",
             status=failed_reason_status,
@@ -189,6 +233,13 @@ def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTe
         ),
     }
     return [items[key] for key, _label in TIMELINE_LABELS]
+
+
+def build_autotest_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTestTimelineItemResponse]:
+    parsed_timeline = _timeline_from_json(run_row)
+    if parsed_timeline:
+        return parsed_timeline
+    return _fallback_timeline(run_row, step_rows)
 
 
 def serialize_autotest_run(run_row: dict, step_rows: list[dict]) -> AutoTestRunResponse:

@@ -26,4 +26,36 @@ describe('workspace-store', () => {
     expect(store.state.error.knowledgeEntries).toContain('invalid payload')
     expect(store.state.lists.knowledgeEntries).toEqual([])
   })
+
+  it('keeps the last successful workspace data when a refresh fails', async () => {
+    const { useWorkspaceStore } = await import('../src/workspace-store')
+
+    mocks.get.mockResolvedValueOnce([
+      {
+        id: 'doc-1',
+        filename: 'demo.md',
+        category: 'guide',
+        tags: 'docs',
+        status: 'reviewed',
+        uploaded_at: '2026-05-01T00:00:00Z',
+        updated_at: '2026-05-01T00:00:00Z',
+        file_size: 12,
+        uploaded_by: 'owner',
+        index_status: 'indexed',
+        index_error: '',
+        indexed_at: '2026-05-01T00:00:00Z',
+      },
+    ])
+    const store = useWorkspaceStore()
+
+    await store.refreshDocuments({ force: true })
+
+    mocks.get.mockRejectedValueOnce(new Error('network offline'))
+    await store.refreshDocuments({ force: true })
+
+    expect(store.state.status.documents).toBe('error')
+    expect(store.state.error.documents).toContain('Showing the last successful data')
+    expect(store.state.lists.documents).toHaveLength(1)
+    expect(store.state.lists.documents[0]?.id).toBe('doc-1')
+  })
 })
