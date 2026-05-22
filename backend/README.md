@@ -4,10 +4,28 @@ Prereqs: Python 3.11.x (matches `requires-python = ">=3.11,<3.12"` and CI).
 
 ## Start
 
-```bash
+Supported development and test install from the repo root:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+pip install -e ".[dev]"
+```
+
+Runtime-only fallback from `backend/`:
+
+```powershell
 cd backend
 python -m pip install -r requirements.txt
-cp .env.example .env
+```
+
+`requirements.txt` now includes runtime imports such as `httpx`, but it is not the supported test/lint install path.
+If you need pytest, Ruff, or CI-equivalent verification, use `pip install -e ".[dev]"` from the repo root.
+
+```powershell
+cd backend
+# copy .env.example .env
 # Set at least: JWT_SECRET (min 32 chars) and DEFAULT_OWNER_PASSWORD
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -58,15 +76,16 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ## Tests
 
-```bash
-cd backend
-python -m pytest
+```powershell
+python scripts/check_python_version.py
+python scripts/safe_compileall.py -q .
+python -m ruff check backend scripts
+python scripts/run_backend_tests.py
 ```
 
 Integration smoke (starts a real backend process; used by CI):
 
-```bash
-cd ..
+```powershell
 python scripts/smoke_check.py --password "<DEFAULT_OWNER_PASSWORD>"
 ```
 

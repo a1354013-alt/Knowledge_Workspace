@@ -8,6 +8,7 @@ chromadb==0.4.17
 numpy<2
 pypdf==3.17.1
 requests==2.31.0
+httpx==0.24.1
 pytesseract==0.3.10
 Pillow==10.1.0
 Markdown==3.7

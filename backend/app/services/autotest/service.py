@@ -72,6 +72,7 @@ __all__ = [
     "safe_extract_zip",
     "sanitize_path_for_report",
     "schedule_autotest_run_job",
+    "snapshot_autotest_worker_threads",
     "shutdown_autotest_workers",
     "save_run_timeline",
     "set_timeline_item",
@@ -209,6 +210,11 @@ def shutdown_autotest_workers(*, join_timeout_seconds: float = 5.0) -> None:
     still_running = [thread.name for thread in threads if thread.is_alive()]
     if still_running:
         logger.warning("AutoTest worker thread(s) still running during shutdown: %s", ", ".join(still_running))
+
+
+def snapshot_autotest_worker_threads() -> list[str]:
+    with _worker_threads_lock:
+        return [thread.name for thread in _worker_threads if thread.is_alive()]
 
 
 async def execute_autotest_run_job(

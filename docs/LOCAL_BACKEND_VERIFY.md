@@ -13,7 +13,7 @@ pip install -e ".[dev]"
 python scripts/check_python_version.py
 python scripts/safe_compileall.py -q .
 python -m ruff check backend scripts
-python -m pytest backend/tests
+python scripts/run_backend_tests.py
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
 python scripts/check_version_consistency.py
@@ -31,7 +31,8 @@ python scripts/check_version_consistency.py
 - Python runtime guard
 - import/compile sanity
 - Ruff lint on `backend` and `scripts`
-- backend pytest suite
+- backend pytest suite via `scripts/run_backend_tests.py`
+- whole-process exit verification so pytest cannot print `passed` and still hang on background resources
 - OpenAPI export
 - OpenAPI -> TypeScript contract sync check
 - version consistency check

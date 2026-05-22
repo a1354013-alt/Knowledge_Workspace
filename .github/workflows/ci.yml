@@ -15,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.11.9"
 
       - name: Install backend dependencies
         run: |
@@ -25,13 +25,14 @@ jobs:
       - name: Python runtime check
         run: python scripts/check_python_version.py
 
-      - name: Backend lint
-        run: python -m ruff check backend scripts
-
       - name: Backend compile check
         run: python scripts/safe_compileall.py -q .
 
+      - name: Backend lint
+        run: python -m ruff check backend scripts
+
       - name: Backend pytest
+        timeout-minutes: 5
         env:
           JWT_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-1234
           DEFAULT_OWNER_PASSWORD: OwnerPass123!
@@ -53,6 +54,9 @@ jobs:
       - name: Check committed contract artifacts
         run: git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
 
+      - name: Version consistency
+        run: python scripts/check_version_consistency.py
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -68,10 +72,6 @@ jobs:
         working-directory: frontend
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Frontend tests
-        working-directory: frontend
-        run: npm run test:run
-
       - name: Frontend lint
         working-directory: frontend
         run: npm run lint
@@ -80,12 +80,13 @@ jobs:
         working-directory: frontend
         run: npm run typecheck
 
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm run test:run
+
       - name: Frontend build
         working-directory: frontend
         run: npm run build
-
-      - name: Version consistency
-        run: python scripts/check_version_consistency.py
 
       - name: Package release zip
         run: python scripts/package_release.py ./knowledge_workspace_release.zip

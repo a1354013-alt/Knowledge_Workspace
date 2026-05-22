@@ -5,12 +5,13 @@ Recommended toolchain:
 - Python `3.11.x`
 - Node.js `20` LTS
 
-## 1. Install backend
+## 1. Create the supported Python 3.11 environment
 
-```bash
-cd backend
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+pip install -e ".[dev]"
 ```
 
 Required environment variables:
@@ -31,21 +32,21 @@ Notes:
 
 ## 2. Start backend
 
-```bash
+```powershell
 cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ## 3. Install frontend
 
-```bash
+```powershell
 cd frontend
 npm ci
 ```
 
 ## 4. Start frontend
 
-```bash
+```powershell
 cd frontend
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
@@ -65,31 +66,36 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 Backend:
 
-```bash
+```powershell
 python scripts/check_python_version.py
-python -m ruff check backend scripts
 python scripts/safe_compileall.py -q .
-pytest -q
+python -m ruff check backend scripts
+python scripts/run_backend_tests.py
+python scripts/export_openapi.py
+python scripts/generate_api_types.py --check
+python scripts/check_version_consistency.py
 ```
 
 Frontend:
 
-```bash
+```powershell
 cd frontend
 npm ci
+npm audit --omit=dev --audit-level=high
 npm run lint
 npm run typecheck
 npm run test:run
 npm run build
-npm audit --omit=dev --audit-level=high
 ```
 
 Repo-wide:
 
-```bash
-python scripts/export_openapi.py
-python scripts/generate_api_types.py --check
-python scripts/check_version_consistency.py
+```powershell
 python scripts/package_release.py dist/knowledge_workspace_release.zip
 python scripts/verify_release_zip.py dist/knowledge_workspace_release.zip
 ```
+
+Runtime-only fallback:
+
+- `backend/requirements.txt` is kept for runtime-only installs such as `cd backend && python -m pip install -r requirements.txt`
+- if you need tests, lint, or CI-equivalent verification, use the repo-root `pip install -e ".[dev]"` flow above

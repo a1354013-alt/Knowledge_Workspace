@@ -4,16 +4,15 @@
 
 Use Python 3.11.x. The backend package declares `requires-python = ">=3.11,<3.12"`, so Python 3.12/3.13 results are not accepted as release evidence unless dependency constraints are updated.
 
-```bash
+```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -e ".[dev]"
 copy .env.example .env
 python scripts/check_python_version.py
-python -m ruff check backend scripts
 python scripts/safe_compileall.py -q .
-python -m pytest backend/tests
+python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 ```
 
@@ -29,19 +28,19 @@ Required test defaults are documented in `backend/.env.example`. The test suite 
 
 ## Frontend
 
-```bash
+```powershell
 cd frontend
 npm ci
 npm audit --omit=dev --audit-level=high
-npm run test:run
 npm run lint
 npm run typecheck
+npm run test:run
 npm run build
 ```
 
 ## API Contract
 
-```bash
+```powershell
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
 git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
@@ -51,7 +50,7 @@ When the API contract intentionally changes, run `python scripts/generate_api_ty
 
 ## Release And Smoke
 
-```bash
+```powershell
 python scripts/check_version_consistency.py
 python scripts/package_release.py /tmp/kw_release.zip
 python scripts/verify_release_zip.py /tmp/kw_release.zip

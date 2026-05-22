@@ -161,7 +161,7 @@ Recommended usage:
 
 ### Backend
 
-```bash
+```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
@@ -186,7 +186,7 @@ AUTOTEST_MODE=simulated
 
 Run:
 
-```bash
+```powershell
 cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
@@ -203,7 +203,7 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 ### Backend
 
-```bash
+```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
@@ -211,7 +211,7 @@ pip install -e ".[dev]"
 python scripts/check_python_version.py
 python scripts/safe_compileall.py -q .
 python -m ruff check backend scripts
-python -m pytest backend/tests
+python scripts/run_backend_tests.py
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
 python scripts/check_version_consistency.py
@@ -237,21 +237,21 @@ Use Node 20.19+ or newer for frontend lint/test/build to match the Vite/Vitest t
 
 CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently runs:
 
-1. backend dependency install
+1. backend dependency install on Python `3.11`
 2. `python scripts/check_python_version.py`
-3. `python -m ruff check backend scripts`
-4. `python scripts/safe_compileall.py -q .`
+3. `python scripts/safe_compileall.py -q .`
+4. `python -m ruff check backend scripts`
 5. `python scripts/run_backend_tests.py`
 6. `python scripts/export_openapi.py`
 7. `python scripts/generate_api_types.py --check`
 8. `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
-9. frontend `npm ci`
-10. frontend `npm audit --omit=dev --audit-level=high`
-11. frontend `npm run test:run`
+9. `python scripts/check_version_consistency.py`
+10. frontend `npm ci`
+11. frontend `npm audit --omit=dev --audit-level=high`
 12. frontend `npm run lint`
 13. frontend `npm run typecheck`
-14. frontend `npm run build`
-15. `python scripts/check_version_consistency.py`
+14. frontend `npm run test:run`
+15. frontend `npm run build`
 16. `python scripts/package_release.py ./knowledge_workspace_release.zip`
 17. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
 18. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`

@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import os
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -52,7 +53,15 @@ def _reload_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 
 @pytest.fixture
 def app_module(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    return _reload_app(monkeypatch, tmp_path)
+    module = _reload_app(monkeypatch, tmp_path)
+    yield module
+    module.autotest_service.shutdown_autotest_workers(join_timeout_seconds=1.0)
+    deadline = time.monotonic() + 1.0
+    active_workers = module.autotest_service.snapshot_autotest_worker_threads()
+    while active_workers and time.monotonic() < deadline:
+        time.sleep(0.01)
+        active_workers = module.autotest_service.snapshot_autotest_worker_threads()
+    assert not active_workers, f"AutoTest worker thread(s) still alive after teardown: {active_workers}"
 
 
 @pytest.fixture

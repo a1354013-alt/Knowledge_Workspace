@@ -4,15 +4,14 @@
 
 Use Python 3.11.x. The backend is intentionally pinned to `>=3.11,<3.12`; Python 3.12/3.13 passing locally is not release evidence unless dependency constraints are updated.
 
-```bash
+```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -e ".[dev]"
 python scripts/check_python_version.py
-python -m ruff check backend scripts
 python scripts/safe_compileall.py -q .
-python -m pytest backend/tests
+python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 ```
 
@@ -26,23 +25,22 @@ Backend tests use isolated temporary SQLite databases and upload directories. Au
 
 Direct repo-root validation:
 
-```bash
+```powershell
 python scripts/check_python_version.py
-python -m ruff check backend scripts
 python scripts/safe_compileall.py -q .
-python -m pytest -q
+python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 ```
 
 ## Frontend
 
-```bash
+```powershell
 cd frontend
 npm ci
 npm audit --omit=dev --audit-level=high
-npm run test:run
 npm run lint
 npm run typecheck
+npm run test:run
 npm run build
 ```
 
@@ -50,7 +48,7 @@ Use Node 20.19+ LTS to match CI and the Vite/Vitest toolchain engine range.
 
 ## Release
 
-```bash
+```powershell
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
 git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
@@ -66,7 +64,7 @@ The release zip is a clean source package and intentionally does not include `fr
 
 CI starts the backend with simulated AutoTest settings and then runs:
 
-```bash
+```powershell
 python scripts/smoke_check.py --password "OwnerPass123!"
 ```
 
