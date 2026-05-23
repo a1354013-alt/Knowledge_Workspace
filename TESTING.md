@@ -21,6 +21,12 @@ After a Python 3.11 virtualenv is active, the repo-root helper runs the same che
 python scripts/run_backend_checks.py
 ```
 
+Full local CI-equivalent verification from the repo root:
+
+```powershell
+python scripts/verify_all.py
+```
+
 Backend tests use isolated temporary SQLite databases and upload directories. AutoTest defaults to simulated mode in tests; real-mode tests patch the subprocess runner and explicitly enable the real-mode gate. See `backend/.env.example` and `docs/LOCAL_TESTING.md` for the local environment contract.
 
 AutoTest is still a local-first in-process worker in tests and runtime:
@@ -76,6 +82,8 @@ Recommended full verification flow before release:
 8. `cd frontend && npm ci && npm audit --omit=dev --audit-level=high && npm run lint && npm run typecheck && npm run test && npm run build`
 9. `python scripts/package_release.py ./knowledge_workspace_release.zip`
 10. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
+
+The same end-to-end gate can also be run with `python scripts/verify_all.py`.
 
 Release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts.
 The release zip is a clean source package and intentionally does not include `frontend/dist`; build frontend assets after extracting the package.

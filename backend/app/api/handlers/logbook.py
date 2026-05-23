@@ -1,25 +1,30 @@
-from app.api.handlers.support import (
-    Depends,
-    HTTPException,
+from __future__ import annotations
+
+import uuid
+
+from fastapi import Depends, HTTPException, status
+
+from app.api.common import (
+    item_id_from_parts,
+    list_visible_related_item_ids_for_user,
+    maybe_link_source_item,
+    run_deindex_side_effect,
+    run_index_side_effect,
+    side_effect_warning,
+    sync_source_ref_link,
+    validate_related_item_ids_for_user,
+    validate_source_ref_for_user,
+)
+from app.context import db
+from app.database import delete_from_kb_vector_db
+from app.dependencies import get_current_user
+from app.kb_index import index_knowledge_entry, index_logbook_entry
+from app.models import (
     LogbookEntryCreateRequest,
     LogbookEntryResponse,
     LogbookEntryUpdateRequest,
     MessageResponse,
     PromoteToKnowledgeResponse,
-    _run_deindex_side_effect,
-    _run_index_side_effect,
-    _side_effect_warning,
-    db,
-    delete_from_kb_vector_db,
-    get_current_user,
-    index_knowledge_entry,
-    index_logbook_entry,
-    item_id_from_parts,
-    maybe_link_source_item,
-    normalize_related_item_ids,
-    status,
-    sync_source_ref_link,
-    uuid,
 )
 
 
@@ -37,7 +42,10 @@ async def list_logbook_entries(current_user: dict = Depends(get_current_user)) -
             tags=row.get("tags", ""),
             source_type=row.get("source_type", "manual") or "manual",
             source_ref=row.get("source_ref", "") or "",
-            related_item_ids=db.list_related_item_ids(f"logbook:{row['entry_id']}"),
+            related_item_ids=list_visible_related_item_ids_for_user(
+                item_id=item_id_from_parts("logbook", row["entry_id"]),
+                user_id=user_id,
+            ),
             created_at=row.get("created_at", ""),
             updated_at=row.get("updated_at", ""),
         )
@@ -51,6 +59,9 @@ async def create_logbook_entry(
 ) -> MessageResponse:
     user_id = current_user["sub"]
     entry_id = str(uuid.uuid4())
+    related_item_ids = validate_related_item_ids_for_user(item_ids=request.related_item_ids, user_id=user_id)
+    source_ref = validate_source_ref_for_user(source_ref=request.source_ref, user_id=user_id)
+
     created = db.add_logbook_entry(
         entry_id=entry_id,
         title=request.title,
@@ -61,7 +72,7 @@ async def create_logbook_entry(
         solution=request.solution,
         tags=request.tags,
         source_type=request.source_type,
-        source_ref=request.source_ref,
+        source_ref=source_ref,
         created_by=user_id,
     )
     if not created:
@@ -69,20 +80,21 @@ async def create_logbook_entry(
 
     entry = db.get_logbook_entry(entry_id)
     if entry:
-        db.set_reference_links(item_id_from_parts("logbook", entry_id), normalize_related_item_ids(request.related_item_ids))
+        db.set_reference_links(item_id_from_parts("logbook", entry_id), related_item_ids)
         maybe_link_source_item(
             from_item_id=item_id_from_parts("logbook", entry_id),
             source_type=request.source_type,
-            source_ref=request.source_ref,
+            source_ref=source_ref,
+            user_id=user_id,
         )
-        warning = _run_index_side_effect(
+        warning = run_index_side_effect(
             label="Logbook entry",
             item_id=entry_id,
             operation=lambda: index_logbook_entry(entry),
         )
     else:
         warning = None
-    return MessageResponse(message=_side_effect_warning("Logbook entry created.", warning))
+    return MessageResponse(message=side_effect_warning("Logbook entry created.", warning))
 
 
 async def update_logbook_entry(
@@ -101,10 +113,16 @@ async def update_logbook_entry(
     related = updates.pop("related_item_ids", None)
     if not updates and related is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No logbook fields provided.")
+
+    if related is not None:
+        related = validate_related_item_ids_for_user(item_ids=related, user_id=user_id)
+    if "source_ref" in updates:
+        updates["source_ref"] = validate_source_ref_for_user(source_ref=updates["source_ref"], user_id=user_id)
+
     if updates and not db.update_logbook_entry(entry_id, **updates):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update logbook entry.")
     if related is not None:
-        db.set_reference_links(item_id_from_parts("logbook", entry_id), normalize_related_item_ids(related))
+        db.set_reference_links(item_id_from_parts("logbook", entry_id), related)
     if "source_type" in updates or "source_ref" in updates:
         source_type = updates.get("source_type", existing.get("source_type", "manual"))
         source_ref = updates.get("source_ref", existing.get("source_ref", ""))
@@ -113,15 +131,16 @@ async def update_logbook_entry(
             old_source_ref=str(existing.get("source_ref", "")),
             new_source_ref=str(source_ref),
             source_type=str(source_type),
+            user_id=user_id,
         )
 
     updated = db.get_logbook_entry(entry_id) or existing
-    warning = _run_index_side_effect(
+    warning = run_index_side_effect(
         label="Logbook entry",
         item_id=entry_id,
         operation=lambda: index_logbook_entry(updated),
     )
-    return MessageResponse(message=_side_effect_warning("Logbook entry updated.", warning))
+    return MessageResponse(message=side_effect_warning("Logbook entry updated.", warning))
 
 
 async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depends(get_current_user)) -> PromoteToKnowledgeResponse:
@@ -149,20 +168,15 @@ async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depen
     if not ok:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to promote to knowledge.")
 
-    # Canonical promote contract: logbook -> knowledge is the produced direction.
     db.add_link(f"logbook:{entry_id}", f"knowledge:{knowledge_id}", link_type="produced")
-    # Keep the reverse relation for traceability and backwards compatibility.
     db.add_link(f"knowledge:{knowledge_id}", f"logbook:{entry_id}", link_type="derived_from")
-    for related in db.list_related_item_ids(f"logbook:{entry_id}"):
+    for related in list_visible_related_item_ids_for_user(item_id=f"logbook:{entry_id}", user_id=user_id):
         db.add_link(f"knowledge:{knowledge_id}", related, link_type="references")
 
-    # Archive the original problem draft so it doesn't clutter day-to-day views.
     db.update_logbook_entry(entry_id, status="archived")
 
-    # Delete the old logbook entry from vector index to prevent search pollution
-    # (archived entries should not appear in search results)
     warnings: list[str] = []
-    logbook_warning = _run_deindex_side_effect(
+    logbook_warning = run_deindex_side_effect(
         label="Logbook entry",
         item_id=entry_id,
         operation=lambda: delete_from_kb_vector_db(f"logbook:{entry_id}"),
@@ -172,16 +186,16 @@ async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depen
 
     promoted = db.get_knowledge_entry(knowledge_id)
     if promoted:
-        knowledge_warning = _run_index_side_effect(
+        knowledge_warning = run_index_side_effect(
             label="Knowledge entry",
             item_id=knowledge_id,
             operation=lambda: index_knowledge_entry(promoted),
         )
         if knowledge_warning:
             warnings.append(knowledge_warning)
-    # Re-index the archived logbook (with updated status) for completeness
+
     archived_logbook = db.get_logbook_entry(entry_id) or logbook
-    archived_warning = _run_index_side_effect(
+    archived_warning = run_index_side_effect(
         label="Logbook entry",
         item_id=entry_id,
         operation=lambda: index_logbook_entry(archived_logbook),
@@ -189,13 +203,12 @@ async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depen
     if archived_warning:
         warnings.append(archived_warning)
 
-    # If this logbook was derived from an AutoTest run, mark the run as having a solution.
     run_id = str(logbook.get("run_id") or "").strip()
     if run_id:
         db.update_autotest_run(run_id, solution_entry_id=knowledge_id)
 
     return PromoteToKnowledgeResponse(
-        message=_side_effect_warning("Promoted to verified knowledge entry.", " ".join(warnings)),
+        message=side_effect_warning("Promoted to verified knowledge entry.", " ".join(warnings)),
         knowledge_entry_id=knowledge_id,
     )
 
@@ -208,7 +221,7 @@ async def delete_logbook_entry(entry_id: str, current_user: dict = Depends(get_c
     if existing.get("created_by") != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot delete this logbook entry.")
     item_id = f"logbook:{entry_id}"
-    warning = _run_deindex_side_effect(
+    warning = run_deindex_side_effect(
         label="Logbook entry",
         item_id=entry_id,
         operation=lambda: delete_from_kb_vector_db(item_id),
@@ -217,5 +230,4 @@ async def delete_logbook_entry(entry_id: str, current_user: dict = Depends(get_c
     db.delete_links(to_item_id=item_id)
     if not db.delete_logbook_entry(entry_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Logbook entry not found.")
-    return MessageResponse(message=_side_effect_warning("Logbook entry deleted.", warning))
-
+    return MessageResponse(message=side_effect_warning("Logbook entry deleted.", warning))

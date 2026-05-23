@@ -4,7 +4,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-
 SUPPORTED_SEARCH_ITEM_TYPES = ("knowledge", "logbook", "document", "photo", "prompt", "autotest_run")
 
 

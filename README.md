@@ -223,6 +223,12 @@ python scripts/check_version_consistency.py
 
 Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md) and `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
 
+Single-command backend + frontend + release + smoke verification:
+
+```powershell
+python scripts/verify_all.py
+```
+
 ### Frontend
 
 ```bash
@@ -259,6 +265,8 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 16. `python scripts/package_release.py ./knowledge_workspace_release.zip`
 17. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
 18. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
+
+`python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, release zip verification, and smoke.
 
 The release zip is a clean source package. It deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
 

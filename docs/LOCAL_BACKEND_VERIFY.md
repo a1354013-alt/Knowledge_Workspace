@@ -19,6 +19,12 @@ python scripts/generate_api_types.py --check
 python scripts/check_version_consistency.py
 ```
 
+For the full CI-equivalent gate from the repo root, including frontend, release packaging, and smoke:
+
+```powershell
+python scripts/verify_all.py
+```
+
 ## Dependency Notes
 
 - `chromadb` is part of the supported backend dependency set for the local-first vector index path.

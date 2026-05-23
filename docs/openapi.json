@@ -357,7 +357,7 @@
       "Body_run_autotest_api_autotest_run_post": {
         "properties": {
           "file": {
-            "format": "binary",
+            "contentMediaType": "application/octet-stream",
             "title": "File",
             "type": "string"
           }
@@ -376,7 +376,7 @@
             "type": "string"
           },
           "file": {
-            "format": "binary",
+            "contentMediaType": "application/octet-stream",
             "title": "File",
             "type": "string"
           },
@@ -400,7 +400,7 @@
             "type": "string"
           },
           "file": {
-            "format": "binary",
+            "contentMediaType": "application/octet-stream",
             "title": "File",
             "type": "string"
           },
@@ -749,6 +749,7 @@
         "additionalProperties": false,
         "properties": {
           "inputs": {
+            "additionalProperties": true,
             "title": "Inputs",
             "type": "object"
           },
@@ -801,12 +802,14 @@
           "analysis_scope": {
             "const": "queued_local_intake_only",
             "default": "queued_local_intake_only",
-            "title": "Analysis Scope"
+            "title": "Analysis Scope",
+            "type": "string"
           },
           "execution_mode": {
             "const": "simulated",
             "default": "simulated",
-            "title": "Execution Mode"
+            "title": "Execution Mode",
+            "type": "string"
           },
           "message": {
             "title": "Message",
@@ -831,7 +834,8 @@
           },
           "status": {
             "const": "queued",
-            "title": "Status"
+            "title": "Status",
+            "type": "string"
           }
         },
         "required": [
@@ -849,7 +853,8 @@
           "analysis_scope": {
             "const": "queued_local_intake_only",
             "default": "queued_local_intake_only",
-            "title": "Analysis Scope"
+            "title": "Analysis Scope",
+            "type": "string"
           },
           "clone_supported": {
             "default": false,
@@ -2474,6 +2479,13 @@
       },
       "ValidationError": {
         "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
           "loc": {
             "items": {
               "anyOf": [

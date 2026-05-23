@@ -42,6 +42,15 @@ def get_embedding_function():
         def __init__(self, *, dimension: int = 384) -> None:
             self.dimension = int(dimension)
 
+        def name(self) -> str:
+            return "knowledge-workspace-simple-hash"
+
+        def is_legacy(self) -> bool:
+            return False
+
+        def default_space(self) -> str:
+            return "cosine"
+
         def __call__(self, input: list[str]) -> list[list[float]]:
             vectors: list[list[float]] = []
             for text in input:
@@ -52,6 +61,12 @@ def get_embedding_function():
                 vec = vec / (np.linalg.norm(vec) + 1e-9)
                 vectors.append(vec.tolist())
             return vectors
+
+        def embed_documents(self, input: list[str]) -> list[list[float]]:
+            return self(input)
+
+        def embed_query(self, input: str) -> list[float]:
+            return self([input])[0]
 
     _EMBEDDING_FUNCTION = SimpleHashEmbeddingFunction()
     return _EMBEDDING_FUNCTION

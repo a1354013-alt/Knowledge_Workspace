@@ -3,8 +3,6 @@ from __future__ import annotations
 import importlib
 import sys
 
-import pytest
-
 
 def _reload_security_modules(monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "test-secret-test-secret-test-secret-1234")
@@ -31,7 +29,7 @@ def test_jwt_helper_uses_settings_algorithm_for_encode_and_decode(monkeypatch):
 
 
 def test_password_hash_verifies_legacy_and_versioned_formats():
-    from app.passwords import PBKDF2_SCHEME, PASSWORD_ITERATIONS, hash_password, verify_password_hash
+    from app.passwords import PASSWORD_ITERATIONS, PBKDF2_SCHEME, hash_password, verify_password_hash
 
     versioned_hash = hash_password("OwnerPass123!", salt="abc123")
     assert versioned_hash.startswith(f"{PBKDF2_SCHEME}${PASSWORD_ITERATIONS}$abc123$")

@@ -22,6 +22,12 @@ Equivalent single command from the repo root after dependencies are installed:
 py -3.11 scripts\run_backend_checks.py
 ```
 
+Full CI-equivalent verification, including frontend, release zip, and smoke:
+
+```powershell
+python scripts/verify_all.py
+```
+
 `run_backend_tests.py` is the CI-style wrapper: it still executes `python -m pytest -q`, but it also enforces a whole-process timeout and fails if pytest reports passing tests without exiting cleanly.
 
 Required test defaults are documented in `backend/.env.example`. The test suite itself sets isolated values for `JWT_SECRET`, `DEFAULT_OWNER_PASSWORD`, `DATABASE_PATH`, `UPLOAD_DIR`, `PHOTO_DIR`, `AUTOTEST_DIR`, `CHROMA_DB_PATH`, `AUTOTEST_MODE`, and `ALLOWED_ORIGINS`.
@@ -59,3 +65,4 @@ python scripts/smoke_check.py --password "OwnerPass123!"
 
 The smoke check expects a local backend already running on `127.0.0.1:8000`, matching the CI startup step.
 The release zip is a clean source package. It excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary Chroma/AutoTest data; run the frontend build after extraction.
+`python scripts/verify_all.py` automates the same startup/wait/smoke sequence locally with simulated AutoTest settings.

@@ -1,26 +1,32 @@
-from app.api.handlers.support import (
+from __future__ import annotations
+
+import uuid
+
+from fastapi import Depends, HTTPException, status
+
+from app.api.common import (
     KNOWLEDGE_REVISION_FIELDS,
-    Depends,
-    HTTPException,
+    item_id_from_parts,
+    knowledge_revision_snapshot,
+    list_visible_related_item_ids_for_user,
+    maybe_link_source_item,
+    run_index_side_effect,
+    serialize_knowledge_revision,
+    side_effect_warning,
+    sync_source_ref_link,
+    validate_related_item_ids_for_user,
+    validate_source_ref_for_user,
+)
+from app.context import db
+from app.dependencies import get_current_user
+from app.kb_index import index_knowledge_entry
+from app.models import (
     KnowledgeEntryCreateRequest,
     KnowledgeEntryResponse,
     KnowledgeEntryUpdateRequest,
     KnowledgeRevisionDiffResponse,
     KnowledgeRevisionResponse,
     MessageResponse,
-    _run_index_side_effect,
-    _side_effect_warning,
-    db,
-    get_current_user,
-    index_knowledge_entry,
-    item_id_from_parts,
-    knowledge_revision_snapshot,
-    maybe_link_source_item,
-    normalize_related_item_ids,
-    serialize_knowledge_revision,
-    status,
-    sync_source_ref_link,
-    uuid,
 )
 
 
@@ -38,7 +44,10 @@ async def list_knowledge_entries(current_user: dict = Depends(get_current_user))
             notes=row.get("notes", ""),
             source_type=row.get("source_type", "manual") or "manual",
             source_ref=row.get("source_ref", "") or "",
-            related_item_ids=db.list_related_item_ids(f"knowledge:{row['entry_id']}"),
+            related_item_ids=list_visible_related_item_ids_for_user(
+                item_id=item_id_from_parts("knowledge", row["entry_id"]),
+                user_id=user_id,
+            ),
             created_at=row.get("created_at", ""),
             updated_at=row.get("updated_at", ""),
         )
@@ -52,6 +61,9 @@ async def create_knowledge_entry(
 ) -> MessageResponse:
     user_id = current_user["sub"]
     entry_id = str(uuid.uuid4())
+    related_item_ids = validate_related_item_ids_for_user(item_ids=request.related_item_ids, user_id=user_id)
+    source_ref = validate_source_ref_for_user(source_ref=request.source_ref, user_id=user_id)
+
     created = db.add_knowledge_entry(
         entry_id=entry_id,
         title=request.title,
@@ -63,7 +75,7 @@ async def create_knowledge_entry(
         notes=request.notes,
         created_by=user_id,
         source_type=request.source_type,
-        source_ref=request.source_ref,
+        source_ref=source_ref,
     )
     if not created:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create knowledge entry.")
@@ -76,20 +88,21 @@ async def create_knowledge_entry(
             change_note="Initial version",
             created_by=user_id,
         )
-        db.set_reference_links(item_id_from_parts("knowledge", entry_id), normalize_related_item_ids(request.related_item_ids))
+        db.set_reference_links(item_id_from_parts("knowledge", entry_id), related_item_ids)
         maybe_link_source_item(
             from_item_id=item_id_from_parts("knowledge", entry_id),
             source_type=request.source_type,
-            source_ref=request.source_ref,
+            source_ref=source_ref,
+            user_id=user_id,
         )
-        warning = _run_index_side_effect(
+        warning = run_index_side_effect(
             label="Knowledge entry",
             item_id=entry_id,
             operation=lambda: index_knowledge_entry(entry),
         )
     else:
         warning = None
-    return MessageResponse(message=_side_effect_warning("Knowledge entry created.", warning))
+    return MessageResponse(message=side_effect_warning("Knowledge entry created.", warning))
 
 
 async def update_knowledge_entry(
@@ -109,6 +122,12 @@ async def update_knowledge_entry(
     change_note = str(updates.pop("change_note", "") or "").strip()
     if not updates and related is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No knowledge fields provided.")
+
+    if related is not None:
+        related = validate_related_item_ids_for_user(item_ids=related, user_id=user_id)
+    if "source_ref" in updates:
+        updates["source_ref"] = validate_source_ref_for_user(source_ref=updates["source_ref"], user_id=user_id)
+
     if updates:
         db.add_knowledge_revision(
             entry_id=entry_id,
@@ -119,7 +138,7 @@ async def update_knowledge_entry(
     if updates and not db.update_knowledge_entry(entry_id, **updates):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update knowledge entry.")
     if related is not None:
-        db.set_reference_links(item_id_from_parts("knowledge", entry_id), normalize_related_item_ids(related))
+        db.set_reference_links(item_id_from_parts("knowledge", entry_id), related)
     if "source_type" in updates or "source_ref" in updates:
         source_type = updates.get("source_type", existing.get("source_type", "manual"))
         source_ref = updates.get("source_ref", existing.get("source_ref", ""))
@@ -128,15 +147,16 @@ async def update_knowledge_entry(
             old_source_ref=str(existing.get("source_ref", "")),
             new_source_ref=str(source_ref),
             source_type=str(source_type),
+            user_id=user_id,
         )
 
     updated = db.get_knowledge_entry(entry_id) or existing
-    warning = _run_index_side_effect(
+    warning = run_index_side_effect(
         label="Knowledge entry",
         item_id=entry_id,
         operation=lambda: index_knowledge_entry(updated),
     )
-    return MessageResponse(message=_side_effect_warning("Knowledge entry updated.", warning))
+    return MessageResponse(message=side_effect_warning("Knowledge entry updated.", warning))
 
 
 async def list_knowledge_revisions(entry_id: str, current_user: dict = Depends(get_current_user)) -> list[KnowledgeRevisionResponse]:
@@ -197,9 +217,9 @@ async def restore_knowledge_revision(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to restore knowledge revision.")
 
     restored = db.get_knowledge_entry(entry_id) or entry
-    warning = _run_index_side_effect(
+    warning = run_index_side_effect(
         label="Knowledge entry",
         item_id=entry_id,
         operation=lambda: index_knowledge_entry(restored),
     )
-    return MessageResponse(message=_side_effect_warning("Knowledge revision restored.", warning))
+    return MessageResponse(message=side_effect_warning("Knowledge revision restored.", warning))

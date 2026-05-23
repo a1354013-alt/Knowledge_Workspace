@@ -39,3 +39,23 @@ It should not grow new business logic. New behavior belongs in:
 - `backend/app/db/migrations.py`
 - `backend/app/repositories/*`
 - `backend/app/services/*`
+
+## Handler Support Barrel
+
+`backend/app/api/handlers/support.py` is also a compatibility barrel.
+
+Current purpose:
+
+- preserve shared imports for older split handlers and monkeypatch-heavy tests
+- bridge legacy patch targets such as `app.api.legacy_main.process_file`
+- keep the router/service split incremental instead of forcing a large rewrite
+
+New handler code should not add fresh dependencies on `support.py`.
+Prefer importing concrete objects from:
+
+- `app.api.common`
+- `app.context`
+- `app.dependencies`
+- `app.models`
+- `app.kb_index`
+- `app.database`

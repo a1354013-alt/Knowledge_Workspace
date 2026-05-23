@@ -20,6 +20,7 @@ from app.models import (
 )
 
 logger = logging.getLogger("knowledge_workspace")
+OWNED_ITEM_PREFIXES = frozenset({"document", "photo", "autotest_run", "prompt", "logbook", "knowledge"})
 
 
 def serialize_me(current_user: dict) -> MeResponse:
@@ -271,12 +272,21 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
 
 
 def build_links_response(*, item_id: str, user_id: str) -> ItemLinksResponse:
-    links = db.list_links(item_id)
+    normalized_item_id = str(item_id or "").strip()
+    if not normalized_item_id or resolve_item_summary(item_id=normalized_item_id, user_id=user_id) is None:
+        return ItemLinksResponse(item_id=normalized_item_id, links=[])
+
+    links = db.list_links(normalized_item_id)
     resolved: list[ItemLinkResolved] = []
     for link in links:
         from_item_id = str(link.get("from_item_id", "") or "")
         to_item_id = str(link.get("to_item_id", "") or "")
-        other_id = to_item_id if from_item_id == item_id else from_item_id
+        if normalized_item_id not in {from_item_id, to_item_id}:
+            continue
+        other_id = to_item_id if from_item_id == normalized_item_id else from_item_id
+        other_item = resolve_item_summary(item_id=other_id, user_id=user_id)
+        if other_item is None:
+            continue
         resolved.append(
             ItemLinkResolved(
                 link_id=str(link.get("link_id", "") or ""),
@@ -284,10 +294,10 @@ def build_links_response(*, item_id: str, user_id: str) -> ItemLinksResponse:
                 to_item_id=to_item_id,
                 link_type=str(link.get("link_type", "") or "references"),
                 created_at=str(link.get("created_at", "") or ""),
-                other_item=resolve_item_summary(item_id=other_id, user_id=user_id),
+                other_item=other_item,
             )
         )
-    return ItemLinksResponse(item_id=item_id, links=resolved)
+    return ItemLinksResponse(item_id=normalized_item_id, links=resolved)
 
 
 def normalize_related_item_ids(values: list[str]) -> list[str]:
@@ -304,35 +314,74 @@ def normalize_related_item_ids(values: list[str]) -> list[str]:
     return cleaned
 
 
-def maybe_link_source_item(*, from_item_id: str, source_type: str, source_ref: str) -> None:
+def _internal_item_id_candidate(value: str) -> str | None:
+    normalized = str(value or "").strip()
+    if not normalized or ":" not in normalized:
+        return None
+    prefix = normalized.split(":", 1)[0].strip()
+    if prefix not in OWNED_ITEM_PREFIXES:
+        return None
+    return normalized
+
+
+def validate_related_item_ids_for_user(*, item_ids: list[str], user_id: str) -> list[str]:
+    normalized = normalize_related_item_ids(item_ids)
+    invalid = [item_id for item_id in normalized if resolve_item_summary(item_id=item_id, user_id=user_id) is None]
+    if invalid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid or inaccessible related_item_ids: {', '.join(invalid)}",
+        )
+    return normalized
+
+
+def list_visible_related_item_ids_for_user(*, item_id: str, user_id: str) -> list[str]:
+    visible: list[str] = []
+    for related_id in normalize_related_item_ids(db.list_related_item_ids(item_id)):
+        if resolve_item_summary(item_id=related_id, user_id=user_id) is not None:
+            visible.append(related_id)
+    return visible
+
+
+def validate_source_ref_for_user(*, source_ref: str, user_id: str) -> str:
+    try:
+        ref = str(source_ref or "").strip()
+        candidate = _internal_item_id_candidate(ref)
+        if candidate is None:
+            return ref
+        parse_item_id(candidate)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid source_ref item id format.")
+    if resolve_item_summary(item_id=candidate, user_id=user_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="source_ref points to an inaccessible item.")
+    return candidate
+
+
+def maybe_link_source_item(*, from_item_id: str, source_type: str, source_ref: str, user_id: str) -> None:
     st = str(source_type or "").strip()
     if st in {"manual", ""}:
         return
-    ref = str(source_ref or "").strip()
-    if not ref or ":" not in ref:
+    ref = _internal_item_id_candidate(source_ref)
+    if ref is None:
         return
-    try:
-        prefix, _rest = parse_item_id(ref)
-    except ValueError:
-        return
-    if prefix not in {"document", "photo", "autotest_run", "prompt", "logbook", "knowledge"}:
+    if resolve_item_summary(item_id=ref, user_id=user_id) is None:
         return
     db.add_link(str(from_item_id), ref, link_type="derived_from")
 
 
-def sync_source_ref_link(*, from_item_id: str, old_source_ref: str, new_source_ref: str, source_type: str) -> None:
+def sync_source_ref_link(*, from_item_id: str, old_source_ref: str, new_source_ref: str, source_type: str, user_id: str) -> None:
     old_ref = str(old_source_ref or "").strip()
     new_ref = str(new_source_ref or "").strip()
-    if old_ref and ":" in old_ref:
+    if _internal_item_id_candidate(old_ref):
         try:
             prefix, _rest = parse_item_id(old_ref)
         except ValueError:
             prefix = ""
-        if prefix in {"document", "photo", "autotest_run", "prompt", "logbook", "knowledge"}:
+        if prefix in OWNED_ITEM_PREFIXES:
             db.delete_links(from_item_id=str(from_item_id), to_item_id=old_ref, link_type="derived_from")
 
     if new_ref != old_ref:
-        maybe_link_source_item(from_item_id=from_item_id, source_type=source_type, source_ref=new_ref)
+        maybe_link_source_item(from_item_id=from_item_id, source_type=source_type, source_ref=new_ref, user_id=user_id)
 
 
 def safe_download_filename(value: str) -> str:

@@ -89,7 +89,10 @@ _guess_media_type = guess_media_type
 
 
 async def sync_document_index(document: dict) -> None:
-    delete_from_vector_db(document["doc_id"])
+    try:
+        delete_from_vector_db(document["doc_id"])
+    except Exception as exc:
+        logger.warning("Document de-index failed for %s before reindex: %s", document["doc_id"], exc)
     if int(document.get("is_active", 1)) != 1 or str(document.get("status", "")) == "archived":
         db.update_document(
             document["doc_id"],
