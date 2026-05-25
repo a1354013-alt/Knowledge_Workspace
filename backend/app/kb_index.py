@@ -3,6 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 from app.database import add_to_kb_vector_db, delete_from_kb_vector_db
+from app.search_content import (
+    build_knowledge_search_text,
+    build_logbook_search_text,
+    build_photo_search_text,
+    build_prompt_search_text,
+)
 from app.services.core import split_text
 from app.vector_db import vector_db_unavailable_reason
 
@@ -31,25 +37,12 @@ def index_knowledge_entry(entry: dict[str, Any]) -> bool:
     delete_from_kb_vector_db(item_id)
     if int(entry.get("is_active", 1)) != 1 or entry.get("status") == "archived":
         return True
-    text = "\n".join(
-        part
-        for part in [
-            entry.get("title", ""),
-            f"Problem:\n{entry.get('problem', '')}",
-            f"Root cause:\n{entry.get('root_cause', '')}",
-            f"Solution:\n{entry.get('solution', '')}",
-            f"Tags:\n{entry.get('tags', '')}",
-            f"Notes:\n{entry.get('notes', '')}",
-            f"Status:\n{entry.get('status', '')}",
-            f"Source:\n{entry.get('source_type', '')} {entry.get('source_ref', '')}",
-        ]
-        if str(part or "").strip()
-    ).strip()
+    text = build_knowledge_search_text(entry)
 
     chunks = split_text(text)
     metadata = _build_metadata(
         item_id=item_id,
-        item_type="knowledge_entry",
+        item_type="knowledge",
         title=entry.get("title") or "Knowledge note",
         owner_user_id=str(entry.get("created_by", "") or ""),
         is_active=int(entry.get("is_active", 1)),
@@ -64,25 +57,12 @@ def index_logbook_entry(entry: dict[str, Any]) -> bool:
     delete_from_kb_vector_db(item_id)
     if int(entry.get("is_active", 1)) != 1 or entry.get("status") == "archived":
         return True
-    text = "\n".join(
-        part
-        for part in [
-            entry.get("title", ""),
-            f"Problem:\n{entry.get('problem', '')}",
-            f"Root cause:\n{entry.get('root_cause', '')}",
-            f"Solution:\n{entry.get('solution', '')}",
-            f"Tags:\n{entry.get('tags', '')}",
-            f"Source type:\n{entry.get('source_type', '')}",
-            f"Status:\n{entry.get('status', '')}",
-            f"Source ref:\n{entry.get('source_ref', '')}",
-        ]
-        if str(part or "").strip()
-    ).strip()
+    text = build_logbook_search_text(entry)
 
     chunks = split_text(text)
     metadata = _build_metadata(
         item_id=item_id,
-        item_type="logbook_entry",
+        item_type="logbook",
         title=entry.get("title") or "Logbook",
         owner_user_id=str(entry.get("created_by", "") or ""),
         is_active=int(entry.get("is_active", 1)),
@@ -97,16 +77,7 @@ def index_photo(entry: dict[str, Any]) -> bool:
     delete_from_kb_vector_db(item_id)
     if int(entry.get("is_active", 1)) != 1 or entry.get("status") == "archived":
         return True
-    text = "\n".join(
-        part
-        for part in [
-            entry.get("filename", ""),
-            f"Tags:\n{entry.get('tags', '')}",
-            f"Description:\n{entry.get('description', '')}",
-            f"OCR:\n{entry.get('ocr_text', '')}",
-        ]
-        if str(part or "").strip()
-    ).strip()
+    text = build_photo_search_text(entry)
 
     chunks = split_text(text)
     metadata = _build_metadata(
@@ -126,19 +97,11 @@ def index_saved_prompt(entry: dict[str, Any]) -> bool:
     delete_from_kb_vector_db(item_id)
     if int(entry.get("is_active", 1)) != 1:
         return True
-    text = "\n".join(
-        part
-        for part in [
-            entry.get("title", ""),
-            f"Tags:\n{entry.get('tags', '')}",
-            f"Content:\n{entry.get('content', '')}",
-        ]
-        if str(part or "").strip()
-    ).strip()
+    text = build_prompt_search_text(entry)
     chunks = split_text(text)
     metadata = _build_metadata(
         item_id=item_id,
-        item_type="saved_prompt",
+        item_type="prompt",
         title=entry.get("title") or "Saved prompt",
         owner_user_id=str(entry.get("created_by", "") or ""),
         is_active=int(entry.get("is_active", 1)),

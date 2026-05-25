@@ -226,6 +226,7 @@ python scripts/check_python_version.py
 python scripts/safe_compileall.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
+python scripts/check_index_consistency.py
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
 python scripts/check_version_consistency.py
@@ -266,19 +267,20 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 7. `python scripts/generate_api_types.py --check`
 8. `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
 9. `python scripts/check_version_consistency.py`
-10. frontend `npm ci`
-11. frontend `npm audit --omit=dev --audit-level=high`
-12. frontend `npm run lint`
-13. frontend `npm run typecheck`
-14. frontend `npm run test:run`
-15. frontend `npm run build`
-16. `python scripts/package_release.py ./knowledge_workspace_release.zip`
-17. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
-18. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
+10. `python scripts/check_index_consistency.py`
+11. frontend `npm ci`
+12. frontend `npm audit --omit=dev --audit-level=high`
+13. frontend `npm run lint`
+14. frontend `npm run typecheck`
+15. frontend `npm run test:run`
+16. frontend `npm run build`
+17. `python scripts/package_release.py ./knowledge_workspace_release.zip`
+18. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
+19. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
 
 `python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, release zip verification, and smoke.
 
-The release zip is a clean source package. It deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
+The release zip is a clean source package. `scripts/package_release.py` does not build or ship `frontend/dist` by default, and the archive deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
 
 ## Dashboard Metric Contract
 
@@ -334,6 +336,8 @@ Metric sources:
 - `GET /api/index/status`: summary of `pending/indexed/failed/unavailable` state plus provider mode
 - `POST /api/index/rebuild`: rebuild all indexable content for the current owner
 - `POST /api/index/rebuild/{item_type}/{item_id}`: rebuild one item
+- `python scripts/check_index_consistency.py`: detect DB/vector/full-text drift and report repair-queue items
+- `python scripts/check_index_consistency.py --repair`: replay queued index/deindex repairs and re-check consistency
 
 ## AutoTest Timeline Statuses
 

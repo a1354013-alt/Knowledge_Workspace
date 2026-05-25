@@ -25,6 +25,9 @@ def load_app(monkeypatch, tmp_path):
             del sys.modules[module_name]
 
     main = importlib.import_module("app.main")
+    context = importlib.import_module("app.context")
+    main.db = context.db
+    main.UPLOAD_DIR = context.UPLOAD_DIR
     main.delete_from_vector_db = lambda doc_id: True
     main.delete_from_kb_vector_db = lambda item_id: True
     return main

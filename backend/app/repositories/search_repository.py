@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from typing import Any
 
 SUPPORTED_SEARCH_ITEM_TYPES = ("knowledge", "logbook", "document", "photo", "prompt", "autotest_run")
@@ -14,6 +15,7 @@ class SearchFilters:
     tag: str
     date_from: str
     date_to: str
+    date_to_operator: str
     limit: int
     selected_types: tuple[str, ...]
 
@@ -76,14 +78,16 @@ def _normalize_filters(
     limit: int,
 ) -> SearchFilters:
     selected = tuple(item_type for item_type in (item_types or []) if item_type in SUPPORTED_SEARCH_ITEM_TYPES)
-    if not selected:
+    if item_types in (None, []):
         selected = tuple(sorted(SUPPORTED_SEARCH_ITEM_TYPES))
+    date_to_value, date_to_operator = _normalize_date_to(str(date_to or "").strip())
     return SearchFilters(
         keyword=str(keyword or "").strip().lower(),
         status=str(status or "").strip(),
         tag=str(tag or "").strip(),
         date_from=str(date_from or "").strip(),
-        date_to=str(date_to or "").strip(),
+        date_to=date_to_value,
+        date_to_operator=date_to_operator,
         limit=max(1, min(int(limit), 500)),
         selected_types=selected,
     )
@@ -105,7 +109,7 @@ def _common_where(filters: SearchFilters) -> tuple[list[str], list[Any]]:
         clauses.append("updated_at >= ?")
         params.append(filters.date_from)
     if filters.date_to:
-        clauses.append("updated_at <= ?")
+        clauses.append(f"updated_at {filters.date_to_operator} ?")
         params.append(filters.date_to)
     return clauses, params
 
@@ -254,3 +258,15 @@ def _build_union_sql(*, queries: list[SearchQuerySpec], filters: SearchFilters) 
 
 def _map_search_row(row: Any) -> dict[str, Any]:
     return dict(row)
+
+
+def _normalize_date_to(value: str) -> tuple[str, str]:
+    if not value:
+        return "", "<="
+    try:
+        if len(value) == 10:
+            day = date.fromisoformat(value)
+            return datetime.combine(day + timedelta(days=1), datetime.min.time()).isoformat(), "<"
+    except ValueError:
+        return value, "<="
+    return value, "<="

@@ -2461,6 +2461,13 @@
             "type": "string"
           },
           "source_type": {
+            "enum": [
+              "knowledge",
+              "logbook",
+              "prompt",
+              "document",
+              "photo"
+            ],
             "title": "Source Type",
             "type": "string"
           },
@@ -5092,7 +5099,7 @@
     },
     "/api/search": {
       "get": {
-        "description": "Global search across workspace entities.\n\nQuery params:\n- q: keyword substring match\n- types: comma-separated list: knowledge,logbook,document,photo,prompt,autotest_run\n- status_filter: exact status match (e.g. draft/reviewed/verified/archived/passed/failed)\n- tag: tags substring match (where applicable)\n- date_from/date_to: ISO prefix comparisons (e.g. 2026-04-01)",
+        "description": "Global search across workspace entities.\n\nQuery params:\n- q: keyword substring match\n- types: comma-separated list: knowledge,logbook,document,photo,prompt,autotest_run\n  Unsupported values return HTTP 400.\n- status_filter: exact status match (e.g. draft/reviewed/verified/archived/passed/failed)\n- tag: tags substring match (where applicable)\n- date_from/date_to: ISO comparisons; a date-only date_to includes the full day (e.g. 2026-04-01)",
         "operationId": "global_search_api_search_get",
         "parameters": [
           {

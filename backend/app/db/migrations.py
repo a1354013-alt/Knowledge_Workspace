@@ -73,6 +73,28 @@ def ensure_query_indexes(cursor: sqlite3.Cursor) -> None:
         cursor.execute(sql)
 
 
+def ensure_search_support_tables(cursor: sqlite3.Cursor) -> None:
+    cursor.execute(schema.CREATE_ITEM_SEARCH_CONTENT_TABLE_SQL)
+    cursor.execute(schema.CREATE_INDEX_REPAIR_QUEUE_TABLE_SQL)
+    try:
+        cursor.execute(
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS item_search_fts
+            USING fts5(
+                item_id UNINDEXED,
+                item_type UNINDEXED,
+                owner_user_id UNINDEXED,
+                is_active UNINDEXED,
+                updated_at UNINDEXED,
+                title,
+                content
+            )
+            """
+        )
+    except sqlite3.OperationalError as exc:
+        logger.warning("SQLite FTS5 is unavailable; search fallback will use LIKE queries only: %s", exc)
+
+
 def migrate_users_table(cursor: sqlite3.Cursor) -> None:
     cursor.execute("UPDATE users SET role = 'owner' WHERE role != 'owner'")
 

@@ -18,6 +18,7 @@ from app.models import (
     KnowledgeRevisionResponse,
     MeResponse,
 )
+from app.source_types import canonicalize_source_type
 
 logger = logging.getLogger("knowledge_workspace")
 OWNED_ITEM_PREFIXES = frozenset({"document", "photo", "autotest_run", "prompt", "logbook", "knowledge"})
@@ -181,7 +182,7 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
             raw_id=raw_id,
             getter=db.get_knowledge_entry,
             owner_key="created_by",
-            item_type="knowledge_entry",
+            item_type="knowledge",
             title_field="title",
             default_title="Knowledge note",
             status_value="draft",
@@ -198,7 +199,7 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
             raw_id=raw_id,
             getter=db.get_logbook_entry,
             owner_key="created_by",
-            item_type="logbook_entry",
+            item_type="logbook",
             title_field="title",
             default_title="Logbook note",
             status_value="draft",
@@ -245,7 +246,7 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
             raw_id=raw_id,
             getter=db.get_saved_prompt,
             owner_key="created_by",
-            item_type="saved_prompt",
+            item_type="prompt",
             title_field="title",
             default_title="Saved prompt",
             status_value="active",
@@ -264,7 +265,9 @@ def resolve_item_summary(*, item_id: str, user_id: str) -> ItemSummary | None:
             status=str(run.get("status", "") or ""),
             created_at=str(run.get("created_at", "") or ""),
             updated_at=str(run.get("updated_at", "") or run.get("created_at", "") or ""),
-            source_type=str(run.get("source_type", "") or ""),
+            source_type=canonicalize_source_type(str(run.get("source_type", "") or "knowledge"))
+            if str(run.get("source_type", "") or "").strip() in {"knowledge", "knowledge_entry", "logbook", "logbook_entry", "prompt", "saved_prompt", "document", "photo"}
+            else str(run.get("source_type", "") or ""),
             source_ref=str(run.get("source_ref", "") or ""),
         )
 

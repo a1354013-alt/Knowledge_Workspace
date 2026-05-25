@@ -83,8 +83,17 @@ async def upload_document(
         except Exception as exc:
             index_status, detail = classify_index_failure(exc)
             db.update_document(doc_id, index_status=index_status, index_error=detail, indexed_at="")
+            db.queue_index_repair(
+                item_id=item_id_from_parts("document", doc_id),
+                item_type="document",
+                action="index",
+                owner_user_id=str(current_user["sub"]),
+                last_error=detail,
+            )
             logger.warning("Document indexing failed for %s: %s", doc_id, exc)
             message = f"Document uploaded, but indexing failed: {exc}"
+        else:
+            db.resolve_index_repair(item_id=item_id_from_parts("document", doc_id), action="index")
         document = db.get_document(doc_id) or document
     logger.info("Uploaded document %s by %s", doc_id, current_user["sub"])
     return UploadDocumentResponse(
@@ -152,7 +161,16 @@ async def update_document(
     except Exception as exc:
         index_status, detail = classify_index_failure(exc)
         db.update_document(doc_id, index_status=index_status, index_error=detail, indexed_at="")
+        db.queue_index_repair(
+            item_id=item_id_from_parts("document", doc_id),
+            item_type="document",
+            action="index",
+            owner_user_id=str(current_user["sub"]),
+            last_error=detail,
+        )
         warning = f"Document indexing failed: {exc}"
+    else:
+        db.resolve_index_repair(item_id=item_id_from_parts("document", doc_id), action="index")
     return MessageResponse(message=_side_effect_warning("Document updated.", warning))
 
 
@@ -169,6 +187,17 @@ async def delete_own_document(doc_id: str, current_user: dict = Depends(get_curr
         item_id=doc_id,
         operation=lambda: delete_from_vector_db(doc_id),
     )
+    if warning:
+        db.queue_index_repair(
+            item_id=item_id_from_parts("document", doc_id),
+            item_type="document",
+            action="deindex",
+            owner_user_id=str(current_user["sub"]),
+            last_error=warning,
+        )
+    else:
+        db.resolve_index_repair(item_id=item_id_from_parts("document", doc_id), action="deindex")
+    db.delete_search_content(item_id_from_parts("document", doc_id))
     safe_unlink(UPLOAD_DIR / document["saved_filename"])
     db.delete_links(from_item_id=item_id_from_parts("document", doc_id))
     db.delete_links(to_item_id=item_id_from_parts("document", doc_id))

@@ -17,6 +17,7 @@ from app.db import migrations, schema
 from app.passwords import hash_password, verify_password_hash
 from app.repositories.autotest_persistence_repository import AutoTestPersistenceRepositoryMixin
 from app.repositories.document_repository import DocumentRepositoryMixin
+from app.repositories.index_repair_repository import IndexRepairRepositoryMixin
 from app.repositories.knowledge_repository import KnowledgeRepositoryMixin
 from app.repositories.link_repository import LinkRepositoryMixin
 from app.repositories.logbook_repository import LogbookRepositoryMixin
@@ -34,6 +35,7 @@ from app.repositories.repository_utils import (
     WORKFLOW_STATUS_VALUES,
     utc_now_iso,
 )
+from app.repositories.search_content_repository import SearchContentRepositoryMixin
 from app.repositories.search_repository import SearchRepositoryMixin
 
 logger = logging.getLogger("knowledge_workspace")
@@ -62,6 +64,8 @@ class DocumentDatabase(
     PhotoRepositoryMixin,
     AutoTestPersistenceRepositoryMixin,
     SearchRepositoryMixin,
+    SearchContentRepositoryMixin,
+    IndexRepairRepositoryMixin,
 ):
     def __init__(self, db_path: str = "documents.db"):
         self.db_path = db_path
@@ -103,6 +107,7 @@ class DocumentDatabase(
             cursor.execute(schema.CREATE_AUTOTEST_STEPS_TABLE_SQL)
             cursor.execute(schema.CREATE_ITEM_LINKS_TABLE_SQL)
             cursor.execute(schema.CREATE_SAVED_PROMPTS_TABLE_SQL)
+            migrations.ensure_search_support_tables(cursor)
             self._migrate_documents_table(cursor)
             self._migrate_users_table(cursor)
             self._migrate_knowledge_entries_table(cursor)

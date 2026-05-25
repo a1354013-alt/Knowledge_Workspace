@@ -45,7 +45,15 @@ def _reload_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
             del sys.modules[module_name]
 
     main = importlib.import_module("app.main")
-    main.legacy_main = importlib.import_module("app.api.legacy_main")
+    context = importlib.import_module("app.context")
+    legacy_main = importlib.import_module("app.api.legacy_main")
+    autotest_service = importlib.import_module("app.services.autotest_service")
+    dashboard_service = importlib.import_module("app.services.dashboard_service")
+    main.legacy_main = legacy_main
+    main.db = context.db
+    main.UPLOAD_DIR = context.UPLOAD_DIR
+    main.autotest_service = autotest_service
+    main.dashboard_service = dashboard_service
     main.delete_from_vector_db = lambda _doc_id: True
     main.delete_from_kb_vector_db = lambda _item_id: True
     return main

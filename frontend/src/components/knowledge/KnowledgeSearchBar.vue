@@ -50,7 +50,7 @@
             >
               <strong>{{ source.title }}</strong>
               <p class="muted">
-                {{ source.source_type }} · {{ source.location || '-' }}
+                {{ formatSourceType(source.source_type) }} · {{ source.location || '-' }}
               </p>
               <p class="snippet">
                 {{ source.snippet }}
@@ -82,6 +82,17 @@ defineEmits<{
   submit: []
   'update:question': [value: string]
 }>()
+
+function formatSourceType(value: Source['source_type']): string {
+  const labels: Record<Source['source_type'], string> = {
+    knowledge: 'Knowledge',
+    logbook: 'Logbook',
+    prompt: 'Prompt',
+    document: 'Document',
+    photo: 'Photo',
+  }
+  return labels[value] || value
+}
 </script>
 
 <style scoped>

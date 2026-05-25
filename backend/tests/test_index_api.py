@@ -53,6 +53,7 @@ def test_rebuild_single_document_index_updates_status(app_module, client, auth_h
     updated = app_module.db.get_document("doc-rebuild")
     assert updated["index_status"] == "indexed"
     assert updated["index_error"] == ""
+    assert not app_module.db.list_index_repairs(owner_user_id="owner")
 
 
 def test_rebuild_all_indexes_marks_failures(app_module, client, auth_headers, monkeypatch):

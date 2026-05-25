@@ -116,7 +116,7 @@ def rm_tree(path: Path) -> None:
 
 
 def copy_release_tree(
-    root_dir: Path, release_root: Path, *, build_frontend: bool = True
+    root_dir: Path, release_root: Path, *, build_frontend: bool = False
 ) -> None:
     shutil.copytree(
         root_dir / "backend",
@@ -221,6 +221,11 @@ def main() -> int:
         default="",
         help="Directory for the default release zip name.",
     )
+    parser.add_argument(
+        "--build-frontend",
+        action="store_true",
+        help="Build frontend assets during staging even though the source release still excludes frontend/dist.",
+    )
     args = parser.parse_args()
 
     root_dir = Path(__file__).resolve().parents[1]
@@ -234,7 +239,7 @@ def main() -> int:
     try:
         release_root = stage_dir / "knowledge_workspace"
         release_root.mkdir(parents=True, exist_ok=True)
-        copy_release_tree(root_dir, release_root)
+        copy_release_tree(root_dir, release_root, build_frontend=args.build_frontend)
         validate_required_release_docs(release_root)
 
         out_zip.parent.mkdir(parents=True, exist_ok=True)

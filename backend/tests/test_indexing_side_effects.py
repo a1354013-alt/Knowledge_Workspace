@@ -124,6 +124,8 @@ def test_document_delete_keeps_success_when_deindex_fails(
     assert response.status_code == 200, response.text
     assert "de-index failed" in response.json()["message"].lower()
     assert app_module.db.get_document("doc-delete-side-effect") is None
+    repairs = app_module.db.list_index_repairs(owner_user_id="owner")
+    assert any(row["item_id"] == "document:doc-delete-side-effect" and row["action"] == "deindex" for row in repairs)
 
 
 def test_knowledge_create_keeps_success_when_indexing_fails(
@@ -157,6 +159,8 @@ def test_knowledge_create_keeps_success_when_indexing_fails(
     assert response.status_code == 200, response.text
     assert "indexing failed" in response.json()["message"].lower()
     assert len(app_module.db.list_knowledge_entries(user_id="owner", include_archived=False)) == 1
+    repairs = app_module.db.list_index_repairs(owner_user_id="owner")
+    assert any(row["item_type"] == "knowledge" and row["action"] == "index" for row in repairs)
 
 
 def test_logbook_promote_keeps_success_when_indexing_fails(
@@ -254,6 +258,8 @@ def test_saved_prompt_create_keeps_success_when_indexing_fails(
 
     prompts = app_module.db.list_saved_prompts(user_id="owner", limit=200)
     assert len(prompts) == 1
+    repairs = app_module.db.list_index_repairs(owner_user_id="owner")
+    assert any(row["item_type"] == "prompt" and row["action"] == "index" for row in repairs)
 
 
 def test_saved_prompt_create_reports_unavailable_vector_index(
@@ -305,3 +311,5 @@ def test_saved_prompt_delete_keeps_success_when_deindex_fails(
     prompt = app_module.db.get_saved_prompt(prompt_id)
     assert prompt is not None
     assert int(prompt["is_active"]) == 0
+    repairs = app_module.db.list_index_repairs(owner_user_id="owner")
+    assert any(row["item_id"] == f"prompt:{prompt_id}" and row["action"] == "deindex" for row in repairs)

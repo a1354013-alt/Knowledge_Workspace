@@ -186,6 +186,12 @@ def _persist_unexpected_failure(
     failed_reason: str,
     failed_step_name: str,
 ) -> None:
+    timeline = finalize_autotest_timeline_failure(
+        timeline=timeline,
+        failed_phase=current_failed_phase(timeline, failed_reason),
+        failed_reason=failed_reason,
+    )
+    _save_timeline(run_id, timeline)
     _persist_run_update(
         run_id,
         status="failed",
@@ -194,12 +200,6 @@ def _persist_unexpected_failure(
         suggestion="",
         failed_reason=failed_reason,
     )
-    timeline = finalize_autotest_timeline_failure(
-        timeline=timeline,
-        failed_phase=current_failed_phase(timeline, failed_reason),
-        failed_reason=failed_reason,
-    )
-    _save_timeline(run_id, timeline)
     mark_unfinished_command_steps(run_id=run_id, current_failed_step=failed_step_name)
 
 

@@ -58,6 +58,16 @@ async def create_saved_prompt(
                 prompt_id, index_status=index_status, index_error=detail, indexed_at=""
             ),
         )
+        if warning:
+            db.queue_index_repair(
+                item_id=item_id_from_parts("prompt", prompt_id),
+                item_type="prompt",
+                action="index",
+                owner_user_id=str(user_id),
+                last_error=warning,
+            )
+        else:
+            db.resolve_index_repair(item_id=item_id_from_parts("prompt", prompt_id), action="index")
     else:
         warning = None
     prompt = db.get_saved_prompt(prompt_id) or prompt
@@ -85,6 +95,17 @@ async def delete_saved_prompt(prompt_id: str, current_user: dict = Depends(get_c
         item_id=prompt_id,
         operation=lambda: delete_from_kb_vector_db(f"prompt:{prompt_id}"),
     )
+    if warning:
+        db.queue_index_repair(
+            item_id=item_id_from_parts("prompt", prompt_id),
+            item_type="prompt",
+            action="deindex",
+            owner_user_id=str(user_id),
+            last_error=warning,
+        )
+    else:
+        db.resolve_index_repair(item_id=item_id_from_parts("prompt", prompt_id), action="deindex")
+    db.delete_search_content(item_id_from_parts("prompt", prompt_id))
     db.delete_links(from_item_id=item_id_from_parts("prompt", prompt_id))
     db.delete_links(to_item_id=item_id_from_parts("prompt", prompt_id))
     if not db.delete_saved_prompt(prompt_id):

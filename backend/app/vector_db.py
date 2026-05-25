@@ -313,3 +313,31 @@ def delete_from_kb_vector_db(item_id: str) -> bool:
     except Exception as exc:
         logger.error("Failed to delete KB item %s from vector DB: %s", item_id, exc)
         return False
+
+
+def count_vector_records_for_document(doc_id: str) -> int | None:
+    if chromadb is None:
+        return None
+    collection = get_collection()
+    if collection is None:
+        return None
+    try:
+        result = collection.get(where={"doc_id": doc_id}, include=[])
+        return len(result.get("ids", []))
+    except Exception as exc:
+        logger.error("Failed to count vector records for document %s: %s", doc_id, exc)
+        return None
+
+
+def count_vector_records_for_item(item_id: str) -> int | None:
+    if chromadb is None:
+        return None
+    collection = get_kb_collection()
+    if collection is None:
+        return None
+    try:
+        result = collection.get(where={"item_id": item_id}, include=[])
+        return len(result.get("ids", []))
+    except Exception as exc:
+        logger.error("Failed to count vector records for item %s: %s", item_id, exc)
+        return None

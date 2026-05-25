@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 ROLE_VALUES = ("owner",)
 WORKFLOW_STATUS_VALUES = ("draft", "reviewed", "verified", "archived")
 SOURCE_TYPE_VALUES = ("manual", "document-derived", "autotest-derived")
+PUBLIC_SOURCE_TYPE_VALUES = ("knowledge", "logbook", "prompt", "document", "photo")
 AUTOTEST_RUN_STATUS_VALUES = ("queued", "running", "passed", "failed")
 AUTOTEST_STEP_STATUS_VALUES = ("queued", "running", "passed", "failed", "skipped", "unavailable")
 
@@ -52,7 +53,7 @@ class MeResponse(StrictModel):
 
 
 class Source(StrictModel):
-    source_type: str
+    source_type: Literal["knowledge", "logbook", "prompt", "document", "photo"]
     title: str
     location: str | None = None
     snippet: str

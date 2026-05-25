@@ -113,6 +113,16 @@ async def upload_photo(
                 photo_id, index_status=index_status, index_error=detail, indexed_at=""
             ),
         )
+        if warning:
+            db.queue_index_repair(
+                item_id=item_id_from_parts("photo", photo_id),
+                item_type="photo",
+                action="index",
+                owner_user_id=str(user_id),
+                last_error=warning,
+            )
+        else:
+            db.resolve_index_repair(item_id=item_id_from_parts("photo", photo_id), action="index")
     else:
         warning = None
 
@@ -195,6 +205,16 @@ async def update_photo(
             photo_id, index_status=index_status, index_error=detail, indexed_at=""
         ),
     )
+    if warning:
+        db.queue_index_repair(
+            item_id=item_id_from_parts("photo", photo_id),
+            item_type="photo",
+            action="index",
+            owner_user_id=str(current_user["sub"]),
+            last_error=warning,
+        )
+    else:
+        db.resolve_index_repair(item_id=item_id_from_parts("photo", photo_id), action="index")
     return MessageResponse(message=_side_effect_warning("Photo updated.", warning))
 
 
@@ -209,6 +229,17 @@ async def delete_photo(photo_id: str, current_user: dict = Depends(get_current_u
         item_id=photo_id,
         operation=lambda: delete_from_kb_vector_db(item_id_from_parts("photo", photo_id)),
     )
+    if warning:
+        db.queue_index_repair(
+            item_id=item_id_from_parts("photo", photo_id),
+            item_type="photo",
+            action="deindex",
+            owner_user_id=str(current_user["sub"]),
+            last_error=warning,
+        )
+    else:
+        db.resolve_index_repair(item_id=item_id_from_parts("photo", photo_id), action="deindex")
+    db.delete_search_content(item_id_from_parts("photo", photo_id))
     safe_unlink(PHOTO_DIR / photo["saved_filename"])
     db.delete_links(from_item_id=item_id_from_parts("photo", photo_id))
     db.delete_links(to_item_id=item_id_from_parts("photo", photo_id))

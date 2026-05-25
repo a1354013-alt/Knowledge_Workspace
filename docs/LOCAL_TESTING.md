@@ -50,6 +50,7 @@ npm run build
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
 git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
+python scripts/check_index_consistency.py
 ```
 
 When the API contract intentionally changes, run `python scripts/generate_api_types.py` and commit `docs/openapi.json` with `frontend/src/api/generated/api-types.ts`.
@@ -64,5 +65,5 @@ python scripts/smoke_check.py --password "OwnerPass123!"
 ```
 
 The smoke check expects a local backend already running on `127.0.0.1:8000`, matching the CI startup step.
-The release zip is a clean source package. It excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary Chroma/AutoTest data; run the frontend build after extraction.
+The release zip is a clean source package. `scripts/package_release.py` does not build or include `frontend/dist`, and the archive excludes `node_modules`, runtime DB/journal files, caches, uploads, and temporary Chroma/AutoTest data; run the frontend build after extraction.
 `python scripts/verify_all.py` automates the same startup/wait/smoke sequence locally with simulated AutoTest settings.

@@ -204,6 +204,32 @@ CREATE TABLE IF NOT EXISTS saved_prompts (
 )
 """
 
+CREATE_ITEM_SEARCH_CONTENT_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS item_search_content (
+    item_id TEXT PRIMARY KEY,
+    item_type TEXT NOT NULL,
+    owner_user_id TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL DEFAULT '',
+    content TEXT NOT NULL DEFAULT '',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT ''
+)
+"""
+
+CREATE_INDEX_REPAIR_QUEUE_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS index_repair_queue (
+    queue_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id TEXT NOT NULL,
+    item_type TEXT NOT NULL,
+    action TEXT NOT NULL,
+    owner_user_id TEXT NOT NULL DEFAULT '',
+    last_error TEXT NOT NULL DEFAULT '',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(item_id, action)
+)
+"""
+
 CREATE_INDEXES_SQL = (
     """
     CREATE INDEX IF NOT EXISTS idx_documents_owner_active_status
@@ -240,6 +266,14 @@ CREATE_INDEXES_SQL = (
     """
     CREATE INDEX IF NOT EXISTS idx_saved_prompts_index_status
     ON saved_prompts (created_by, index_status, updated_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_item_search_content_owner_active_type_updated
+    ON item_search_content (owner_user_id, is_active, item_type, updated_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_index_repair_queue_owner_updated
+    ON index_repair_queue (owner_user_id, updated_at)
     """,
     """
     CREATE INDEX IF NOT EXISTS idx_item_links_from_item_id

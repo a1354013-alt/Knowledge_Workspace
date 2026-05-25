@@ -11,6 +11,7 @@ except ImportError:  # pragma: no cover - optional runtime dependency
 from app.database import DocumentDatabase, add_to_vector_db, query_kb_vector_db, query_vector_db
 from app.llm import get_llm_provider
 from app.models import Source
+from app.source_types import canonicalize_source_type
 from app.text_files import read_text_file
 from app.vector_db import vector_db_unavailable_reason
 
@@ -102,95 +103,16 @@ def _fallback_sources_from_db(*, db: DocumentDatabase, question: str, user_id: s
     if not keyword:
         return []
 
-    hits = db.search_items(user_id=user_id, keyword=keyword, limit=int(limit))
+    hits = db.search_search_content(user_id=user_id, query=keyword, limit=int(limit))
     sources: list[Source] = []
 
     for hit in hits:
-        item_type = str(hit.get("item_type", "") or "")
-        item_id = str(hit.get("item_id", "") or "")
+        source_type = canonicalize_source_type(str(hit.get("item_type", "") or "knowledge"))
         title = str(hit.get("title", "") or "unknown")
-
-        snippet = ""
-        try:
-            if item_type == "knowledge":
-                entry = db.get_knowledge_entry(item_id) or {}
-                snippet = "\n".join(
-                    part
-                    for part in [
-                        str(entry.get("title", "") or ""),
-                        str(entry.get("problem", "") or ""),
-                        str(entry.get("solution", "") or ""),
-                        str(entry.get("tags", "") or ""),
-                        str(entry.get("source_ref", "") or ""),
-                    ]
-                    if part.strip()
-                )
-            elif item_type == "logbook":
-                entry = db.get_logbook_entry(item_id) or {}
-                snippet = "\n".join(
-                    part
-                    for part in [
-                        str(entry.get("title", "") or ""),
-                        str(entry.get("problem", "") or ""),
-                        str(entry.get("solution", "") or ""),
-                        str(entry.get("tags", "") or ""),
-                        str(entry.get("source_ref", "") or ""),
-                    ]
-                    if part.strip()
-                )
-            elif item_type == "document":
-                doc = db.get_document(item_id) or {}
-                snippet = "\n".join(
-                    part
-                    for part in [
-                        str(doc.get("filename", "") or ""),
-                        str(doc.get("category", "") or ""),
-                        str(doc.get("tags", "") or ""),
-                        str(doc.get("status", "") or ""),
-                    ]
-                    if part.strip()
-                )
-            elif item_type == "photo":
-                photo = db.get_photo(item_id) or {}
-                snippet = "\n".join(
-                    part
-                    for part in [
-                        str(photo.get("filename", "") or ""),
-                        str(photo.get("tags", "") or ""),
-                        str(photo.get("description", "") or ""),
-                        str(photo.get("ocr_text", "") or ""),
-                    ]
-                    if part.strip()
-                )
-            elif item_type == "prompt":
-                prompt = db.get_saved_prompt(item_id) or {}
-                snippet = "\n".join(
-                    part
-                    for part in [
-                        str(prompt.get("title", "") or ""),
-                        str(prompt.get("tags", "") or ""),
-                        str(prompt.get("content", "") or ""),
-                    ]
-                    if part.strip()
-                )
-            elif item_type == "autotest_run":
-                run = db.get_autotest_run(run_id=item_id, created_by=user_id) or {}
-                snippet = "\n".join(
-                    part
-                    for part in [
-                        str(run.get("project_name", "") or ""),
-                        str(run.get("summary", "") or ""),
-                        str(run.get("suggestion", "") or ""),
-                    ]
-                    if part.strip()
-                )
-        except Exception:
-            snippet = ""
-
-        snippet = (snippet or title).strip().replace("\r", "\n")
+        snippet = str(hit.get("content", "") or title).strip().replace("\r", "\n")
         sources.append(
             Source(
-                source_type=item_type,
+                source_type=source_type,
                 title=title,
                 location=None,
                 snippet=snippet[:240],
@@ -242,7 +164,7 @@ async def perform_qa(question: str, user_id: str, db: DocumentDatabase) -> tuple
         else:
             title = metadata.get("title", "unknown")
             location = metadata.get("location") or ""
-            source_type = metadata.get("item_type", "knowledge")
+            source_type = canonicalize_source_type(str(metadata.get("item_type", "knowledge")))
 
         sources.append(
             Source(

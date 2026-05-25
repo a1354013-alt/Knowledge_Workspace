@@ -11,6 +11,8 @@ def test_query_indexes_are_created(app_module):
         "autotest_runs": {"idx_autotest_runs_owner_status_created"},
         "photos": {"idx_photos_index_status"},
         "saved_prompts": {"idx_saved_prompts_index_status"},
+        "item_search_content": {"idx_item_search_content_owner_active_type_updated"},
+        "index_repair_queue": {"idx_index_repair_queue_owner_updated"},
         "item_links": {"idx_item_links_from_item_id", "idx_item_links_to_item_id", "uq_item_links_from_to_type"},
     }
 

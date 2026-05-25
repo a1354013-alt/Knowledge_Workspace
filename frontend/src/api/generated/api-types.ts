@@ -442,7 +442,7 @@ export interface SavedPromptResponse {
   created_at: string;
   id: string;
   index_error?: string;
-  index_status?: "indexed" | "failed" | "unavailable";
+  index_status?: "pending" | "indexed" | "failed" | "unavailable";
   tags: string;
   title: string;
   updated_at: string;
@@ -470,7 +470,7 @@ export interface SettingsOCRResponse {
 export interface Source {
   location?: string | null;
   snippet: string;
-  source_type: string;
+  source_type: "knowledge" | "logbook" | "prompt" | "document" | "photo";
   title: string;
 }
 

@@ -72,6 +72,7 @@ python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
 git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
 python scripts/check_version_consistency.py
+python scripts/check_index_consistency.py
 python scripts/package_release.py /tmp/kw_release.zip
 python scripts/verify_release_zip.py /tmp/kw_release.zip
 ```
@@ -85,15 +86,16 @@ Recommended full verification flow before release:
 5. `python scripts/generate_api_types.py --check`
 6. `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
 7. `python scripts/check_version_consistency.py`
-8. `cd frontend && npm ci && npm audit --omit=dev --audit-level=high && npm run lint && npm run typecheck && npm run test && npm run build`
-9. `python scripts/package_release.py ./knowledge_workspace_release.zip`
-10. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
+8. `python scripts/check_index_consistency.py`
+9. `cd frontend && npm ci && npm audit --omit=dev --audit-level=high && npm run lint && npm run typecheck && npm run test && npm run build`
+10. `python scripts/package_release.py ./knowledge_workspace_release.zip`
+11. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
 
 The same end-to-end gate can also be run with `python scripts/verify_all.py`.
 
 Release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts.
 `python scripts/verify_release_zip.py` now also extracts the archive to a temporary directory and re-checks the extracted tree, so archive contents and unzip results stay aligned.
-The release zip is a clean source package and intentionally does not include `frontend/dist`; build frontend assets after extracting the package.
+The release zip is a clean source package. `scripts/package_release.py` intentionally does not build or include `frontend/dist`; build frontend assets after extracting the package.
 
 ## Smoke
 

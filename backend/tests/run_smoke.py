@@ -25,7 +25,14 @@ def load_app():
             del sys.modules[module_name]
 
     main = importlib.import_module("app.main")
+    context = importlib.import_module("app.context")
+    docs_handlers = importlib.import_module("app.api.handlers.docs")
+    qa_handlers = importlib.import_module("app.api.handlers.qa")
+    indexing_service = importlib.import_module("app.services.indexing_service")
+    main.db = context.db
+    main.UPLOAD_DIR = context.UPLOAD_DIR
     main.delete_from_vector_db = lambda doc_id: True
+    docs_handlers.delete_from_vector_db = lambda doc_id: True
 
     def fake_process_file(doc_id, file_path, filename, owner_user_id, status="reviewed", is_active=1):
         return doc_id
@@ -33,8 +40,8 @@ def load_app():
     async def fake_perform_qa(question, user_id):
         return (f"answer for {user_id}", [])
 
-    main.process_file = fake_process_file
-    main.perform_qa = fake_perform_qa
+    indexing_service.process_file = fake_process_file
+    qa_handlers.perform_qa = fake_perform_qa
     return main
 
 

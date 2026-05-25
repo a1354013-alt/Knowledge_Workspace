@@ -95,6 +95,16 @@ async def create_logbook_entry(
                 entry_id, index_status=index_status, index_error=detail, indexed_at=""
             ),
         )
+        if warning:
+            db.queue_index_repair(
+                item_id=item_id_from_parts("logbook", entry_id),
+                item_type="logbook",
+                action="index",
+                owner_user_id=str(user_id),
+                last_error=warning,
+            )
+        else:
+            db.resolve_index_repair(item_id=item_id_from_parts("logbook", entry_id), action="index")
     else:
         warning = None
     return MessageResponse(message=side_effect_warning("Logbook entry created.", warning))
@@ -146,6 +156,16 @@ async def update_logbook_entry(
             entry_id, index_status=index_status, index_error=detail, indexed_at=""
         ),
     )
+    if warning:
+        db.queue_index_repair(
+            item_id=item_id_from_parts("logbook", entry_id),
+            item_type="logbook",
+            action="index",
+            owner_user_id=str(user_id),
+            last_error=warning,
+        )
+    else:
+        db.resolve_index_repair(item_id=item_id_from_parts("logbook", entry_id), action="index")
     return MessageResponse(message=side_effect_warning("Logbook entry updated.", warning))
 
 
@@ -190,7 +210,16 @@ async def promote_logbook_to_knowledge(
         operation=lambda: delete_from_kb_vector_db(f"logbook:{entry_id}"),
     )
     if logbook_warning:
+        db.queue_index_repair(
+            item_id=f"logbook:{entry_id}",
+            item_type="logbook",
+            action="deindex",
+            owner_user_id=str(user_id),
+            last_error=logbook_warning,
+        )
         warnings.append(logbook_warning)
+    else:
+        db.resolve_index_repair(item_id=f"logbook:{entry_id}", action="deindex")
 
     promoted = db.get_knowledge_entry(knowledge_id)
     if promoted:
@@ -204,6 +233,15 @@ async def promote_logbook_to_knowledge(
         )
         if knowledge_warning:
             warnings.append(knowledge_warning)
+            db.queue_index_repair(
+                item_id=f"knowledge:{knowledge_id}",
+                item_type="knowledge",
+                action="index",
+                owner_user_id=str(user_id),
+                last_error=knowledge_warning,
+            )
+        else:
+            db.resolve_index_repair(item_id=f"knowledge:{knowledge_id}", action="index")
 
     archived_logbook = db.get_logbook_entry(entry_id) or logbook
     archived_warning = run_index_side_effect(
@@ -216,6 +254,15 @@ async def promote_logbook_to_knowledge(
     )
     if archived_warning:
         warnings.append(archived_warning)
+        db.queue_index_repair(
+            item_id=f"logbook:{entry_id}",
+            item_type="logbook",
+            action="index",
+            owner_user_id=str(user_id),
+            last_error=archived_warning,
+        )
+    else:
+        db.resolve_index_repair(item_id=f"logbook:{entry_id}", action="index")
 
     run_id = str(logbook.get("run_id") or "").strip()
     if run_id:
@@ -240,6 +287,17 @@ async def delete_logbook_entry(entry_id: str, current_user: dict = Depends(get_c
         item_id=entry_id,
         operation=lambda: delete_from_kb_vector_db(item_id),
     )
+    if warning:
+        db.queue_index_repair(
+            item_id=item_id,
+            item_type="logbook",
+            action="deindex",
+            owner_user_id=str(user_id),
+            last_error=warning,
+        )
+    else:
+        db.resolve_index_repair(item_id=item_id, action="deindex")
+    db.delete_search_content(item_id)
     db.delete_links(from_item_id=item_id)
     db.delete_links(to_item_id=item_id)
     if not db.delete_logbook_entry(entry_id):

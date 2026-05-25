@@ -159,6 +159,7 @@ async def finalize_passed_run(
     if skipped_steps:
         prompt_output += f"Skipped: {', '.join(skipped_steps)}\n"
     prompt_output += "Next: capture any useful learnings into a Knowledge entry."
+    _finalize_passed_timeline(timeline=timeline, run_id=run_id, summary=summary)
     _persist_terminal_run(
         run_id=run_id,
         status="passed",
@@ -167,7 +168,6 @@ async def finalize_passed_run(
         suggestion="",
         failed_reason="",
     )
-    _finalize_passed_timeline(timeline=timeline, run_id=run_id, summary=summary)
     try:
         knowledge_id = create_passed_knowledge_draft(
             run_id=run_id,
@@ -214,18 +214,18 @@ async def finalize_failed_run(
         "Please fix the failure, then re-run AutoTest."
     )
     failed_reason = failed_output or summary
+    _finalize_failed_timeline(
+        timeline=timeline,
+        run_id=run_id,
+        summary=summary,
+        failed_reason=failed_reason,
+    )
     _persist_terminal_run(
         run_id=run_id,
         status="failed",
         summary=summary,
         prompt_output=prompt_output,
         suggestion=suggestion,
-        failed_reason=failed_reason,
-    )
-    _finalize_failed_timeline(
-        timeline=timeline,
-        run_id=run_id,
-        summary=summary,
         failed_reason=failed_reason,
     )
     try:
