@@ -10,11 +10,11 @@ from app.api.handlers.support import (
     db,
     delete_from_kb_vector_db,
     get_current_user,
-    index_saved_prompt,
     item_id_from_parts,
     status,
     uuid,
 )
+from app.services.indexing_service import sync_prompt_index
 
 
 async def list_saved_prompts(current_user: dict = Depends(get_current_user)) -> list[SavedPromptResponse]:
@@ -27,14 +27,16 @@ async def list_saved_prompts(current_user: dict = Depends(get_current_user)) -> 
             tags=row.get("tags", ""),
             created_at=row.get("created_at", ""),
             updated_at=row.get("updated_at", ""),
-            index_status="indexed",
-            index_error="",
+            index_status=row.get("index_status", "pending") or "pending",
+            index_error=row.get("index_error", "") or "",
         )
         for row in db.list_saved_prompts(user_id=user_id, limit=200)
     ]
 
 
-async def create_saved_prompt(request: SavedPromptCreateRequest, current_user: dict = Depends(get_current_user)) -> SavedPromptResponse:
+async def create_saved_prompt(
+    request: SavedPromptCreateRequest, current_user: dict = Depends(get_current_user)
+) -> SavedPromptResponse:
     user_id = current_user["sub"]
     prompt_id = str(uuid.uuid4())
     ok = db.add_saved_prompt(
@@ -51,13 +53,14 @@ async def create_saved_prompt(request: SavedPromptCreateRequest, current_user: d
         warning = _run_index_side_effect(
             label="Prompt",
             item_id=prompt_id,
-            operation=lambda: index_saved_prompt(prompt),
+            operation=lambda: sync_prompt_index(prompt),
+            on_error=lambda index_status, detail: db.update_saved_prompt_index(
+                prompt_id, index_status=index_status, index_error=detail, indexed_at=""
+            ),
         )
     else:
         warning = None
-    index_status = "indexed"
-    if warning:
-        index_status = "unavailable" if "vector index unavailable" in warning.lower() else "failed"
+    prompt = db.get_saved_prompt(prompt_id) or prompt
     return SavedPromptResponse(
         id=prompt_id,
         title=str(prompt.get("title", "")),
@@ -65,8 +68,8 @@ async def create_saved_prompt(request: SavedPromptCreateRequest, current_user: d
         tags=str(prompt.get("tags", "")),
         created_at=str(prompt.get("created_at", "")),
         updated_at=str(prompt.get("updated_at", "")),
-        index_status=index_status,
-        index_error=str(warning or ""),
+        index_status=str(prompt.get("index_status", "pending") or "pending"),
+        index_error=str(prompt.get("index_error", "") or warning or ""),
     )
 
 

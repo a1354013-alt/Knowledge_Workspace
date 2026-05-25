@@ -8,6 +8,8 @@ Knowledge Workspace is a local-first engineering workspace that combines three p
 
 ## Product Positioning
 
+This repo is intentionally a local-first, single-owner workspace. It is not a public multi-tenant SaaS product, and its auth/session/storage model should be evaluated in that scope.
+
 This repo is built as a portfolio-grade full-stack system rather than a demo CRUD app. The goal is to show:
 
 - consistent data contracts across backend, frontend, and dashboard metrics
@@ -88,6 +90,7 @@ graph TD
 ## Search Reality Check
 
 - the built-in search/indexing path uses Chroma with the deterministic lightweight hash embedding in `backend/app/vector_db.py`
+- the active default embedding path is explicitly labeled as a `demo/fallback` provider
 - this is intentionally optimized for local demos, tests, and no-external-dependency environments
 - it is not a production-grade semantic understanding model and should not be described as full AI semantic search
 - production-grade semantic retrieval would require a real embedding provider such as Ollama embeddings, `sentence-transformers`, or an OpenAI-compatible embedding API
@@ -146,6 +149,7 @@ Recommended usage:
 - use `simulated` mode in CI, demos, and shared machines
 - use `real` mode only on a local or isolated environment you control
 - use `real` mode only with trusted local projects
+- `real` mode is local trusted-workspace execution, not Docker/Podman isolation
 - recommended future hardening direction:
   - Docker or Podman sandboxing
   - disposable workspace per run
@@ -170,6 +174,12 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
 pip install -e ".[dev]"
+```
+
+Windows bootstrap shortcut:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_windows.ps1
 ```
 
 `backend/requirements.txt` and `backend/requirements-dev.txt` remain committed for pinned/runtime visibility, while the supported local verification flow uses `pip install -e ".[dev]"` from the repo root.
@@ -318,6 +328,12 @@ Metric sources:
   - `Download HTML Report`
   - `Copy AI Fix Prompt`
 - HTML export escapes run output and adds a basic CSP meta policy
+
+## Index Repair API
+
+- `GET /api/index/status`: summary of `pending/indexed/failed/unavailable` state plus provider mode
+- `POST /api/index/rebuild`: rebuild all indexable content for the current owner
+- `POST /api/index/rebuild/{item_type}/{item_id}`: rebuild one item
 
 ## AutoTest Timeline Statuses
 

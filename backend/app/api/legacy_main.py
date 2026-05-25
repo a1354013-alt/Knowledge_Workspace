@@ -6,7 +6,19 @@ from types import ModuleType
 
 from fastapi.exceptions import RequestValidationError
 
-from app.api.handlers import docs, items, knowledge, logbook, photos, prompts, qa as qa_handlers, search, support, system, templates
+from app.api.handlers import (
+    docs,
+    items,
+    knowledge,
+    logbook,
+    photos,
+    prompts,
+    qa as qa_handlers,
+    search,
+    support,
+    system,
+    templates,
+)
 from app.api.handlers.docs import (
     delete_own_document,
     download_document,

@@ -12,6 +12,7 @@ export type {
   AutoTestRunResponse,
   AutoTestStepResponse,
   AutoTestTimelineItemResponse,
+  EmbeddingProviderStatusResponse,
   DashboardAutoTestMetrics,
   DashboardDocumentMetrics,
   DashboardHealthResponse,
@@ -23,6 +24,9 @@ export type {
   GenerateRequest,
   GenerateResponse,
   HealthResponse,
+  IndexRebuildResponse,
+  IndexStatusItemResponse,
+  IndexStatusResponse,
   ItemLinkResolved,
   ItemLinksResponse,
   ItemSummary,
@@ -74,6 +78,8 @@ export type DocumentIndexStatus = NonNullable<DocumentResponse['index_status']>
 // API Error Structure is client-side normalized state, not a backend model.
 export interface ApiError {
   status: number
+  code?: string
   message: string
+  details?: unknown
   detail?: string
 }

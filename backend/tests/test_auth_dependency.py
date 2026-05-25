@@ -10,7 +10,7 @@ def test_inactive_user_old_token_is_rejected(client, auth_headers, app_module):
 
     response = client.get("/api/me", headers=auth_headers)
     assert response.status_code == 401
-    assert response.json()["detail"] == "User account is inactive or no longer exists."
+    assert response.json()["message"] == "User account is inactive or no longer exists."
 
 
 def test_empty_sub_token_is_rejected(client):
@@ -19,4 +19,4 @@ def test_empty_sub_token_is_rejected(client):
     response = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid token payload."
+    assert response.json()["message"] == "Invalid token payload."

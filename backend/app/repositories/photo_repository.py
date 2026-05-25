@@ -5,6 +5,7 @@ import sqlite3
 from typing import Any
 
 from app.repositories.repository_utils import (
+    INDEX_STATUS_VALUES,
     PHOTO_STATUS_VALUES,
     WORKFLOW_STATUS_VALUES,
     utc_now_iso,
@@ -23,9 +24,14 @@ class PhotoRepositoryMixin:
         file_size: int,
         uploaded_by: str | None,
         status: str = "reviewed",
+        index_status: str = "pending",
+        index_error: str = "",
+        indexed_at: str = "",
     ) -> bool:
         if status not in PHOTO_STATUS_VALUES and status not in WORKFLOW_STATUS_VALUES:
             raise ValueError(f"Unsupported photo status: {status}")
+        if index_status not in INDEX_STATUS_VALUES:
+            raise ValueError(f"Unsupported photo index_status: {index_status}")
         now = utc_now_iso()
         is_active = 0 if status == "archived" else 1
         try:
@@ -33,8 +39,8 @@ class PhotoRepositoryMixin:
                 conn.execute(
                     """
                     INSERT INTO photos
-                    (photo_id, filename, saved_filename, tags, description, ocr_text, status, uploaded_by, is_active, file_size, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (photo_id, filename, saved_filename, tags, description, ocr_text, status, uploaded_by, is_active, file_size, index_status, index_error, indexed_at, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         photo_id,
@@ -47,6 +53,9 @@ class PhotoRepositoryMixin:
                         uploaded_by,
                         is_active,
                         int(file_size),
+                        index_status,
+                        str(index_error or ""),
+                        str(indexed_at or ""),
                         now,
                         now,
                     ),
@@ -56,7 +65,9 @@ class PhotoRepositoryMixin:
         except sqlite3.IntegrityError:
             return False
 
-    def list_photos(self, limit: int = 200, user_id: str | None = None, include_archived: bool = False) -> list[dict[str, Any]]:
+    def list_photos(
+        self, limit: int = 200, user_id: str | None = None, include_archived: bool = False
+    ) -> list[dict[str, Any]]:
         with self._connection() as conn:
             where: list[str] = []
             params: list[Any] = []
@@ -96,6 +107,18 @@ class PhotoRepositoryMixin:
                 params.append(status_value)
                 columns.append("is_active = ?")
                 params.append(0 if status_value == "archived" else 1)
+        if "index_status" in updates:
+            index_status = str(updates["index_status"] or "").strip()
+            if index_status not in INDEX_STATUS_VALUES:
+                raise ValueError(f"Unsupported photo index_status: {index_status}")
+            columns.append("index_status = ?")
+            params.append(index_status)
+        if "index_error" in updates:
+            columns.append("index_error = ?")
+            params.append(str(updates["index_error"] or ""))
+        if "indexed_at" in updates:
+            columns.append("indexed_at = ?")
+            params.append(str(updates["indexed_at"] or ""))
         if not columns:
             return False
 

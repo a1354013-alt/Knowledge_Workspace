@@ -1,14 +1,12 @@
+from app.api.errors import api_error, handle_validation_error, handle_value_error
 from app.api.handlers.support import (
     APP_VERSION,
     Depends,
     HealthResponse,
-    HTTPException,
-    JSONResponse,
     LoginRequest,
     LoginResponse,
     MeResponse,
     Request,
-    RequestValidationError,
     create_token,
     db,
     get_current_user,
@@ -17,20 +15,14 @@ from app.api.handlers.support import (
     status,
 )
 
-
-async def handle_value_error(_request, exc: ValueError):
-    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": str(exc)})
-
-
-async def handle_validation_error(_request, exc: RequestValidationError):
-    detail = "Invalid request."
-    try:
-        errors = exc.errors()
-        if errors:
-            detail = errors[0].get("msg") or detail
-    except (AttributeError, TypeError, ValueError):
-        pass
-    return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": detail})
+__all__ = [
+    "api_healthcheck",
+    "handle_validation_error",
+    "handle_value_error",
+    "healthcheck",
+    "login",
+    "me",
+]
 
 
 async def healthcheck() -> HealthResponse:
@@ -46,11 +38,19 @@ async def api_healthcheck() -> HealthResponse:
 async def login(request: Request, payload: LoginRequest) -> LoginResponse:
     _ = request
     if not db.verify_password(payload.user_id, payload.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
+        raise api_error(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="invalid_credentials",
+            message="Invalid credentials.",
+        )
 
     user = db.get_user(payload.user_id)
     if not user or int(user["is_active"]) != 1:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive.")
+        raise api_error(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="inactive_user",
+            message="User account is inactive.",
+        )
 
     return LoginResponse(
         access_token=create_token(

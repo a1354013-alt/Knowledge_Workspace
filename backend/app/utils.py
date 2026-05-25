@@ -27,7 +27,7 @@ MAGIC_BYTES_SIGNATURES = {
     ".webp": b"RIFF",  # WebP uses RIFF container, we'll check more specifically below
     # Text files - no specific magic bytes, but we can check for common encodings
     ".txt": None,  # No magic bytes for plain text
-    ".md": None,   # No magic bytes for markdown
+    ".md": None,  # No magic bytes for markdown
 }
 
 
@@ -49,31 +49,31 @@ def validate_file_extension(filename: str) -> bool:
 def validate_file_magic_bytes(file_content: bytes, filename: str) -> bool:
     """
     Validate file content using magic bytes (file signature) to prevent malicious file uploads.
-    
+
     This function checks the actual binary content of a file against known file type signatures,
     rather than relying solely on file extensions which can be easily spoofed.
-    
+
     Args:
         file_content: A prefix of the raw bytes content of the uploaded file.
             This function is designed to work with only a small header/sample and
             should not be fed an entire large upload into memory.
         filename: The original filename (used to determine expected extension).
-    
+
     Returns:
         True if the file content matches the expected type based on extension.
-    
+
     Raises:
         HTTPException: If the file content does not match the expected type.
     """
     ext = Path(filename).suffix.lower()
-    
+
     # Check if extension is allowed
     if ext not in ALLOWED_FILE_EXTENSIONS and ext not in MAGIC_BYTES_SIGNATURES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File extension '{ext}' is not allowed.",
         )
-    
+
     # For text/markdown files, validate using a sample prefix.
     if ext in (".txt", ".md"):
         if not looks_like_text_bytes(file_content):
@@ -89,13 +89,13 @@ def validate_file_magic_bytes(file_content: bytes, filename: str) -> bool:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Unable to decode text document. Supported encodings: utf-8, utf-8-sig, cp950.",
             ) from None
-    
+
     # For other file types, check magic bytes
     expected_signature = MAGIC_BYTES_SIGNATURES.get(ext)
     if expected_signature is None:
         # No signature defined for this extension, allow it through
         return True
-    
+
     # Check if file content starts with the expected magic bytes.
     # NOTE: Callers should supply enough prefix bytes for the signature checks.
     if not file_content.startswith(expected_signature):
@@ -106,12 +106,12 @@ def validate_file_magic_bytes(file_content: bytes, filename: str) -> bool:
         if ext == ".webp":
             if file_content.startswith(b"RIFF") and len(file_content) >= 12 and file_content[8:12] == b"WEBP":
                 return True
-        
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File content does not match the expected format for '{ext}'. Possible file spoofing detected.",
         )
-    
+
     return True
 
 
@@ -149,7 +149,7 @@ async def stream_write_file(file, file_path: Path, max_size: int | None = None, 
         max_size = int(max_size)
     total_size = 0
     try:
-        with open(file_path, 'wb') as output_file:
+        with open(file_path, "wb") as output_file:
             while True:
                 chunk = await file.read(chunk_size)
                 if not chunk:
@@ -184,7 +184,7 @@ async def stream_write_file(file, file_path: Path, max_size: int | None = None, 
 def get_env_list(key: str, default: list[str] | None = None) -> list[str]:
     if default is None:
         default = []
-    value = os.getenv(key, '').strip()
+    value = os.getenv(key, "").strip()
     if not value:
         return list(default)
-    return [item.strip() for item in value.split(',') if item.strip()]
+    return [item.strip() for item in value.split(",") if item.strip()]

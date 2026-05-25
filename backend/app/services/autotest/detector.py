@@ -7,7 +7,17 @@ from pathlib import Path
 
 def _walk_dirs_for_markers(base_dir: Path) -> list[tuple[str, Path]]:
     candidates: list[tuple[str, Path]] = []
-    skip_dirs = {".git", "__pycache__", ".pytest_cache", "node_modules", "dist", "build", ".venv", "venv", ".mypy_cache"}
+    skip_dirs = {
+        ".git",
+        "__pycache__",
+        ".pytest_cache",
+        "node_modules",
+        "dist",
+        "build",
+        ".venv",
+        "venv",
+        ".mypy_cache",
+    }
     for root, dirs, files in os.walk(base_dir):
         dirs[:] = [directory for directory in dirs if directory not in skip_dirs and not directory.startswith(".")]
         files_set = {name.lower() for name in files}
@@ -90,5 +100,3 @@ def autotest_step_should_run(*, project_type: str, working_dir: Path, step_name:
     if project_type_normalized == "python" and name == "install":
         return False, "Python dependency installation is disabled unless trusted sandbox support is added."
     return True, ""
-
-

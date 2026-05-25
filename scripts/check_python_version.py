@@ -13,10 +13,16 @@ def main() -> int:
             "Unsupported Python runtime for Knowledge Workspace.",
             file=sys.stderr,
         )
-        print("This project only supports Python 3.11.x for backend validation.", file=sys.stderr)
+        print(
+            "This project only supports Python 3.11.x for backend validation.",
+            file=sys.stderr,
+        )
         print(f"Detected: {detected}", file=sys.stderr)
         print("", file=sys.stderr)
-        print("Create a Python 3.11 virtual environment and re-run the checks:", file=sys.stderr)
+        print(
+            "Create a Python 3.11 virtual environment and re-run the checks:",
+            file=sys.stderr,
+        )
         print("  py -3.11 -m venv .venv", file=sys.stderr)
         print(r"  .\.venv\Scripts\Activate.ps1", file=sys.stderr)
         print("  python -m pip install -U pip", file=sys.stderr)

@@ -17,6 +17,7 @@ from app.api.handlers.support import (
     _safe_download_filename,
     _side_effect_warning,
     build_links_response,
+    classify_index_failure,
     db,
     delete_from_vector_db,
     generate_safe_filename,
@@ -80,6 +81,8 @@ async def upload_document(
         try:
             await sync_document_index(document)
         except Exception as exc:
+            index_status, detail = classify_index_failure(exc)
+            db.update_document(doc_id, index_status=index_status, index_error=detail, indexed_at="")
             logger.warning("Document indexing failed for %s: %s", doc_id, exc)
             message = f"Document uploaded, but indexing failed: {exc}"
         document = db.get_document(doc_id) or document
@@ -91,7 +94,10 @@ async def upload_document(
 
 
 async def list_documents(current_user: dict = Depends(get_current_user)) -> list[DocumentResponse]:
-    return [serialize_document(document) for document in db.list_documents(user_id=current_user["sub"], include_archived=False)]
+    return [
+        serialize_document(document)
+        for document in db.list_documents(user_id=current_user["sub"], include_archived=False)
+    ]
 
 
 async def download_document(doc_id: str, inline: int = 0, current_user: dict = Depends(get_current_user)):
@@ -123,7 +129,9 @@ async def list_document_references(doc_id: str, current_user: dict = Depends(get
     return build_links_response(item_id=item_id_from_parts("document", doc_id), user_id=current_user["sub"])
 
 
-async def update_document(doc_id: str, request: DocumentUpdateRequest, current_user: dict = Depends(get_current_user)) -> MessageResponse:
+async def update_document(
+    doc_id: str, request: DocumentUpdateRequest, current_user: dict = Depends(get_current_user)
+) -> MessageResponse:
     original = db.get_document(doc_id)
     if not original:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
@@ -142,6 +150,8 @@ async def update_document(doc_id: str, request: DocumentUpdateRequest, current_u
     try:
         await sync_document_index(updated)
     except Exception as exc:
+        index_status, detail = classify_index_failure(exc)
+        db.update_document(doc_id, index_status=index_status, index_error=detail, indexed_at="")
         warning = f"Document indexing failed: {exc}"
     return MessageResponse(message=_side_effect_warning("Document updated.", warning))
 

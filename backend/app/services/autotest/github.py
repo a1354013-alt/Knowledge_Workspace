@@ -42,5 +42,3 @@ def get_repo_info(repo_url: str) -> dict[str, object]:
         "clone_supported": False,
         "analysis_scope": "queued_local_intake_only",
     }
-
-

@@ -137,7 +137,10 @@ def test_report_paths_are_sanitized(app_module, tmp_path: Path):
     project_dir.mkdir(parents=True)
 
     assert app_module.autotest_service.sanitize_path_for_report(project_dir, base_dir=base_dir) == "project"
-    assert app_module.autotest_service.sanitize_path_for_report(Path("C:/outside"), base_dir=base_dir) == "<sanitized-path>"
+    assert (
+        app_module.autotest_service.sanitize_path_for_report(Path("C:/outside"), base_dir=base_dir)
+        == "<sanitized-path>"
+    )
 
 
 def test_safe_extract_zip_rejects_absolute_path(app_module, tmp_path: Path):

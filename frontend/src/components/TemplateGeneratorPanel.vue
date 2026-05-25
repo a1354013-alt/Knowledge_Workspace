@@ -85,6 +85,7 @@ import Dropdown from 'primevue/dropdown'
 import Textarea from 'primevue/textarea'
 
 import { get, post } from '../api'
+import { apiPaths } from '../api/endpoints'
 import type { GenerateRequest, GenerateResponse, TemplateMetaItem, TemplatesMetaResponse } from '../types'
 
 const toast = useToast()
@@ -106,7 +107,7 @@ const fields = computed(() => {
 async function loadTemplates() {
   loadingTemplates.value = true
   try {
-    const response = await get<TemplatesMetaResponse>('/api/meta/templates')
+    const response = await get<TemplatesMetaResponse>(apiPaths.settings.templatesMeta)
     templates.value = response.templates || []
     const next: Record<string, string[]> = {}
     for (const item of templates.value) {
@@ -133,7 +134,7 @@ async function generate() {
       template_type: selectedTemplate.value,
       inputs: inputs.value || {},
     }
-    const response = await post<GenerateResponse, GenerateRequest>('/api/generate', payload)
+    const response = await post<GenerateResponse, GenerateRequest>(apiPaths.generator.generate, payload)
     output.value = response.content || ''
     if (!output.value) {
       toast.add({ severity: 'warn', summary: 'No output', detail: 'Generator returned empty content.', life: 3000 })

@@ -69,5 +69,3 @@ def safe_extract_zip(zip_path: Path, dest_dir: Path) -> None:
             except ValueError as exc:
                 raise ValueError("Zip contains unsafe paths.") from exc
         archive.extractall(dest_dir)
-
-

@@ -42,7 +42,9 @@ class LinkRepositoryMixin:
             except sqlite3.IntegrityError:
                 return False
 
-    def delete_links(self, *, from_item_id: str | None = None, to_item_id: str | None = None, link_type: str | None = None) -> int:
+    def delete_links(
+        self, *, from_item_id: str | None = None, to_item_id: str | None = None, link_type: str | None = None
+    ) -> int:
         where: list[str] = []
         params: list[Any] = []
         if from_item_id is not None:

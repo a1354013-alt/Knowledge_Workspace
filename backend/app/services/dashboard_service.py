@@ -87,7 +87,8 @@ async def get_llm_settings(user_id: str) -> SettingsLLMResponse:
         active_provider = str(status_payload.get("fallback_provider", "") or "")
         ready_for_generation = True
         error_message = str(
-            status_payload.get("primary_error_message", "") or "Primary provider is unavailable; using healthy fallback provider."
+            status_payload.get("primary_error_message", "")
+            or "Primary provider is unavailable; using healthy fallback provider."
         )
     elif fallback_enabled:
         active_provider = str(status_payload.get("fallback_provider", "") or "none")

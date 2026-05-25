@@ -109,6 +109,60 @@
 
     <Card>
       <template #title>
+        Index health
+      </template>
+      <template #subtitle>
+        The current provider is exposed here so the demo/fallback hash index is not mistaken for production semantic search.
+      </template>
+      <template #content>
+        <div class="stack-md">
+          <div class="row">
+            <Button
+              label="Refresh"
+              outlined
+              icon="pi pi-refresh"
+              :loading="loadingIndex"
+              @click="loadIndexStatus"
+            />
+            <Button
+              label="Rebuild all indexes"
+              icon="pi pi-wrench"
+              :loading="rebuildingIndex"
+              @click="rebuildAllIndexes"
+            />
+          </div>
+          <div class="kv">
+            <div class="key">
+              Provider
+            </div>
+            <div class="value">
+              {{ indexStatus.provider.active_provider || '-' }}
+            </div>
+            <div class="key">
+              Mode
+            </div>
+            <div class="value">
+              {{ indexStatus.provider.demo_mode ? 'demo / fallback' : 'semantic-ready' }}
+            </div>
+            <div class="key">
+              Status
+            </div>
+            <div class="value">
+              {{ indexStatus.provider.status || '-' }}
+            </div>
+            <div class="key">
+              Message
+            </div>
+            <div class="value">
+              {{ indexStatus.provider.message || '-' }}
+            </div>
+          </div>
+        </div>
+      </template>
+    </Card>
+
+    <Card>
+      <template #title>
         OCR
       </template>
       <template #subtitle>
@@ -172,7 +226,9 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 
 import { get } from '../api'
-import type { SettingsLLMResponse, SettingsOCRResponse, TemplateMetaItem, TemplatesMetaResponse } from '../types'
+import { post } from '../api'
+import { apiPaths } from '../api/endpoints'
+import type { IndexStatusResponse, SettingsLLMResponse, SettingsOCRResponse, TemplateMetaItem, TemplatesMetaResponse } from '../types'
 
 defineProps({
   currentUser: {
@@ -184,6 +240,8 @@ defineProps({
 const loading = ref(false)
 const loadingTemplates = ref(false)
 const loadingOcr = ref(false)
+const loadingIndex = ref(false)
+const rebuildingIndex = ref(false)
 const toast = useToast()
 const status = ref<SettingsLLMResponse>({
   primary_provider: '',
@@ -197,11 +255,30 @@ const status = ref<SettingsLLMResponse>({
 })
 const templates = ref<TemplateMetaItem[]>([])
 const ocr = ref<SettingsOCRResponse>({ enabled: false, available: false, tesseract_cmd: '', tesseract_version: '', details: '' })
+const indexStatus = ref<IndexStatusResponse>({
+  provider: {
+    configured_provider: '',
+    active_provider: 'none',
+    status: 'disabled',
+    demo_mode: true,
+    semantic_search_ready: false,
+    message: '',
+    details: [],
+  },
+  summary: {
+    document: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
+    knowledge: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
+    logbook: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
+    photo: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
+    prompt: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
+  },
+  failed_items: [],
+})
 
 async function loadStatus() {
   loading.value = true
   try {
-    status.value = await get<SettingsLLMResponse>('/api/settings/llm')
+    status.value = await get<SettingsLLMResponse>(apiPaths.settings.llm)
   } catch (error: unknown) {
     status.value = {
       primary_provider: 'unknown',
@@ -225,7 +302,7 @@ onMounted(loadStatus)
 async function loadTemplates() {
   loadingTemplates.value = true
   try {
-    const payload = await get<TemplatesMetaResponse>('/api/meta/templates')
+    const payload = await get<TemplatesMetaResponse>(apiPaths.settings.templatesMeta)
     templates.value = payload?.templates || []
   } catch (error: unknown) {
     templates.value = []
@@ -241,7 +318,7 @@ onMounted(loadTemplates)
 async function loadOcrStatus() {
   loadingOcr.value = true
   try {
-    ocr.value = await get<SettingsOCRResponse>('/api/settings/ocr')
+    ocr.value = await get<SettingsOCRResponse>(apiPaths.settings.ocr)
   } catch (error: unknown) {
     ocr.value = { enabled: false, available: false, tesseract_cmd: '', tesseract_version: '', details: '' }
     const apiError = error as { message?: string }
@@ -252,6 +329,34 @@ async function loadOcrStatus() {
 }
 
 onMounted(loadOcrStatus)
+
+async function loadIndexStatus() {
+  loadingIndex.value = true
+  try {
+    indexStatus.value = await get<IndexStatusResponse>(apiPaths.index.status)
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({ severity: 'error', summary: 'Index status failed', detail: apiError?.message || 'Request failed.', life: 3500 })
+  } finally {
+    loadingIndex.value = false
+  }
+}
+
+async function rebuildAllIndexes() {
+  rebuildingIndex.value = true
+  try {
+    const response = await post<{ message: string }>(apiPaths.index.rebuildAll)
+    toast.add({ severity: 'success', summary: 'Index rebuild started', detail: response.message || 'Index rebuild finished.', life: 3500 })
+    await loadIndexStatus()
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({ severity: 'error', summary: 'Index rebuild failed', detail: apiError?.message || 'Request failed.', life: 3500 })
+  } finally {
+    rebuildingIndex.value = false
+  }
+}
+
+onMounted(loadIndexStatus)
 </script>
 
 <style scoped>
@@ -265,6 +370,12 @@ onMounted(loadOcrStatus)
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .kv {

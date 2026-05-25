@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import shutil
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -64,21 +66,50 @@ def verify(zip_path: Path) -> None:
         if parts & FORBIDDEN_PARTS:
             bad.append(name)
         basename = Path(name).name
-        if basename == ".env" or (basename.startswith(".env.") and basename != ".env.example"):
+        if basename == ".env" or (
+            basename.startswith(".env.") and basename != ".env.example"
+        ):
             bad.append(name)
         if name.endswith(FORBIDDEN_SUFFIXES):
             bad.append(name)
     if bad:
-        raise SystemExit("Forbidden paths in zip:\n" + "\n".join(sorted(set(bad))[:200]))
+        raise SystemExit(
+            "Forbidden paths in zip:\n" + "\n".join(sorted(set(bad))[:200])
+        )
 
     missing = sorted(REQUIRED - names)
     if missing:
         raise SystemExit("Missing required release files:\n" + "\n".join(missing))
 
+    extract_root = Path(tempfile.mkdtemp(prefix="kw_release_verify_"))
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            archive.extractall(extract_root)
+        extracted_release = extract_root / "knowledge_workspace"
+        if not extracted_release.exists():
+            raise SystemExit("Extracted release root is missing.")
+        for forbidden in FORBIDDEN_PARTS:
+            if list(extracted_release.rglob(forbidden)):
+                raise SystemExit(f"Forbidden extracted path found: {forbidden}")
+        for candidate in extracted_release.rglob("*"):
+            name = candidate.name
+            if name == ".env" or (name.startswith(".env.") and name != ".env.example"):
+                raise SystemExit(f"Forbidden extracted secret file found: {candidate}")
+            if candidate.is_file() and any(
+                name.endswith(suffix) for suffix in FORBIDDEN_SUFFIXES
+            ):
+                raise SystemExit(f"Forbidden extracted database found: {candidate}")
+    finally:
+        shutil.rmtree(extract_root, ignore_errors=True)
+
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Verify release zip exclusions and required docs.")
-    parser.add_argument("zip_path", nargs="?", default="knowledge_workspace_release.zip")
+    parser = argparse.ArgumentParser(
+        description="Verify release zip exclusions and required docs."
+    )
+    parser.add_argument(
+        "zip_path", nargs="?", default="knowledge_workspace_release.zip"
+    )
     args = parser.parse_args()
     root_dir = Path(__file__).resolve().parents[1]
     zip_path = Path(args.zip_path)

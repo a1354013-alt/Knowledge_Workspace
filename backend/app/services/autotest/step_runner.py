@@ -19,7 +19,9 @@ def mark_unfinished_command_steps(*, run_id: str, current_failed_step: str = "")
         status_value = str(step.get("status", "") or "").lower()
         if status_value in {"passed", "failed", "skipped", "unavailable"}:
             continue
-        next_status = "failed" if current_failed_step and str(step.get("name", "")) == current_failed_step else "skipped"
+        next_status = (
+            "failed" if current_failed_step and str(step.get("name", "")) == current_failed_step else "skipped"
+        )
         autotest_repository.update_step(
             str(step.get("step_id", "")),
             status=next_status,
@@ -76,7 +78,9 @@ def _skipped_step_output(*, step: PlannedStep, project_type_detected: str, worki
     ).strip()
 
 
-def _real_output(*, step: PlannedStep, project_type_detected: str, working_dir_rel: str, stdout: str, stderr: str) -> str:
+def _real_output(
+    *, step: PlannedStep, project_type_detected: str, working_dir_rel: str, stdout: str, stderr: str
+) -> str:
     return (
         f"[{step.name}] command: {step.command}\n"
         f"[{step.name}] project_type_detected: {project_type_detected}\n"

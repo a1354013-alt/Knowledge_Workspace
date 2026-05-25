@@ -56,6 +56,16 @@ def migrate_item_links_table(cursor: sqlite3.Cursor) -> None:
         )
         """
     )
+    cursor.execute(
+        """
+        DELETE FROM item_links
+        WHERE rowid NOT IN (
+            SELECT MIN(rowid)
+            FROM item_links
+            GROUP BY from_item_id, to_item_id, link_type
+        )
+        """
+    )
 
 
 def ensure_query_indexes(cursor: sqlite3.Cursor) -> None:
@@ -125,6 +135,9 @@ def migrate_photos_table(cursor: sqlite3.Cursor) -> None:
         "description": "ALTER TABLE photos ADD COLUMN description TEXT NOT NULL DEFAULT ''",
         "ocr_text": "ALTER TABLE photos ADD COLUMN ocr_text TEXT NOT NULL DEFAULT ''",
         "created_at": "ALTER TABLE photos ADD COLUMN created_at TEXT NOT NULL DEFAULT ''",
+        "index_status": "ALTER TABLE photos ADD COLUMN index_status TEXT NOT NULL DEFAULT 'pending'",
+        "index_error": "ALTER TABLE photos ADD COLUMN index_error TEXT NOT NULL DEFAULT ''",
+        "indexed_at": "ALTER TABLE photos ADD COLUMN indexed_at TEXT NOT NULL DEFAULT ''",
     }
     for column, sql in migrations.items():
         if column not in columns:
@@ -146,6 +159,23 @@ def migrate_photos_table(cursor: sqlite3.Cursor) -> None:
     cursor.execute("UPDATE photos SET status = 'archived' WHERE is_active = 0 AND status != 'archived'")
     cursor.execute("UPDATE photos SET status = 'reviewed' WHERE is_active = 1 AND status = ''")
     cursor.execute("UPDATE photos SET uploaded_by = 'owner' WHERE uploaded_by IS NULL OR uploaded_by = ''")
+    cursor.execute(
+        """
+        UPDATE photos
+        SET index_status = CASE
+            WHEN is_active = 0 OR status = 'archived' THEN 'pending'
+            ELSE 'indexed'
+        END
+        WHERE index_status IS NULL OR index_status = ''
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE photos
+        SET indexed_at = created_at
+        WHERE index_status = 'indexed' AND (indexed_at IS NULL OR indexed_at = '')
+        """
+    )
 
 
 def migrate_knowledge_entries_table(cursor: sqlite3.Cursor) -> None:
@@ -161,11 +191,31 @@ def migrate_knowledge_entries_table(cursor: sqlite3.Cursor) -> None:
         "created_by": "ALTER TABLE knowledge_entries ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
         "is_active": "ALTER TABLE knowledge_entries ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
         "updated_at": "ALTER TABLE knowledge_entries ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
+        "index_status": "ALTER TABLE knowledge_entries ADD COLUMN index_status TEXT NOT NULL DEFAULT 'pending'",
+        "index_error": "ALTER TABLE knowledge_entries ADD COLUMN index_error TEXT NOT NULL DEFAULT ''",
+        "indexed_at": "ALTER TABLE knowledge_entries ADD COLUMN indexed_at TEXT NOT NULL DEFAULT ''",
     }
     for column, sql in migrations.items():
         if column not in columns:
             cursor.execute(sql)
     cursor.execute("UPDATE knowledge_entries SET updated_at = created_at WHERE updated_at = ''")
+    cursor.execute(
+        """
+        UPDATE knowledge_entries
+        SET index_status = CASE
+            WHEN is_active = 0 OR status = 'archived' THEN 'pending'
+            ELSE 'indexed'
+        END
+        WHERE index_status IS NULL OR index_status = ''
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE knowledge_entries
+        SET indexed_at = created_at
+        WHERE index_status = 'indexed' AND (indexed_at IS NULL OR indexed_at = '')
+        """
+    )
 
 
 def migrate_logbook_entries_table(cursor: sqlite3.Cursor) -> None:
@@ -180,11 +230,31 @@ def migrate_logbook_entries_table(cursor: sqlite3.Cursor) -> None:
         "created_by": "ALTER TABLE logbook_entries ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
         "is_active": "ALTER TABLE logbook_entries ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
         "updated_at": "ALTER TABLE logbook_entries ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
+        "index_status": "ALTER TABLE logbook_entries ADD COLUMN index_status TEXT NOT NULL DEFAULT 'pending'",
+        "index_error": "ALTER TABLE logbook_entries ADD COLUMN index_error TEXT NOT NULL DEFAULT ''",
+        "indexed_at": "ALTER TABLE logbook_entries ADD COLUMN indexed_at TEXT NOT NULL DEFAULT ''",
     }
     for column, sql in migrations.items():
         if column not in columns:
             cursor.execute(sql)
     cursor.execute("UPDATE logbook_entries SET updated_at = created_at WHERE updated_at = ''")
+    cursor.execute(
+        """
+        UPDATE logbook_entries
+        SET index_status = CASE
+            WHEN is_active = 0 OR status = 'archived' THEN 'pending'
+            ELSE 'indexed'
+        END
+        WHERE index_status IS NULL OR index_status = ''
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE logbook_entries
+        SET indexed_at = created_at
+        WHERE index_status = 'indexed' AND (indexed_at IS NULL OR indexed_at = '')
+        """
+    )
 
 
 def migrate_saved_prompts_table(cursor: sqlite3.Cursor) -> None:
@@ -195,11 +265,31 @@ def migrate_saved_prompts_table(cursor: sqlite3.Cursor) -> None:
         "created_by": "ALTER TABLE saved_prompts ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
         "is_active": "ALTER TABLE saved_prompts ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
         "updated_at": "ALTER TABLE saved_prompts ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
+        "index_status": "ALTER TABLE saved_prompts ADD COLUMN index_status TEXT NOT NULL DEFAULT 'pending'",
+        "index_error": "ALTER TABLE saved_prompts ADD COLUMN index_error TEXT NOT NULL DEFAULT ''",
+        "indexed_at": "ALTER TABLE saved_prompts ADD COLUMN indexed_at TEXT NOT NULL DEFAULT ''",
     }
     for column, sql in migrations.items():
         if column not in columns:
             cursor.execute(sql)
     cursor.execute("UPDATE saved_prompts SET updated_at = created_at WHERE updated_at = ''")
+    cursor.execute(
+        """
+        UPDATE saved_prompts
+        SET index_status = CASE
+            WHEN is_active = 0 THEN 'pending'
+            ELSE 'indexed'
+        END
+        WHERE index_status IS NULL OR index_status = ''
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE saved_prompts
+        SET indexed_at = created_at
+        WHERE index_status = 'indexed' AND (indexed_at IS NULL OR indexed_at = '')
+        """
+    )
 
 
 def migrate_autotest_tables(cursor: sqlite3.Cursor) -> None:

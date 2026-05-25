@@ -22,4 +22,3 @@ db = DocumentDatabase(str(settings.DATABASE_PATH))
 
 allowed_origins = settings.ALLOWED_ORIGINS
 allow_credentials = "*" not in allowed_origins
-

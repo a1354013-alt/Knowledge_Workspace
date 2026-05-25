@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.api import legacy_main
-from app.api.routes import autotest, dashboard, docs, knowledge, logbook, photos, system
+from app.api.errors import handle_http_exception
+from app.api.routes import autotest, dashboard, docs, indexing, knowledge, logbook, photos, system
 from app.context import APP_VERSION, allow_credentials, allowed_origins
 
 
@@ -19,6 +20,7 @@ def create_app() -> FastAPI:
 
     app.state.limiter = legacy_main.limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(HTTPException, handle_http_exception)
     app.add_exception_handler(ValueError, legacy_main.handle_value_error)
     app.add_exception_handler(legacy_main.RequestValidationError, legacy_main.handle_validation_error)
     app.add_middleware(
@@ -31,6 +33,7 @@ def create_app() -> FastAPI:
 
     for router in (
         system.router,
+        indexing.router,
         dashboard.router,
         docs.router,
         knowledge.router,

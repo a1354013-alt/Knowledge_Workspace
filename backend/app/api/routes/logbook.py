@@ -13,7 +13,9 @@ router.add_api_route(
     methods=["GET"],
     response_model=list[LogbookEntryResponse],
 )
-router.add_api_route("/api/logbook/entries", logbook_handlers.create_logbook_entry, methods=["POST"], response_model=MessageResponse)
+router.add_api_route(
+    "/api/logbook/entries", logbook_handlers.create_logbook_entry, methods=["POST"], response_model=MessageResponse
+)
 router.add_api_route(
     "/api/logbook/entries/{entry_id}",
     logbook_handlers.update_logbook_entry,

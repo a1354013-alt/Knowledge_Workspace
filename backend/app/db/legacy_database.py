@@ -69,14 +69,16 @@ class DocumentDatabase(
         self.init_db()
 
     def _connect(self) -> sqlite3.Connection:
-        if self.db_path == ':memory:':
+        if self.db_path == ":memory:":
             if self._memory_conn is None:
-                self._memory_conn = sqlite3.connect(':memory:', check_same_thread=False)
+                self._memory_conn = sqlite3.connect(":memory:", check_same_thread=False)
                 self._memory_conn.row_factory = sqlite3.Row
+                self._memory_conn.execute("PRAGMA foreign_keys = ON")
             return self._memory_conn
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
     @contextmanager
@@ -85,7 +87,7 @@ class DocumentDatabase(
         try:
             yield conn
         finally:
-            if self.db_path != ':memory:':
+            if self.db_path != ":memory:":
                 conn.close()
 
     def init_db(self) -> None:

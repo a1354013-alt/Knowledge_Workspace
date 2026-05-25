@@ -58,5 +58,3 @@ def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[i
         preexec_fn=preexec_fn,
     )
     return int(completed.returncode), clamp_output(completed.stdout or ""), clamp_output(completed.stderr or "")
-
-

@@ -100,6 +100,7 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 
 import { get } from '../api'
+import { apiPaths } from '../api/endpoints'
 import { downloadBlob, openBlobInNewTab } from '../utils/blob'
 import type { ItemLinkResolved, ItemLinksResponse } from '../types'
 
@@ -130,7 +131,7 @@ async function load() {
   }
   loading.value = true
   try {
-    const response = await get<ItemLinksResponse>('/api/item-links', { params: { item_id: normalizedItemId.value } })
+    const response = await get<ItemLinksResponse>(apiPaths.search.itemLinks, { params: { item_id: normalizedItemId.value } })
     links.value = response.links || []
   } catch (error: unknown) {
     links.value = []
@@ -165,10 +166,10 @@ async function downloadRelated(itemId: string) {
   const [prefix, rawId] = itemId.split(':', 2)
   try {
     if (prefix === 'document') {
-      const blob = await get<Blob>(`/api/docs/${rawId}/download`, { responseType: 'blob' })
+      const blob = await get<Blob>(apiPaths.docs.download(rawId), { responseType: 'blob' })
       downloadBlob(blob, `document-${rawId}`)
     } else if (prefix === 'photo') {
-      const blob = await get<Blob>(`/api/photos/${rawId}/download`, { responseType: 'blob' })
+      const blob = await get<Blob>(apiPaths.photos.download(rawId), { responseType: 'blob' })
       downloadBlob(blob, `photo-${rawId}`)
     }
   } catch (error: unknown) {
@@ -184,10 +185,10 @@ async function previewRelated(itemId: string) {
   const [prefix, rawId] = itemId.split(':', 2)
   try {
     if (prefix === 'document') {
-      const blob = await get<Blob>(`/api/docs/${rawId}/download`, { params: { inline: 1 }, responseType: 'blob' })
+      const blob = await get<Blob>(apiPaths.docs.download(rawId), { params: { inline: 1 }, responseType: 'blob' })
       openBlobInNewTab(blob)
     } else if (prefix === 'photo') {
-      const blob = await get<Blob>(`/api/photos/${rawId}/download`, { params: { inline: 1 }, responseType: 'blob' })
+      const blob = await get<Blob>(apiPaths.photos.download(rawId), { params: { inline: 1 }, responseType: 'blob' })
       openBlobInNewTab(blob)
     }
   } catch (error: unknown) {

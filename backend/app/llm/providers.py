@@ -26,7 +26,9 @@ class LLMProvider:
     async def healthcheck(self) -> bool:  # pragma: no cover - interface
         raise NotImplementedError
 
-    async def generate(self, *, prompt: str, system: str | None = None, temperature: float = 0.2) -> LLMResponse:  # pragma: no cover - interface
+    async def generate(
+        self, *, prompt: str, system: str | None = None, temperature: float = 0.2
+    ) -> LLMResponse:  # pragma: no cover - interface
         raise NotImplementedError
 
 
@@ -77,7 +79,9 @@ class OllamaProvider(LLMProvider):
         content = (data.get("message", {}) or {}).get("content", "")
         if not isinstance(content, str):
             content = str(content)
-        return LLMResponse(text=content, provider=self.name, model=self.model, raw=data if isinstance(data, dict) else None)
+        return LLMResponse(
+            text=content, provider=self.name, model=self.model, raw=data if isinstance(data, dict) else None
+        )
 
 
 class MockProvider(LLMProvider):

@@ -102,6 +102,13 @@
               <template #body="slotProps">
                 <div class="actions-inline">
                   <Button
+                    v-if="slotProps.data.index_status !== 'indexed'"
+                    icon="pi pi-wrench"
+                    text
+                    severity="warning"
+                    @click="rebuildDocumentIndex(slotProps.data)"
+                  />
+                  <Button
                     icon="pi pi-eye"
                     text
                     severity="secondary"
@@ -676,6 +683,20 @@ async function deleteDocument(doc: DocumentResponse) {
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: 'Delete failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+  }
+}
+
+async function rebuildDocumentIndex(doc: DocumentResponse) {
+  if (!doc?.id) {
+    return
+  }
+  try {
+    const response = await post<{ message: string }>(apiPaths.index.rebuildItem('document', doc.id))
+    toast.add({ severity: 'success', summary: 'Index rebuilt', detail: response.message || 'Document index rebuilt.', life: 3000 })
+    await loadDocuments()
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({ severity: 'error', summary: 'Index rebuild failed', detail: apiError?.message || 'Request failed.', life: 4000 })
   }
 }
 

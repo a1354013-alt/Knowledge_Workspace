@@ -32,7 +32,9 @@ def _safe_add_link(*, from_item_id: str, to_item_id: str, link_type: str) -> Non
         )
 
 
-def _safe_index_entry(*, run_id: str, item_kind: str, item_id: str, entry: dict | None, indexer: Callable[[dict], object]) -> None:
+def _safe_index_entry(
+    *, run_id: str, item_kind: str, item_id: str, entry: dict | None, indexer: Callable[[dict], object]
+) -> None:
     _safe_autotest_index_entry(
         run_id=run_id,
         item_kind=item_kind,
@@ -69,7 +71,9 @@ def create_passed_knowledge_draft(
         return ""
     _safe_update_run_link(run_id=run_id, field="solution_entry_id", value=knowledge_id)
     _safe_add_link(from_item_id=f"autotest_run:{run_id}", to_item_id=f"knowledge:{knowledge_id}", link_type="produced")
-    _safe_add_link(from_item_id=f"knowledge:{knowledge_id}", to_item_id=f"autotest_run:{run_id}", link_type="derived_from")
+    _safe_add_link(
+        from_item_id=f"knowledge:{knowledge_id}", to_item_id=f"autotest_run:{run_id}", link_type="derived_from"
+    )
     _safe_index_entry(
         run_id=run_id,
         item_kind="knowledge",

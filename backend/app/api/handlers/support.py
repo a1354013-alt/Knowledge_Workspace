@@ -15,6 +15,7 @@ from slowapi.util import get_remote_address
 from app.api.common import (
     KNOWLEDGE_REVISION_FIELDS,
     build_links_response,
+    classify_index_failure,
     guess_media_type,
     item_id_from_parts,
     knowledge_revision_snapshot,
@@ -72,7 +73,7 @@ from app.models import (
     UploadPhotoResponse,
 )
 from app.ocr_service import extract_text_from_image
-from app.services import FORM_TEMPLATES, generate_form, perform_qa, process_file
+from app.services import FORM_TEMPLATES, generate_form, indexing_service, perform_qa, process_file
 from app.utils import (
     generate_safe_filename,
     stream_write_file,
@@ -89,56 +90,8 @@ _guess_media_type = guess_media_type
 
 
 async def sync_document_index(document: dict) -> None:
-    try:
-        delete_from_vector_db(document["doc_id"])
-    except Exception as exc:
-        logger.warning("Document de-index failed for %s before reindex: %s", document["doc_id"], exc)
-    if int(document.get("is_active", 1)) != 1 or str(document.get("status", "")) == "archived":
-        db.update_document(
-            document["doc_id"],
-            index_status="pending",
-            index_error="",
-            indexed_at="",
-        )
-        return
+    await asyncio.to_thread(indexing_service.sync_document_index, document)
 
-    file_path = UPLOAD_DIR / document["saved_filename"]
-    if not file_path.exists():
-        message = f"Document file is missing: {file_path}"
-        db.update_document(
-            document["doc_id"],
-            index_status="failed",
-            index_error=message,
-            indexed_at="",
-        )
-        raise FileNotFoundError(message)
-
-    try:
-        await asyncio.to_thread(
-            process_file,
-            document["doc_id"],
-            str(file_path),
-            document["filename"],
-            str(document.get("uploaded_by") or ""),
-            str(document.get("status") or "reviewed"),
-            int(document["is_active"]),
-        )
-    except Exception as exc:
-        detail = str(exc)
-        db.update_document(
-            document["doc_id"],
-            index_status="unavailable" if "vector index unavailable" in detail.lower() else "failed",
-            index_error=detail,
-            indexed_at="",
-        )
-        raise
-    else:
-        db.update_document(
-            document["doc_id"],
-            index_status="indexed",
-            index_error="",
-            indexed_at=utc_now_iso(),
-        )
 
 _side_effect_warning = side_effect_warning
 _run_index_side_effect = run_index_side_effect
@@ -153,18 +106,21 @@ async def lifespan(app: FastAPI):
     except RuntimeError as exc:
         logger.error("Environment validation failed: %s", exc)
         raise
-    
+
     logger.info("Knowledge Workspace API starting.")
     logger.info("CORS origins: %s", allowed_origins)
-    
+
     # Log LLM provider status
     try:
         from app.llm import get_llm_provider
+
         provider, status_info = get_llm_provider()
-        logger.info("LLM Provider: %s (model: %s, fallback: %s)", 
-                   status_info["primary_provider"], 
-                   status_info["model"],
-                   status_info["fallback_enabled"])
+        logger.info(
+            "LLM Provider: %s (model: %s, fallback: %s)",
+            status_info["primary_provider"],
+            status_info["model"],
+            status_info["fallback_enabled"],
+        )
     except Exception as exc:
         logger.warning("Failed to initialize LLM provider: %s", exc)
 
@@ -176,7 +132,7 @@ async def lifespan(app: FastAPI):
             logger.warning("Recovered %s stale AutoTest run(s) after startup.", recovered)
     except Exception as exc:
         logger.warning("AutoTest startup recovery failed: %s", exc)
-    
+
     yield
     try:
         from app.services.autotest import shutdown_autotest_workers
@@ -251,6 +207,7 @@ __all__ = (
     "asynccontextmanager",
     "asyncio",
     "build_links_response",
+    "classify_index_failure",
     "create_token",
     "db",
     "delete_from_kb_vector_db",

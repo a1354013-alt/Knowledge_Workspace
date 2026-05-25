@@ -47,7 +47,9 @@ def _persist_terminal_run(
     )
 
 
-def _finalize_passed_timeline(*, timeline: list[dict[str, object]], run_id: str, summary: str) -> list[dict[str, object]]:
+def _finalize_passed_timeline(
+    *, timeline: list[dict[str, object]], run_id: str, summary: str
+) -> list[dict[str, object]]:
     timeline = set_timeline_item(
         timeline,
         "ran_tests",
@@ -88,7 +90,9 @@ def _finalize_failed_timeline(
     return _save_timeline(timeline, run_id=run_id)
 
 
-def mark_prepare_phase_success(*, timeline: list[dict[str, object]], run_id: str, step_name: str, finished_at: str) -> list[dict[str, object]]:
+def mark_prepare_phase_success(
+    *, timeline: list[dict[str, object]], run_id: str, step_name: str, finished_at: str
+) -> list[dict[str, object]]:
     if step_name != "install":
         return timeline
     timeline = set_timeline_item(
@@ -102,7 +106,9 @@ def mark_prepare_phase_success(*, timeline: list[dict[str, object]], run_id: str
     return timeline
 
 
-def mark_prepare_phase_skipped(*, timeline: list[dict[str, object]], run_id: str, step_name: str) -> list[dict[str, object]]:
+def mark_prepare_phase_skipped(
+    *, timeline: list[dict[str, object]], run_id: str, step_name: str
+) -> list[dict[str, object]]:
     if step_name != "install":
         return timeline
     timeline = set_timeline_item(
@@ -116,7 +122,9 @@ def mark_prepare_phase_skipped(*, timeline: list[dict[str, object]], run_id: str
     return timeline
 
 
-def mark_failed_phase(*, timeline: list[dict[str, object]], run_id: str, step_name: str, finished_at: str) -> list[dict[str, object]]:
+def mark_failed_phase(
+    *, timeline: list[dict[str, object]], run_id: str, step_name: str, finished_at: str
+) -> list[dict[str, object]]:
     timeline = set_timeline_item(
         timeline,
         "prepared_environment",
@@ -147,11 +155,7 @@ async def finalize_passed_run(
     timeline = _mark_generated_report_running(timeline=timeline, run_id=run_id)
     skipped_suffix = f"; skipped: {', '.join(skipped_steps)}" if skipped_steps else ""
     summary = f"Acceptance pipeline passed ({project_type_detected}){skipped_suffix}."
-    prompt_output = (
-        "AutoTest passed.\n\n"
-        f"Project: {project_name}\n"
-        "Steps: install, build, test, lint\n"
-    )
+    prompt_output = f"AutoTest passed.\n\nProject: {project_name}\nSteps: install, build, test, lint\n"
     if skipped_steps:
         prompt_output += f"Skipped: {', '.join(skipped_steps)}\n"
     prompt_output += "Next: capture any useful learnings into a Knowledge entry."
@@ -242,13 +246,22 @@ async def finalize_failed_run(
 
 def current_failed_phase(timeline: list[dict[str, object]], failed_reason: str) -> str:
     current_phase = "generated_report" if "report" in failed_reason.lower() else "detected_stack"
-    if str(next((item for item in timeline if str(item.get("key")) == "generated_report"), {}).get("status", "")) == "running":
+    if (
+        str(next((item for item in timeline if str(item.get("key")) == "generated_report"), {}).get("status", ""))
+        == "running"
+    ):
         return "generated_report"
     if str(next((item for item in timeline if str(item.get("key")) == "ran_tests"), {}).get("status", "")) == "running":
         return "ran_tests"
-    if str(next((item for item in timeline if str(item.get("key")) == "prepared_environment"), {}).get("status", "")) == "running":
+    if (
+        str(next((item for item in timeline if str(item.get("key")) == "prepared_environment"), {}).get("status", ""))
+        == "running"
+    ):
         return "prepared_environment"
-    if str(next((item for item in timeline if str(item.get("key")) == "detected_stack"), {}).get("status", "")) == "running":
+    if (
+        str(next((item for item in timeline if str(item.get("key")) == "detected_stack"), {}).get("status", ""))
+        == "running"
+    ):
         return "detected_stack"
     if str(next((item for item in timeline if str(item.get("key")) == "extracted"), {}).get("status", "")) == "running":
         return "extracted"

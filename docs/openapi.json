@@ -357,7 +357,7 @@
       "Body_run_autotest_api_autotest_run_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           }
@@ -376,7 +376,7 @@
             "type": "string"
           },
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           },
@@ -400,7 +400,7 @@
             "type": "string"
           },
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           },
@@ -745,11 +745,68 @@
         "title": "DocumentUpdateRequest",
         "type": "object"
       },
+      "EmbeddingProviderStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active_provider": {
+            "enum": [
+              "demo-fallback",
+              "ollama",
+              "sentence-transformers",
+              "openai-compatible",
+              "none"
+            ],
+            "title": "Active Provider",
+            "type": "string"
+          },
+          "configured_provider": {
+            "title": "Configured Provider",
+            "type": "string"
+          },
+          "demo_mode": {
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
+          "details": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Details",
+            "type": "array"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "semantic_search_ready": {
+            "title": "Semantic Search Ready",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "degraded",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured_provider",
+          "active_provider",
+          "status",
+          "demo_mode",
+          "semantic_search_ready",
+          "message"
+        ],
+        "title": "EmbeddingProviderStatusResponse",
+        "type": "object"
+      },
       "GenerateRequest": {
         "additionalProperties": false,
         "properties": {
           "inputs": {
-            "additionalProperties": true,
             "title": "Inputs",
             "type": "object"
           },
@@ -802,14 +859,12 @@
           "analysis_scope": {
             "const": "queued_local_intake_only",
             "default": "queued_local_intake_only",
-            "title": "Analysis Scope",
-            "type": "string"
+            "title": "Analysis Scope"
           },
           "execution_mode": {
             "const": "simulated",
             "default": "simulated",
-            "title": "Execution Mode",
-            "type": "string"
+            "title": "Execution Mode"
           },
           "message": {
             "title": "Message",
@@ -834,8 +889,7 @@
           },
           "status": {
             "const": "queued",
-            "title": "Status",
-            "type": "string"
+            "title": "Status"
           }
         },
         "required": [
@@ -853,8 +907,7 @@
           "analysis_scope": {
             "const": "queued_local_intake_only",
             "default": "queued_local_intake_only",
-            "title": "Analysis Scope",
-            "type": "string"
+            "title": "Analysis Scope"
           },
           "clone_supported": {
             "default": false,
@@ -922,6 +975,160 @@
           "version"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "IndexRebuildResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IndexStatusItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/EmbeddingProviderStatusResponse"
+          },
+          "rebuilt": {
+            "title": "Rebuilt",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "message",
+          "provider",
+          "rebuilt",
+          "failed"
+        ],
+        "title": "IndexRebuildResponse",
+        "type": "object"
+      },
+      "IndexStatusItemResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "indexed_at": {
+            "default": "",
+            "title": "Indexed At",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "item_type": {
+            "enum": [
+              "document",
+              "knowledge",
+              "logbook",
+              "photo",
+              "prompt"
+            ],
+            "title": "Item Type",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "indexed",
+              "failed",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "default": "",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_type",
+          "item_id",
+          "title",
+          "status"
+        ],
+        "title": "IndexStatusItemResponse",
+        "type": "object"
+      },
+      "IndexStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "failed_items": {
+            "items": {
+              "$ref": "#/components/schemas/IndexStatusItemResponse"
+            },
+            "title": "Failed Items",
+            "type": "array"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/EmbeddingProviderStatusResponse"
+          },
+          "summary": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/IndexStatusSummaryItem"
+            },
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "provider",
+          "summary"
+        ],
+        "title": "IndexStatusResponse",
+        "type": "object"
+      },
+      "IndexStatusSummaryItem": {
+        "additionalProperties": false,
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "indexed": {
+            "title": "Indexed",
+            "type": "integer"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "unavailable": {
+            "title": "Unavailable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "pending",
+          "indexed",
+          "failed",
+          "unavailable"
+        ],
+        "title": "IndexStatusSummaryItem",
         "type": "object"
       },
       "ItemLinkResolved": {
@@ -2118,8 +2325,9 @@
             "type": "string"
           },
           "index_status": {
-            "default": "indexed",
+            "default": "pending",
             "enum": [
+              "pending",
               "indexed",
               "failed",
               "unavailable"
@@ -2479,13 +2687,6 @@
       },
       "ValidationError": {
         "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
           "loc": {
             "items": {
               "anyOf": [
@@ -3305,6 +3506,162 @@
           }
         },
         "summary": "Api Healthcheck"
+      }
+    },
+    "/api/index/rebuild": {
+      "post": {
+        "operationId": "rebuild_all_indexes_api_index_rebuild_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexRebuildResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rebuild All Indexes"
+      }
+    },
+    "/api/index/rebuild/{item_type}/{item_id}": {
+      "post": {
+        "operationId": "rebuild_single_index_api_index_rebuild__item_type___item_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_type",
+            "required": true,
+            "schema": {
+              "title": "Item Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexRebuildResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rebuild Single Index"
+      }
+    },
+    "/api/index/status": {
+      "get": {
+        "operationId": "get_index_status_api_index_status_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Index Status"
       }
     },
     "/api/item-links": {

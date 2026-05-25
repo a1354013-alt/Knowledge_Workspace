@@ -18,7 +18,9 @@ BACKEND_READY_URL = "http://127.0.0.1:8000/api/health"
 BACKEND_READY_TIMEOUT_SECONDS = 60
 
 
-def run(command: list[str], *, cwd: Path = ROOT, env: dict[str, str] | None = None) -> None:
+def run(
+    command: list[str], *, cwd: Path = ROOT, env: dict[str, str] | None = None
+) -> None:
     print(f"+ {' '.join(command)}")
     subprocess.run(command, cwd=cwd, env=env, check=True)
 
@@ -94,7 +96,16 @@ def run_smoke_check() -> None:
     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
     preexec_fn = os.setsid if os.name != "nt" else None
     backend = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "app.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8000",
+        ],
         cwd=BACKEND_DIR,
         env=env,
         stdout=subprocess.PIPE,
@@ -106,7 +117,10 @@ def run_smoke_check() -> None:
 
     try:
         wait_for_backend()
-        run([sys.executable, "scripts/smoke_check.py", "--password", "OwnerPass123!"], env=env)
+        run(
+            [sys.executable, "scripts/smoke_check.py", "--password", "OwnerPass123!"],
+            env=env,
+        )
     finally:
         _terminate_process_tree(backend)
         output = ""
@@ -125,7 +139,15 @@ def main() -> int:
     run([sys.executable, "scripts/run_backend_tests.py"])
     run([sys.executable, "scripts/export_openapi.py"])
     run([sys.executable, "scripts/generate_api_types.py", "--check"])
-    run(["git", "diff", "--exit-code", "docs/openapi.json", "frontend/src/api/generated/api-types.ts"])
+    run(
+        [
+            "git",
+            "diff",
+            "--exit-code",
+            "docs/openapi.json",
+            "frontend/src/api/generated/api-types.ts",
+        ]
+    )
     run([sys.executable, "scripts/check_version_consistency.py"])
 
     npm = npm_command()

@@ -28,6 +28,31 @@ export const PrimeStubs: Record<string, unknown> & Record<string, any> = {
       </select>
     `,
   },
+  MultiSelect: {
+    props: ['modelValue', 'options', 'optionLabel', 'optionValue', 'placeholder'],
+    emits: ['update:modelValue'],
+    template: `
+      <select multiple @change="onChange">
+        <option
+          v-for="opt in (options || [])"
+          :key="String(opt[optionValue] ?? opt.value)"
+          :value="String(opt[optionValue] ?? opt.value)"
+        >
+          {{ String(opt[optionLabel] ?? opt.label) }}
+        </option>
+      </select>
+    `,
+    methods: {
+      onChange(
+        this: { optionValue?: string; $emit: (name: string, value: unknown) => void },
+        event: Event,
+      ) {
+        const target = event.target as HTMLSelectElement | null
+        const values = Array.from(target?.selectedOptions || []).map((option) => option.value)
+        this.$emit('update:modelValue', values)
+      },
+    },
+  },
   Chips: {
     props: ['modelValue', 'separator', 'placeholder'],
     emits: ['update:modelValue'],

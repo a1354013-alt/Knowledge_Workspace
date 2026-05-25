@@ -46,9 +46,7 @@ FRONTEND_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + (
     "playwright-report",
     "test-results",
 )
-DOCS_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + (
-    "node_modules",
-)
+DOCS_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + ("node_modules",)
 FORBIDDEN_DIR_NAMES = {
     ".git",
     "__pycache__",
@@ -117,7 +115,9 @@ def rm_tree(path: Path) -> None:
     shutil.rmtree(path, ignore_errors=True)
 
 
-def copy_release_tree(root_dir: Path, release_root: Path, *, build_frontend: bool = True) -> None:
+def copy_release_tree(
+    root_dir: Path, release_root: Path, *, build_frontend: bool = True
+) -> None:
     shutil.copytree(
         root_dir / "backend",
         release_root / "backend",
@@ -150,7 +150,9 @@ def copy_release_tree(root_dir: Path, release_root: Path, *, build_frontend: boo
     if build_frontend:
         npm = "npm.cmd" if os.name == "nt" else "npm"
         subprocess.run([npm, "ci"], cwd=str(release_root / "frontend"), check=True)
-        subprocess.run([npm, "run", "build"], cwd=str(release_root / "frontend"), check=True)
+        subprocess.run(
+            [npm, "run", "build"], cwd=str(release_root / "frontend"), check=True
+        )
         rm_tree(release_root / "frontend" / "node_modules")
 
     prune_release_tree(release_root)
@@ -180,9 +182,15 @@ def prune_release_tree(release_root: Path) -> None:
 def build_release_zip(release_root: Path, out_zip: Path) -> None:
     with zipfile.ZipFile(out_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for root, dirs, files in os.walk(release_root):
-            dirs[:] = [d for d in dirs if d not in FORBIDDEN_DIR_NAMES and not d.startswith(".pytest-")]
+            dirs[:] = [
+                d
+                for d in dirs
+                if d not in FORBIDDEN_DIR_NAMES and not d.startswith(".pytest-")
+            ]
             for filename in files:
-                if filename == ".env" or (filename.startswith(".env.") and filename != ".env.example"):
+                if filename == ".env" or (
+                    filename.startswith(".env.") and filename != ".env.example"
+                ):
                     continue
                 if filename.endswith(FORBIDDEN_FILE_SUFFIXES):
                     continue
@@ -192,15 +200,27 @@ def build_release_zip(release_root: Path, out_zip: Path) -> None:
 
 
 def validate_required_release_docs(release_root: Path) -> None:
-    missing = [rel_path for rel_path in REQUIRED_RELEASE_DOCS if not (release_root / rel_path).exists()]
+    missing = [
+        rel_path
+        for rel_path in REQUIRED_RELEASE_DOCS
+        if not (release_root / rel_path).exists()
+    ]
     if missing:
         raise FileNotFoundError(f"Missing required release docs: {', '.join(missing)}")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Package a clean release zip (cross-platform).")
+    parser = argparse.ArgumentParser(
+        description="Package a clean release zip (cross-platform)."
+    )
     parser.add_argument("out_zip", nargs="?", default="knowledge_workspace_release.zip")
-    parser.add_argument("--output", "-o", dest="output_dir", default="", help="Directory for the default release zip name.")
+    parser.add_argument(
+        "--output",
+        "-o",
+        dest="output_dir",
+        default="",
+        help="Directory for the default release zip name.",
+    )
     args = parser.parse_args()
 
     root_dir = Path(__file__).resolve().parents[1]

@@ -63,7 +63,9 @@ def _mark_run_running(run_id: str) -> None:
     _persist_run_update(run_id, status="running", summary="AutoTest worker started.")
 
 
-def _extract_archive(*, run_id: str, timeline: list[dict[str, object]], zip_path: Path, destination: Path) -> list[dict[str, object]]:
+def _extract_archive(
+    *, run_id: str, timeline: list[dict[str, object]], zip_path: Path, destination: Path
+) -> list[dict[str, object]]:
     _persist_run_update(run_id, summary="Extracting uploaded ZIP archive.")
     timeline = _set_timeline(
         run_id,

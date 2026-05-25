@@ -14,14 +14,19 @@ from fastapi.testclient import TestClient
 def build_zip(*, marker_fail_step: str | None = None) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("package.json", '{"name":"demo","version":"1.0.0","scripts":{"test":"echo ok","build":"echo ok","lint":"echo ok"}}')
+        archive.writestr(
+            "package.json",
+            '{"name":"demo","version":"1.0.0","scripts":{"test":"echo ok","build":"echo ok","lint":"echo ok"}}',
+        )
         archive.writestr("README.md", "# Demo")
         if marker_fail_step:
             archive.writestr(".autotest_fail_step", marker_fail_step)
     return buffer.getvalue()
 
 
-def wait_for_autotest_run(client: TestClient, auth_headers: dict[str, str], run_id: str, *, timeout_seconds: float = 5.0) -> dict:
+def wait_for_autotest_run(
+    client: TestClient, auth_headers: dict[str, str], run_id: str, *, timeout_seconds: float = 5.0
+) -> dict:
     deadline = time.monotonic() + timeout_seconds
     latest: dict = {}
     while time.monotonic() < deadline:
@@ -151,7 +156,9 @@ def test_autotest_run_is_filtered_by_owner(app_module, client: TestClient, auth_
     assert alice_detail.status_code == 404
 
 
-def test_autotest_run_detail_derives_timeline_for_legacy_sparse_runs(app_module, client: TestClient, auth_headers: dict[str, str]):
+def test_autotest_run_detail_derives_timeline_for_legacy_sparse_runs(
+    app_module, client: TestClient, auth_headers: dict[str, str]
+):
     run_id = "legacy-run"
     assert app_module.db.add_autotest_run(
         run_id=run_id,
@@ -189,7 +196,9 @@ def test_autotest_run_detail_derives_timeline_for_legacy_sparse_runs(app_module,
     )
 
 
-def test_autotest_run_detail_handles_nullable_numeric_fields(app_module, client: TestClient, auth_headers: dict[str, str]):
+def test_autotest_run_detail_handles_nullable_numeric_fields(
+    app_module, client: TestClient, auth_headers: dict[str, str]
+):
     run_id = "nullable-numeric-run"
     assert app_module.db.add_autotest_run(
         run_id=run_id,
@@ -228,8 +237,14 @@ def test_autotest_run_detail_handles_nullable_numeric_fields(app_module, client:
     assert payload["timeline"][1]["duration_ms"] is None
 
 
-def test_autotest_zip_extract_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
-    monkeypatch.setattr(app_module.autotest_service, "safe_extract_zip", lambda zip_path, dest_dir: (_ for _ in ()).throw(ValueError("zip explode failed")))
+def test_autotest_zip_extract_failure_sets_failed(
+    app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch
+):
+    monkeypatch.setattr(
+        app_module.autotest_service,
+        "safe_extract_zip",
+        lambda zip_path, dest_dir: (_ for _ in ()).throw(ValueError("zip explode failed")),
+    )
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
     app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
 
@@ -244,8 +259,14 @@ def test_autotest_zip_extract_failure_sets_failed(app_module, client: TestClient
     assert payload["failed_reason"]
 
 
-def test_autotest_stack_detection_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
-    monkeypatch.setattr(app_module.autotest_service, "find_project_root_on_disk", lambda extracted_dir: (_ for _ in ()).throw(RuntimeError("stack detect failed")))
+def test_autotest_stack_detection_failure_sets_failed(
+    app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch
+):
+    monkeypatch.setattr(
+        app_module.autotest_service,
+        "find_project_root_on_disk",
+        lambda extracted_dir: (_ for _ in ()).throw(RuntimeError("stack detect failed")),
+    )
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
     app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
 
@@ -272,8 +293,14 @@ def test_autotest_test_command_failure_sets_failed(client: TestClient, auth_head
     assert payload["failed_reason"]
 
 
-def test_autotest_report_generation_failure_sets_failed(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
-    monkeypatch.setattr(app_module.autotest_service, "index_knowledge_entry", lambda entry: (_ for _ in ()).throw(RuntimeError("report generation failed")))
+def test_autotest_report_generation_failure_sets_failed(
+    app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch
+):
+    monkeypatch.setattr(
+        app_module.autotest_service,
+        "index_knowledge_entry",
+        lambda entry: (_ for _ in ()).throw(RuntimeError("report generation failed")),
+    )
 
     response = client.post(
         "/api/autotest/run",
@@ -286,7 +313,9 @@ def test_autotest_report_generation_failure_sets_failed(app_module, client: Test
     assert payload["failed_reason"] == ""
 
 
-def test_autotest_pass_side_effect_failure_keeps_terminal_status(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
+def test_autotest_pass_side_effect_failure_keeps_terminal_status(
+    app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch
+):
     from app.services.autotest import job_reporter
 
     monkeypatch.setattr(
@@ -307,7 +336,9 @@ def test_autotest_pass_side_effect_failure_keeps_terminal_status(app_module, cli
     assert payload["timeline"][-1]["status"] == "skipped"
 
 
-def test_autotest_failed_side_effect_failure_keeps_terminal_status(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):
+def test_autotest_failed_side_effect_failure_keeps_terminal_status(
+    app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch
+):
     from app.services.autotest import job_reporter
 
     monkeypatch.setattr(
@@ -526,7 +557,9 @@ def test_autotest_startup_recovery_fails_stale_queued_run(app_module):
     assert "stale_queued_job" in run["failed_reason"]
 
 
-def test_failed_recovered_run_detail_is_not_reported_as_running(app_module, client: TestClient, auth_headers: dict[str, str]):
+def test_failed_recovered_run_detail_is_not_reported_as_running(
+    app_module, client: TestClient, auth_headers: dict[str, str]
+):
     from app.services.autotest.run_lifecycle import recover_interrupted_autotest_runs
 
     _create_recovery_run(app_module, run_id="recovered-detail", status="running")

@@ -15,6 +15,12 @@ python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 ```
 
+Windows bootstrap shortcut:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_windows.ps1
+```
+
 After a Python 3.11 virtualenv is active, the repo-root helper runs the same checks:
 
 ```bash
@@ -86,6 +92,7 @@ Recommended full verification flow before release:
 The same end-to-end gate can also be run with `python scripts/verify_all.py`.
 
 Release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts.
+`python scripts/verify_release_zip.py` now also extracts the archive to a temporary directory and re-checks the extracted tree, so archive contents and unzip results stay aligned.
 The release zip is a clean source package and intentionally does not include `frontend/dist`; build frontend assets after extracting the package.
 
 ## Smoke

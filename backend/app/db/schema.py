@@ -63,6 +63,9 @@ CREATE TABLE IF NOT EXISTS knowledge_entries (
     source_ref TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL DEFAULT '',
     is_active INTEGER NOT NULL DEFAULT 1,
+    index_status TEXT NOT NULL DEFAULT 'pending',
+    index_error TEXT NOT NULL DEFAULT '',
+    indexed_at TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 )
@@ -82,6 +85,9 @@ CREATE TABLE IF NOT EXISTS logbook_entries (
     source_ref TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL DEFAULT '',
     is_active INTEGER NOT NULL DEFAULT 1,
+    index_status TEXT NOT NULL DEFAULT 'pending',
+    index_error TEXT NOT NULL DEFAULT '',
+    indexed_at TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 )
@@ -104,7 +110,7 @@ CREATE TABLE IF NOT EXISTS knowledge_revisions (
     change_note TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    FOREIGN KEY(entry_id) REFERENCES knowledge_entries(entry_id)
+    FOREIGN KEY(entry_id) REFERENCES knowledge_entries(entry_id) ON DELETE CASCADE
 )
 """
 
@@ -120,6 +126,9 @@ CREATE TABLE IF NOT EXISTS photos (
     uploaded_by TEXT,
     file_size INTEGER NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1,
+    index_status TEXT NOT NULL DEFAULT 'pending',
+    index_error TEXT NOT NULL DEFAULT '',
+    indexed_at TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 )
@@ -165,7 +174,7 @@ CREATE TABLE IF NOT EXISTS autotest_steps (
     stderr_summary TEXT NOT NULL DEFAULT '',
     error_type TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    FOREIGN KEY(run_id) REFERENCES autotest_runs(run_id)
+    FOREIGN KEY(run_id) REFERENCES autotest_runs(run_id) ON DELETE CASCADE
 )
 """
 
@@ -187,6 +196,9 @@ CREATE TABLE IF NOT EXISTS saved_prompts (
     tags TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL DEFAULT '',
     is_active INTEGER NOT NULL DEFAULT 1,
+    index_status TEXT NOT NULL DEFAULT 'pending',
+    index_error TEXT NOT NULL DEFAULT '',
+    indexed_at TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 )
@@ -202,12 +214,32 @@ CREATE_INDEXES_SQL = (
     ON knowledge_entries (created_by, is_active, status, updated_at)
     """,
     """
+    CREATE INDEX IF NOT EXISTS idx_knowledge_index_status
+    ON knowledge_entries (created_by, index_status, updated_at)
+    """,
+    """
     CREATE INDEX IF NOT EXISTS idx_logbook_owner_active_status_created
     ON logbook_entries (created_by, is_active, status, created_at)
     """,
     """
+    CREATE INDEX IF NOT EXISTS idx_logbook_index_status
+    ON logbook_entries (created_by, index_status, updated_at)
+    """,
+    """
     CREATE INDEX IF NOT EXISTS idx_autotest_runs_owner_status_created
     ON autotest_runs (created_by, status, created_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_documents_index_status
+    ON documents (uploaded_by, index_status, updated_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_photos_index_status
+    ON photos (uploaded_by, index_status, updated_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_saved_prompts_index_status
+    ON saved_prompts (created_by, index_status, updated_at)
     """,
     """
     CREATE INDEX IF NOT EXISTS idx_item_links_from_item_id
@@ -216,5 +248,9 @@ CREATE_INDEXES_SQL = (
     """
     CREATE INDEX IF NOT EXISTS idx_item_links_to_item_id
     ON item_links (to_item_id)
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_item_links_from_to_type
+    ON item_links (from_item_id, to_item_id, link_type)
     """,
 )

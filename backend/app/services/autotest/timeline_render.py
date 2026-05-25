@@ -102,7 +102,9 @@ def _derived_run_state(run_row: dict, step_rows: list[dict]) -> dict[str, object
     has_workdir = bool(str(run_row.get("working_directory", "") or "").strip())
     detected_stack = str(run_row.get("project_type_detected", "") or run_row.get("project_type", "") or "").strip()
     has_report = any(str(run_row.get(field, "") or "").strip() for field in ("summary", "suggestion", "prompt_output"))
-    has_started_steps = any(str(step.get("status", "") or "").lower() not in {"queued", "pending", ""} for step in step_rows)
+    has_started_steps = any(
+        str(step.get("status", "") or "").lower() not in {"queued", "pending", ""} for step in step_rows
+    )
     failed_step = next((step for step in step_rows if str(step.get("status", "")).lower() == "failed"), None)
     latest_step = step_rows[-1] if step_rows else None
     return {
@@ -117,12 +119,16 @@ def _derived_run_state(run_row: dict, step_rows: list[dict]) -> dict[str, object
     }
 
 
-def _ran_tests_status(*, run_status: str, step_rows: list[dict], failed_step: dict | None, has_started_steps: bool) -> str:
+def _ran_tests_status(
+    *, run_status: str, step_rows: list[dict], failed_step: dict | None, has_started_steps: bool
+) -> str:
     if failed_step:
         return "failed"
     if run_status == "running" or any(str(step.get("status", "")).lower() == "running" for step in step_rows):
         return "running"
-    if step_rows and all(str(step.get("status", "")).lower() in {"passed", "skipped", "unavailable"} for step in step_rows):
+    if step_rows and all(
+        str(step.get("status", "")).lower() in {"passed", "skipped", "unavailable"} for step in step_rows
+    ):
         return "done"
     if has_started_steps:
         return "running"
@@ -170,7 +176,11 @@ def _fallback_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTestTim
     )
     generated_report_status = _generated_report_status(run_status=run_status, has_report=has_report)
     extracted_status = "done" if has_workdir else ("running" if run_status == "running" else "pending")
-    detected_status = "done" if detected_stack else ("running" if extracted_status in {"done", "running"} and run_status == "running" else "pending")
+    detected_status = (
+        "done"
+        if detected_stack
+        else ("running" if extracted_status in {"done", "running"} and run_status == "running" else "pending")
+    )
     failed_reason_status = "failed" if run_status == "failed" else ("skipped" if run_status == "passed" else "pending")
     failed_message = _failed_message(run_row=run_row, run_status=run_status, failed_step=failed_step)
 
@@ -212,7 +222,10 @@ def _fallback_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTestTim
             "Ran tests",
             status=ran_tests_status,
             started_at=str((step_rows[0] if step_rows else {}).get("started_at", "") or "") or None,
-            finished_at=str((failed_step or latest_step or {}).get("finished_at") or (latest_step or {}).get("started_at") or "") or None,
+            finished_at=str(
+                (failed_step or latest_step or {}).get("finished_at") or (latest_step or {}).get("started_at") or ""
+            )
+            or None,
             message=str((failed_step or latest_step or {}).get("name", "") or "") or None,
         ),
         "generated_report": _build_item(
@@ -227,8 +240,12 @@ def _fallback_timeline(run_row: dict, step_rows: list[dict]) -> list[AutoTestTim
             "failed_reason",
             "Failed reason",
             status=failed_reason_status,
-            started_at=str((failed_step or {}).get("finished_at", "") or "") or created_at if run_status == "failed" else None,
-            finished_at=str((failed_step or {}).get("finished_at", "") or "") or created_at if run_status == "failed" else None,
+            started_at=str((failed_step or {}).get("finished_at", "") or "") or created_at
+            if run_status == "failed"
+            else None,
+            finished_at=str((failed_step or {}).get("finished_at", "") or "") or created_at
+            if run_status == "failed"
+            else None,
             message=failed_message,
         ),
     }

@@ -81,5 +81,3 @@ async def suggest_fix_from_autotest(*, project_type: str, failed_step: str, comm
         "Suggested tags:\n"
         "autotest,build,test,lint\n"
     )
-
-

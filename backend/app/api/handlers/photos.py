@@ -23,13 +23,20 @@ from app.api.handlers.support import (
     extract_text_from_image,
     generate_safe_filename,
     get_current_user,
-    index_photo,
     item_id_from_parts,
     safe_unlink,
     status,
     stream_write_file,
     uuid,
 )
+from app.core.config import get_settings
+from app.services.indexing_service import sync_photo_index
+
+try:
+    from PIL import Image, UnidentifiedImageError
+except ImportError:  # pragma: no cover - optional runtime dependency
+    Image = None
+    UnidentifiedImageError = ValueError
 
 
 def validate_image_extension(filename: str) -> bool:
@@ -69,11 +76,14 @@ async def upload_photo(
     header = await file.read(32)
     await file.seek(0)
     if sniff_image_type(header) is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file does not look like an image.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file does not look like an image."
+        )
 
     safe_filename = generate_safe_filename(file.filename)
     file_path = PHOTO_DIR / safe_filename
     file_size = await stream_write_file(file, file_path)
+    _validate_image_file(file_path)
 
     # Extract text from image using OCR
     ocr_text = extract_text_from_image(file_path)
@@ -98,7 +108,10 @@ async def upload_photo(
         warning = _run_index_side_effect(
             label="Photo",
             item_id=photo_id,
-            operation=lambda: index_photo(photo),
+            operation=lambda: sync_photo_index(photo),
+            on_error=lambda index_status, detail: db.update_photo(
+                photo_id, index_status=index_status, index_error=detail, indexed_at=""
+            ),
         )
     else:
         warning = None
@@ -158,7 +171,9 @@ async def download_photo(photo_id: str, inline: int = 1, current_user: dict = De
     )
 
 
-async def update_photo(photo_id: str, request: PhotoUpdateRequest, current_user: dict = Depends(get_current_user)) -> MessageResponse:
+async def update_photo(
+    photo_id: str, request: PhotoUpdateRequest, current_user: dict = Depends(get_current_user)
+) -> MessageResponse:
     original = db.get_photo(photo_id)
     if not original:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found.")
@@ -175,7 +190,10 @@ async def update_photo(photo_id: str, request: PhotoUpdateRequest, current_user:
     warning = _run_index_side_effect(
         label="Photo",
         item_id=photo_id,
-        operation=lambda: index_photo(updated),
+        operation=lambda: sync_photo_index(updated),
+        on_error=lambda index_status, detail: db.update_photo(
+            photo_id, index_status=index_status, index_error=detail, indexed_at=""
+        ),
     )
     return MessageResponse(message=_side_effect_warning("Photo updated.", warning))
 
@@ -205,3 +223,29 @@ async def list_photo_references(photo_id: str, current_user: dict = Depends(get_
     if photo.get("uploaded_by") != current_user["sub"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot access this photo.")
     return build_links_response(item_id=item_id_from_parts("photo", photo_id), user_id=current_user["sub"])
+
+
+def _validate_image_file(file_path: Path) -> None:
+    if Image is None:
+        return
+    settings = get_settings()
+    try:
+        with Image.open(file_path) as image:
+            image.verify()
+        with Image.open(file_path) as image:
+            width, height = image.size
+            pixel_count = int(width) * int(height)
+            if width <= 0 or height <= 0:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image dimensions are invalid.")
+            if pixel_count > int(settings.IMAGE_MAX_PIXELS):
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"Image exceeds the {settings.IMAGE_MAX_PIXELS} pixel limit.",
+                )
+            image.load()
+    except HTTPException:
+        safe_unlink(file_path)
+        raise
+    except (UnidentifiedImageError, OSError) as exc:
+        safe_unlink(file_path)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse image: {exc}") from exc

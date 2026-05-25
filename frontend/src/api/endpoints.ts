@@ -45,6 +45,11 @@ export const apiPaths = {
   dashboard: {
     health: '/api/dashboard/health',
   },
+  index: {
+    status: '/api/index/status',
+    rebuildAll: '/api/index/rebuild',
+    rebuildItem: (itemType: string, itemId: string) => `/api/index/rebuild/${itemType}/${itemId}`,
+  },
   settings: {
     llm: '/api/settings/llm',
     ocr: '/api/settings/ocr',

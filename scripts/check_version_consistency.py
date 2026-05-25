@@ -30,8 +30,12 @@ def _read_openapi_version(path: Path) -> str:
 def read_versions() -> dict[str, str]:
     sources: dict[str, str] = {
         "VERSION": _read_text_version(ROOT / "VERSION"),
-        "frontend/package.json": _read_package_json_version(ROOT / "frontend" / "package.json"),
-        "backend/pyproject.toml": _read_pyproject_version(ROOT / "backend" / "pyproject.toml"),
+        "frontend/package.json": _read_package_json_version(
+            ROOT / "frontend" / "package.json"
+        ),
+        "backend/pyproject.toml": _read_pyproject_version(
+            ROOT / "backend" / "pyproject.toml"
+        ),
         "pyproject.toml": _read_pyproject_version(ROOT / "pyproject.toml"),
     }
     openapi_path = ROOT / "docs" / "openapi.json"

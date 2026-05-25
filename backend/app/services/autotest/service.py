@@ -174,7 +174,9 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
 
     run_row = autotest_repository.get_run(run_id=run_id, created_by=user_id)
     if not run_row:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Autotest run missing after creation.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Autotest run missing after creation."
+        )
     return serialize_autotest_run(run_row, autotest_repository.list_steps(run_id))
 
 
@@ -273,7 +275,9 @@ def get_autotest_run(run_id: str, current_user: dict) -> AutoTestRunResponse:
 def export_autotest_report(run_id: str, requested_format: str, current_user: dict) -> Response:
     export_format_value = str(requested_format or "").strip().lower()
     if export_format_value not in {"md", "html"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid export format. Use 'md' or 'html'.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid export format. Use 'md' or 'html'."
+        )
     export_format: AutoTestExportFormat = export_format_value
     run_row = autotest_repository.get_run(run_id=run_id, created_by=current_user["sub"])
     if not run_row:
@@ -297,7 +301,9 @@ def export_autotest_report(run_id: str, requested_format: str, current_user: dic
 def analyze_github_repo(payload: GitHubAnalyzeRequest, current_user: dict) -> GitHubAnalyzeResponse:
     repo_url = str(payload.repo_url or "").strip()
     if not validate_github_url(repo_url):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid GitHub URL. Use https://github.com/{owner}/{repo}.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid GitHub URL. Use https://github.com/{owner}/{repo}."
+        )
     repo_info_data = get_repo_info(repo_url)
     run_id = str(uuid.uuid4())
     summary = (

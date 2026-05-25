@@ -190,7 +190,9 @@ class AutoTestPersistenceRepositoryMixin:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def list_unfinished_autotest_runs(self, *, statuses: tuple[str, ...] = ("queued", "running")) -> list[dict[str, Any]]:
+    def list_unfinished_autotest_runs(
+        self, *, statuses: tuple[str, ...] = ("queued", "running")
+    ) -> list[dict[str, Any]]:
         if not statuses:
             return []
         placeholders = ", ".join("?" for _ in statuses)

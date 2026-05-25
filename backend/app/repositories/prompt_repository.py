@@ -5,21 +5,46 @@ import sqlite3
 from typing import Any
 
 from app.repositories.repository_utils import (
+    INDEX_STATUS_VALUES,
     utc_now_iso,
 )
 
 
 class PromptRepositoryMixin:
-    def add_saved_prompt(self, prompt_id: str, title: str, content: str, tags: str, created_by: str) -> bool:
+    def add_saved_prompt(
+        self,
+        prompt_id: str,
+        title: str,
+        content: str,
+        tags: str,
+        created_by: str,
+        *,
+        index_status: str = "pending",
+        index_error: str = "",
+        indexed_at: str = "",
+    ) -> bool:
+        if index_status not in INDEX_STATUS_VALUES:
+            raise ValueError(f"Unsupported prompt index_status: {index_status}")
         now = utc_now_iso()
         try:
             with self._connection() as conn:
                 conn.execute(
                     """
-                    INSERT INTO saved_prompts (prompt_id, title, content, tags, created_by, is_active, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                    INSERT INTO saved_prompts (prompt_id, title, content, tags, created_by, is_active, index_status, index_error, indexed_at, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
                     """,
-                    (prompt_id, title, content, tags, created_by, now, now),
+                    (
+                        prompt_id,
+                        title,
+                        content,
+                        tags,
+                        created_by,
+                        index_status,
+                        str(index_error or ""),
+                        str(indexed_at or ""),
+                        now,
+                        now,
+                    ),
                 )
                 conn.commit()
             return True
@@ -46,6 +71,30 @@ class PromptRepositoryMixin:
 
     def delete_saved_prompt(self, prompt_id: str) -> bool:
         with self._connection() as conn:
-            cursor = conn.execute("UPDATE saved_prompts SET is_active = 0 WHERE prompt_id = ?", (prompt_id,))
+            cursor = conn.execute(
+                """
+                UPDATE saved_prompts
+                SET is_active = 0, index_status = 'pending', index_error = '', indexed_at = '', updated_at = ?
+                WHERE prompt_id = ?
+                """,
+                (utc_now_iso(), prompt_id),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def update_saved_prompt_index(
+        self, prompt_id: str, *, index_status: str, index_error: str = "", indexed_at: str = ""
+    ) -> bool:
+        if index_status not in INDEX_STATUS_VALUES:
+            raise ValueError(f"Unsupported prompt index_status: {index_status}")
+        with self._connection() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE saved_prompts
+                SET index_status = ?, index_error = ?, indexed_at = ?, updated_at = ?
+                WHERE prompt_id = ?
+                """,
+                (index_status, str(index_error or ""), str(indexed_at or ""), utc_now_iso(), prompt_id),
+            )
             conn.commit()
             return cursor.rowcount > 0

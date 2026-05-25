@@ -15,17 +15,19 @@ FAILURE_STATUSES = frozenset({"failed"})
 PENDING_STATUSES = frozenset({"queued", "running"})
 
 
-def call(method: str, url: str, payload: dict | None = None, token: str | None = None) -> tuple[int, str]:
-    data = None if payload is None else json.dumps(payload).encode('utf-8')
-    headers = {'Content-Type': 'application/json'}
+def call(
+    method: str, url: str, payload: dict | None = None, token: str | None = None
+) -> tuple[int, str]:
+    data = None if payload is None else json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
     if token:
-        headers['Authorization'] = f'Bearer {token}'
+        headers["Authorization"] = f"Bearer {token}"
     req = request.Request(url, data=data, headers=headers, method=method)
     try:
         with request.urlopen(req, timeout=15) as response:
-            return response.getcode(), response.read().decode('utf-8')
+            return response.getcode(), response.read().decode("utf-8")
     except error.HTTPError as exc:
-        return exc.code, exc.read().decode('utf-8')
+        return exc.code, exc.read().decode("utf-8")
 
 
 def call_multipart(
@@ -52,7 +54,9 @@ def call_multipart(
         add_line(str(value))
 
     add_line(f"--{boundary}")
-    add_line(f'Content-Disposition: form-data; name="{file_field}"; filename="{filename}"')
+    add_line(
+        f'Content-Disposition: form-data; name="{file_field}"; filename="{filename}"'
+    )
     add_line(f"Content-Type: {content_type}")
     add_line("")
     lines.append(file_bytes)
@@ -103,7 +107,10 @@ def poll_autotest_run(*, base_url: str, token: str, run_id: str) -> int:
             print("summary:", last_run.get("summary", ""))
             print("failed_reason:", last_run.get("failed_reason", ""))
             print("suggestion:", last_run.get("suggestion", ""))
-            print("timeline:", json.dumps(last_run.get("timeline", []), ensure_ascii=False)[:4000])
+            print(
+                "timeline:",
+                json.dumps(last_run.get("timeline", []), ensure_ascii=False)[:4000],
+            )
             return 1
         if status_value not in PENDING_STATUSES:
             print(f"FAIL unknown autotest status: {status_value}")
@@ -137,7 +144,11 @@ def run_autotest_smoke_check(*, base_url: str, token: str, smoke_id: str) -> int
     if not run_id:
         print("FAIL autotest response missing run id")
         return 1
-    if not run.get("execution_mode") or not run.get("project_type_detected") or run.get("working_directory") is None:
+    if (
+        not run.get("execution_mode")
+        or not run.get("project_type_detected")
+        or run.get("working_directory") is None
+    ):
         print("FAIL autotest response missing execution fields")
         return 1
 
@@ -145,20 +156,26 @@ def run_autotest_smoke_check(*, base_url: str, token: str, smoke_id: str) -> int
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description='Basic delivery smoke check for Personal AI Knowledge Workspace')
-    parser.add_argument('--base-url', default='http://localhost:8000')
-    parser.add_argument('--user-id', default='owner')
-    parser.add_argument('--password', required=True)
+    parser = argparse.ArgumentParser(
+        description="Basic delivery smoke check for Personal AI Knowledge Workspace"
+    )
+    parser.add_argument("--base-url", default="http://localhost:8000")
+    parser.add_argument("--user-id", default="owner")
+    parser.add_argument("--password", required=True)
     args = parser.parse_args(argv)
 
-    status_code, body = call('POST', f"{args.base_url}/api/login", {'user_id': args.user_id, 'password': args.password})
-    print('LOGIN', status_code, body)
+    status_code, body = call(
+        "POST",
+        f"{args.base_url}/api/login",
+        {"user_id": args.user_id, "password": args.password},
+    )
+    print("LOGIN", status_code, body)
     if status_code != 200:
         return 1
 
-    token = json.loads(body)['access_token']
-    for path in ['/api/health', '/api/me', '/api/docs', '/api/photos', '/api/prompts']:
-        code, response_body = call('GET', f'{args.base_url}{path}', token=token)
+    token = json.loads(body)["access_token"]
+    for path in ["/api/health", "/api/me", "/api/docs", "/api/photos", "/api/prompts"]:
+        code, response_body = call("GET", f"{args.base_url}{path}", token=token)
         print(path, code, response_body)
         if code != 200:
             return 1
@@ -178,7 +195,9 @@ def main(argv: list[str] | None = None) -> int:
         "source_ref": "",
         "related_item_ids": [],
     }
-    code, body = call("POST", f"{args.base_url}/api/logbook/entries", logbook_payload, token=token)
+    code, body = call(
+        "POST", f"{args.base_url}/api/logbook/entries", logbook_payload, token=token
+    )
     print("CREATE_LOGBOOK", code, body)
     if code != 200:
         return 1
@@ -188,13 +207,21 @@ def main(argv: list[str] | None = None) -> int:
         print("LIST_LOGBOOK", code, body)
         return 1
     entries = json.loads(body)
-    entry_id = next((item["id"] for item in entries if smoke_marker in (item.get("title") or "")), "")
+    entry_id = next(
+        (item["id"] for item in entries if smoke_marker in (item.get("title") or "")),
+        "",
+    )
     if not entry_id:
         print("FAIL missing logbook entry in list")
         return 1
 
     # Promote to knowledge
-    code, body = call("POST", f"{args.base_url}/api/logbook/entries/{entry_id}/promote-to-knowledge", {}, token=token)
+    code, body = call(
+        "POST",
+        f"{args.base_url}/api/logbook/entries/{entry_id}/promote-to-knowledge",
+        {},
+        token=token,
+    )
     print("PROMOTE", code, body)
     if code != 200:
         return 1
@@ -204,12 +231,17 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     # Run AutoTest (expects AUTOTEST_MODE=simulated in delivery/CI)
-    if run_autotest_smoke_check(base_url=args.base_url, token=token, smoke_id=smoke_id) != 0:
+    if (
+        run_autotest_smoke_check(base_url=args.base_url, token=token, smoke_id=smoke_id)
+        != 0
+    ):
         return 1
 
     # QA should find the promoted knowledge via its unique marker
     time.sleep(0.4)
-    code, body = call("POST", f"{args.base_url}/api/qa", {"question": smoke_marker}, token=token)
+    code, body = call(
+        "POST", f"{args.base_url}/api/qa", {"question": smoke_marker}, token=token
+    )
     print("QA", code, body[:2000])
     if code != 200:
         return 1
@@ -221,5 +253,5 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())

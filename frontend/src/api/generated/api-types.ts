@@ -148,6 +148,16 @@ export interface DocumentUpdateRequest {
   tags?: string | null;
 }
 
+export interface EmbeddingProviderStatusResponse {
+  active_provider: "demo-fallback" | "ollama" | "sentence-transformers" | "openai-compatible" | "none";
+  configured_provider: string;
+  demo_mode: boolean;
+  details?: string[];
+  message: string;
+  semantic_search_ready: boolean;
+  status: "ready" | "degraded" | "disabled";
+}
+
 export interface GenerateRequest {
   inputs?: Record<string, unknown>;
   template_type: string;
@@ -189,6 +199,38 @@ export interface HTTPValidationError {
 export interface HealthResponse {
   status: string;
   version: string;
+}
+
+export interface IndexRebuildResponse {
+  failed: number;
+  items?: IndexStatusItemResponse[];
+  message: string;
+  provider: EmbeddingProviderStatusResponse;
+  rebuilt: number;
+}
+
+export interface IndexStatusItemResponse {
+  error?: string;
+  indexed_at?: string;
+  item_id: string;
+  item_type: "document" | "knowledge" | "logbook" | "photo" | "prompt";
+  status: "pending" | "indexed" | "failed" | "unavailable";
+  title: string;
+  updated_at?: string;
+}
+
+export interface IndexStatusResponse {
+  failed_items?: IndexStatusItemResponse[];
+  provider: EmbeddingProviderStatusResponse;
+  summary: Record<string, unknown>;
+}
+
+export interface IndexStatusSummaryItem {
+  failed: number;
+  indexed: number;
+  pending: number;
+  total: number;
+  unavailable: number;
 }
 
 export interface ItemLinkResolved {
@@ -473,8 +515,6 @@ export interface UploadPhotoResponse {
 }
 
 export interface ValidationError {
-  ctx?: Record<string, unknown>;
-  input?: unknown;
   loc: string | number[];
   msg: string;
   type: string;

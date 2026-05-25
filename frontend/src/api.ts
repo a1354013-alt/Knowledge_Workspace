@@ -35,13 +35,24 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiError>) => {
     const status = error.response?.status ?? 0
-    const detail = error.response?.data?.detail || error.message || 'Request failed.'
+    const responseData = error.response?.data
+    const message = responseData?.message || error.message || 'Request failed.'
+    const code = responseData?.code
+    const details = responseData?.details
+    const detail =
+      typeof details === 'string'
+        ? details
+        : typeof responseData?.detail === 'string'
+          ? responseData.detail
+          : message
     const requestUrl = String(error.config?.url || '')
 
     if (error.code === 'ECONNABORTED' || String(error.message || '').toLowerCase().includes('timeout')) {
       return Promise.reject({
         status,
+        code,
         message: 'Request timed out.',
+        details,
         detail,
       } as ApiError)
     }
@@ -52,7 +63,9 @@ apiClient.interceptors.response.use(
       notifyUnauthorized(detail)
       return Promise.reject({
         status: 401,
+        code: code || 'unauthorized',
         message: 'Session expired. Please sign in again.',
+        details,
         detail,
       })
     }
@@ -61,7 +74,9 @@ apiClient.interceptors.response.use(
     if (status === 500) {
       return Promise.reject({
         status: 500,
+        code: code || 'server_error',
         message: 'Server error occurred. Please try again later.',
+        details,
         detail,
       })
     }
@@ -70,7 +85,9 @@ apiClient.interceptors.response.use(
     if (status === 503) {
       return Promise.reject({
         status: 503,
+        code: code || 'service_unavailable',
         message: 'Service temporarily unavailable. Please try again later.',
+        details,
         detail,
       })
     }
@@ -79,7 +96,9 @@ apiClient.interceptors.response.use(
     if (status === 429) {
       return Promise.reject({
         status: 429,
+        code: code || 'rate_limited',
         message: 'Too many requests. Please slow down and try again later.',
+        details,
         detail,
       })
     }
@@ -87,7 +106,9 @@ apiClient.interceptors.response.use(
     // Handle other errors
     return Promise.reject({
       status,
-      message: detail,
+      code,
+      message,
+      details,
       detail,
     } as ApiError)
   }

@@ -40,7 +40,10 @@ EXCLUDED_PATH_PARTS = {
 
 def should_skip(path: Path) -> bool:
     relative = path.resolve().relative_to(ROOT.resolve()).as_posix()
-    if any(relative == part or relative.startswith(f"{part}/") for part in EXCLUDED_PATH_PARTS):
+    if any(
+        relative == part or relative.startswith(f"{part}/")
+        for part in EXCLUDED_PATH_PARTS
+    ):
         return True
     return any(part in EXCLUDED_DIR_NAMES for part in path.parts)
 
@@ -78,15 +81,28 @@ def compile_paths(paths: list[Path], quiet: bool) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Compile Python files while skipping runtime and dependency directories.")
-    parser.add_argument("paths", nargs="*", default=["."], help="Files or directories to compile.")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Only print a summary unless a compile fails.")
+    parser = argparse.ArgumentParser(
+        description="Compile Python files while skipping runtime and dependency directories."
+    )
+    parser.add_argument(
+        "paths", nargs="*", default=["."], help="Files or directories to compile."
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Only print a summary unless a compile fails.",
+    )
     args = parser.parse_args()
 
     python_files: list[Path] = []
     seen: set[Path] = set()
     for raw_path in args.paths:
-        candidate = (ROOT / raw_path).resolve() if not Path(raw_path).is_absolute() else Path(raw_path).resolve()
+        candidate = (
+            (ROOT / raw_path).resolve()
+            if not Path(raw_path).is_absolute()
+            else Path(raw_path).resolve()
+        )
         if not candidate.exists():
             print(f"Missing path: {raw_path}", file=sys.stderr)
             return 2

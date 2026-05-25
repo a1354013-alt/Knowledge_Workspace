@@ -38,7 +38,9 @@ def main() -> int:
 
     out_path = ROOT / "docs" / "openapi.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    out_path.write_text(
+        json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     print(f"Wrote {out_path}")
     return 0
 

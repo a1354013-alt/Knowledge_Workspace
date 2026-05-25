@@ -6,6 +6,7 @@ import uuid
 from typing import Any
 
 from app.repositories.repository_utils import (
+    INDEX_STATUS_VALUES,
     KNOWLEDGE_STATUS_VALUES,
     utc_now_iso,
 )
@@ -25,9 +26,14 @@ class KnowledgeRepositoryMixin:
         created_by: str,
         source_type: str = "manual",
         source_ref: str = "",
+        index_status: str = "pending",
+        index_error: str = "",
+        indexed_at: str = "",
     ) -> bool:
         if status not in KNOWLEDGE_STATUS_VALUES:
             raise ValueError(f"Unsupported knowledge status: {status}")
+        if index_status not in INDEX_STATUS_VALUES:
+            raise ValueError(f"Unsupported knowledge index_status: {index_status}")
         now = utc_now_iso()
         is_active = 0 if status == "archived" else 1
         try:
@@ -35,8 +41,8 @@ class KnowledgeRepositoryMixin:
                 conn.execute(
                     """
                     INSERT INTO knowledge_entries
-                    (entry_id, title, status, problem, root_cause, solution, tags, notes, source_type, source_ref, created_by, is_active, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (entry_id, title, status, problem, root_cause, solution, tags, notes, source_type, source_ref, created_by, is_active, index_status, index_error, indexed_at, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         entry_id,
@@ -51,6 +57,9 @@ class KnowledgeRepositoryMixin:
                         source_ref,
                         created_by,
                         is_active,
+                        index_status,
+                        str(index_error or ""),
+                        str(indexed_at or ""),
                         now,
                         now,
                     ),
@@ -123,6 +132,18 @@ class KnowledgeRepositoryMixin:
                 params.append(status_value)
                 columns.append("is_active = ?")
                 params.append(0 if status_value == "archived" else 1)
+        if "index_status" in updates:
+            index_status = str(updates["index_status"] or "").strip()
+            if index_status not in INDEX_STATUS_VALUES:
+                raise ValueError(f"Unsupported knowledge index_status: {index_status}")
+            columns.append("index_status = ?")
+            params.append(index_status)
+        if "index_error" in updates:
+            columns.append("index_error = ?")
+            params.append(str(updates["index_error"] or ""))
+        if "indexed_at" in updates:
+            columns.append("indexed_at = ?")
+            params.append(str(updates["indexed_at"] or ""))
         if not columns:
             return False
 

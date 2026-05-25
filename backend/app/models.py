@@ -16,6 +16,9 @@ AutoTestRunStatus = Literal["queued", "running", "passed", "failed"]
 AutoTestStepStatus = Literal["queued", "running", "passed", "failed", "skipped", "unavailable"]
 AutoTestExecutionMode = Literal["real", "simulated"]
 AutoTestExportFormat = Literal["md", "html"]
+IndexItemType = Literal["document", "knowledge", "logbook", "photo", "prompt"]
+IndexStatusValue = Literal["pending", "indexed", "failed", "unavailable"]
+EmbeddingProviderKind = Literal["demo-fallback", "ollama", "sentence-transformers", "openai-compatible", "none"]
 
 
 class StrictModel(BaseModel):
@@ -24,6 +27,12 @@ class StrictModel(BaseModel):
 
 class MessageResponse(StrictModel):
     message: str
+
+
+class ApiErrorResponse(StrictModel):
+    code: str
+    message: str
+    details: dict[str, Any] | list[Any] | str | None = None
 
 
 class LoginRequest(StrictModel):
@@ -77,7 +86,7 @@ class DocumentResponse(StrictModel):
     updated_at: str
     file_size: int
     uploaded_by: str | None = None
-    index_status: Literal["pending", "indexed", "failed", "unavailable"] = "pending"
+    index_status: IndexStatusValue = "pending"
     index_error: str = ""
     indexed_at: str = ""
 
@@ -282,7 +291,7 @@ class SavedPromptResponse(StrictModel):
     tags: str
     created_at: str
     updated_at: str
-    index_status: Literal["indexed", "failed", "unavailable"] = "indexed"
+    index_status: IndexStatusValue = "pending"
     index_error: str = ""
 
 
@@ -381,6 +390,48 @@ class AutoTestCapabilitiesResponse(StrictModel):
     message: str
 
 
+class EmbeddingProviderStatusResponse(StrictModel):
+    configured_provider: str
+    active_provider: EmbeddingProviderKind
+    status: Literal["ready", "degraded", "disabled"]
+    demo_mode: bool
+    semantic_search_ready: bool
+    message: str
+    details: list[str] = Field(default_factory=list)
+
+
+class IndexStatusSummaryItem(StrictModel):
+    total: int
+    pending: int
+    indexed: int
+    failed: int
+    unavailable: int
+
+
+class IndexStatusItemResponse(StrictModel):
+    item_type: IndexItemType
+    item_id: str
+    title: str
+    status: IndexStatusValue
+    error: str = ""
+    indexed_at: str = ""
+    updated_at: str = ""
+
+
+class IndexStatusResponse(StrictModel):
+    provider: EmbeddingProviderStatusResponse
+    summary: dict[IndexItemType, IndexStatusSummaryItem]
+    failed_items: list[IndexStatusItemResponse] = Field(default_factory=list)
+
+
+class IndexRebuildResponse(StrictModel):
+    message: str
+    provider: EmbeddingProviderStatusResponse
+    rebuilt: int
+    failed: int
+    items: list[IndexStatusItemResponse] = Field(default_factory=list)
+
+
 class GitHubAnalyzeRequest(StrictModel):
     repo_url: str = Field(min_length=1, max_length=2000)
 
@@ -433,7 +484,6 @@ class ItemLinksResponse(StrictModel):
 
 class ResolveItemsRequest(StrictModel):
     item_ids: list[str] = Field(default_factory=list)
-
 
 
 class ResolveItemsResponse(StrictModel):

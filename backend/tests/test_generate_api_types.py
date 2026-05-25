@@ -46,4 +46,7 @@ def test_type_to_ts_handles_nested_object_and_array_items():
         },
     }
 
-    assert generator.type_to_ts(schema) == "{ items: { count?: number; id: string }[]; meta: { detail?: MetaDetail; ok?: boolean } }"
+    assert (
+        generator.type_to_ts(schema)
+        == "{ items: { count?: number; id: string }[]; meta: { detail?: MetaDetail; ok?: boolean } }"
+    )

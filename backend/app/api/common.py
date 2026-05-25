@@ -353,7 +353,9 @@ def validate_source_ref_for_user(*, source_ref: str, user_id: str) -> str:
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid source_ref item id format.")
     if resolve_item_summary(item_id=candidate, user_id=user_id) is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="source_ref points to an inaccessible item.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="source_ref points to an inaccessible item."
+        )
     return candidate
 
 
@@ -369,7 +371,9 @@ def maybe_link_source_item(*, from_item_id: str, source_type: str, source_ref: s
     db.add_link(str(from_item_id), ref, link_type="derived_from")
 
 
-def sync_source_ref_link(*, from_item_id: str, old_source_ref: str, new_source_ref: str, source_type: str, user_id: str) -> None:
+def sync_source_ref_link(
+    *, from_item_id: str, old_source_ref: str, new_source_ref: str, source_type: str, user_id: str
+) -> None:
     old_ref = str(old_source_ref or "").strip()
     new_ref = str(new_source_ref or "").strip()
     if _internal_item_id_candidate(old_ref):
@@ -410,13 +414,33 @@ def _detailed_side_effect_warning(*, action: str, label: str, exc: Exception | N
     return f"{label} {action} failed."
 
 
-def run_index_side_effect(*, label: str, item_id: str, operation: Callable[[], object]) -> str | None:
+def classify_index_failure(exc_or_message: Exception | str | None) -> tuple[str, str]:
+    detail = str(exc_or_message or "").strip()
+    status_value = "unavailable" if "vector index unavailable" in detail.lower() else "failed"
+    return status_value, detail
+
+
+def run_index_side_effect(
+    *,
+    label: str,
+    item_id: str,
+    operation: Callable[[], object],
+    on_error: Callable[[str, str], None] | None = None,
+) -> str | None:
     try:
         result = operation()
     except Exception as exc:
+        if on_error is not None:
+            status_value, detail = classify_index_failure(exc)
+            on_error(status_value, detail)
         logger.warning("%s indexing failed for %s: %s", label, item_id, exc)
         return _detailed_side_effect_warning(action="indexing", label=label, exc=exc)
     if result is False:
+        if on_error is not None:
+            on_error(
+                "failed",
+                "The vector index is unavailable or the indexing operation returned a degraded status.",
+            )
         logger.warning("%s indexing failed for %s without an exception", label, item_id)
         return _detailed_side_effect_warning(
             action="indexing",
@@ -451,7 +475,9 @@ def detect_project_type(zip_path: Path) -> str:
 
     if any(name.endswith("package.json") for name in names):
         return "node"
-    if any(name.endswith("pyproject.toml") for name in names) or any(name.endswith("requirements.txt") for name in names):
+    if any(name.endswith("pyproject.toml") for name in names) or any(
+        name.endswith("requirements.txt") for name in names
+    ):
         return "python"
     return "unknown"
 

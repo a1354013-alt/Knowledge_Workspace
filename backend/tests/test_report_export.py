@@ -100,7 +100,7 @@ def test_export_api_md(client: TestClient, auth_headers: dict[str, str], mock_au
     response = client.get(f"/api/autotest/{mock_autotest_data}/export?format=md", headers=auth_headers)
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/markdown; charset=utf-8"
-    assert f'autotest-report-{mock_autotest_data}.md' in response.headers["content-disposition"]
+    assert f"autotest-report-{mock_autotest_data}.md" in response.headers["content-disposition"]
     assert "Project AutoTest Report" in response.text
 
 
@@ -108,7 +108,7 @@ def test_export_api_html(client: TestClient, auth_headers: dict[str, str], mock_
     response = client.get(f"/api/autotest/{mock_autotest_data}/export?format=html", headers=auth_headers)
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/html; charset=utf-8"
-    assert f'autotest-report-{mock_autotest_data}.html' in response.headers["content-disposition"]
+    assert f"autotest-report-{mock_autotest_data}.html" in response.headers["content-disposition"]
     assert "<!DOCTYPE html>" in response.text
 
 

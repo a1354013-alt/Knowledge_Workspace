@@ -34,23 +34,23 @@ def split_text(text: str, chunk_size: int = 500, overlap: int = 100) -> list[str
 
 def load_document_text(file_path: str, filename: str) -> list[tuple[str, str]]:
     extension = Path(filename).suffix.lower()
-    if extension == '.pdf':
+    if extension == ".pdf":
         if PdfReader is None:
-            raise RuntimeError('pypdf is not installed.')
+            raise RuntimeError("pypdf is not installed.")
         reader = PdfReader(file_path)
         pages: list[tuple[str, str]] = []
         for index, page in enumerate(reader.pages):
-            pages.append((str(index + 1), page.extract_text() or ''))
+            pages.append((str(index + 1), page.extract_text() or ""))
         return pages
 
-    if extension in {'.txt', '.md'}:
+    if extension in {".txt", ".md"}:
         try:
             text, _encoding = read_text_file(file_path)
         except ValueError as exc:
             raise ValueError("Unable to decode text document.") from exc
-        return [('1', text)]
+        return [("1", text)]
 
-    raise ValueError(f'Unsupported file type: {extension}')
+    raise ValueError(f"Unsupported file type: {extension}")
 
 
 def process_file(
@@ -70,17 +70,17 @@ def process_file(
             texts.append(chunk)
             metadatas.append(
                 {
-                    'doc_id': doc_id,
-                    'filename': filename,
-                    'page_or_section': page_or_section,
-                    'is_active': is_active,
-                    'status': status,
-                    'owner_user_id': owner_user_id,
+                    "doc_id": doc_id,
+                    "filename": filename,
+                    "page_or_section": page_or_section,
+                    "is_active": is_active,
+                    "status": status,
+                    "owner_user_id": owner_user_id,
                 }
             )
 
     if not texts:
-        raise ValueError('No readable content found in document.')
+        raise ValueError("No readable content found in document.")
 
     if not add_to_vector_db(doc_id, texts, metadatas):
         raise RuntimeError(f"{vector_db_unavailable_reason()} Document {doc_id} could not be indexed.")
@@ -207,7 +207,7 @@ async def perform_qa(question: str, user_id: str, db: DocumentDatabase) -> tuple
     if not results:
         fallback_sources = _fallback_sources_from_db(db=db, question=question, user_id=user_id, limit=5)
         if not fallback_sources:
-            return 'No relevant knowledge was found yet. Try uploading a document or adding a logbook entry.', []
+            return "No relevant knowledge was found yet. Try uploading a document or adding a logbook entry.", []
         context_parts = [f"[{src.source_type}:{src.title}]\n{src.snippet}" for src in fallback_sources]
 
         provider, _status = get_llm_provider()
@@ -226,7 +226,9 @@ async def perform_qa(question: str, user_id: str, db: DocumentDatabase) -> tuple
         joined = "\n\n".join(context_parts[:3]).strip()
         fallback_answer = (
             "LLM provider is unavailable right now, so here are the most relevant context snippets I found:\n\n"
-            f"{joined}" if joined else "LLM provider is unavailable right now, and no relevant context was found."
+            f"{joined}"
+            if joined
+            else "LLM provider is unavailable right now, and no relevant context was found."
         )
         return fallback_answer, fallback_sources
 
@@ -267,8 +269,9 @@ async def perform_qa(question: str, user_id: str, db: DocumentDatabase) -> tuple
 
     joined = "\n\n".join(context_parts[:3]).strip()
     fallback_answer = (
-        "LLM provider is unavailable right now, so here are the most relevant context snippets I found:\n\n"
-        f"{joined}" if joined else "LLM provider is unavailable right now, and no relevant context was found."
+        f"LLM provider is unavailable right now, so here are the most relevant context snippets I found:\n\n{joined}"
+        if joined
+        else "LLM provider is unavailable right now, and no relevant context was found."
     )
     return fallback_answer, sources
 
@@ -329,8 +332,8 @@ async def generate_form(template_type: str, inputs: dict[str, str], user_id: str
     _ = user_id
     template = FORM_TEMPLATES.get(template_type)
     if not template:
-        raise ValueError(f'Unsupported template type: {template_type}')
+        raise ValueError(f"Unsupported template type: {template_type}")
     try:
-        return template['template'].format(**inputs)
+        return template["template"].format(**inputs)
     except KeyError as exc:
-        raise ValueError(f'Missing template field: {exc.args[0]}') from exc
+        raise ValueError(f"Missing template field: {exc.args[0]}") from exc

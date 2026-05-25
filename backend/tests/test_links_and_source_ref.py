@@ -82,7 +82,9 @@ def test_source_ref_replacement_removes_old_derived_from(monkeypatch, tmp_path):
         derived = [
             link
             for link in links2.json()["links"]
-            if link["link_type"] == "derived_from" and link["other_item"] and link["other_item"]["item_id"] == f"document:{doc_id}"
+            if link["link_type"] == "derived_from"
+            and link["other_item"]
+            and link["other_item"]["item_id"] == f"document:{doc_id}"
         ]
         assert derived == []
 
@@ -182,7 +184,9 @@ def test_item_links_filters_foreign_related_items_and_link_metadata(monkeypatch,
         assert payload[0]["from_item_id"] == f"knowledge:{owned_entry}"
         assert payload[0]["to_item_id"] == "document:owner-doc"
         assert payload[0]["other_item"]["item_id"] == "document:owner-doc"
-        assert all(link["other_item"]["item_id"] != "knowledge:foreign-knowledge" for link in payload if link["other_item"])
+        assert all(
+            link["other_item"]["item_id"] != "knowledge:foreign-knowledge" for link in payload if link["other_item"]
+        )
         assert all(link["to_item_id"] != "knowledge:foreign-knowledge" for link in payload)
         assert all(link["from_item_id"] != "knowledge:foreign-knowledge" for link in payload)
 
@@ -250,7 +254,9 @@ def test_knowledge_update_rejects_foreign_related_item_ids(monkeypatch, tmp_path
 
         links = client.get("/api/item-links", headers=headers, params={"item_id": f"knowledge:{entry['id']}"})
         assert links.status_code == 200, links.text
-        assert [link["other_item"]["item_id"] for link in links.json()["links"] if link["other_item"]] == ["document:owner-doc"]
+        assert [link["other_item"]["item_id"] for link in links.json()["links"] if link["other_item"]] == [
+            "document:owner-doc"
+        ]
 
 
 def test_logbook_create_and_update_reject_foreign_related_item_ids(monkeypatch, tmp_path):
@@ -307,7 +313,9 @@ def test_logbook_create_and_update_reject_foreign_related_item_ids(monkeypatch, 
 
         links = client.get("/api/item-links", headers=headers, params={"item_id": f"logbook:{entry['id']}"})
         assert links.status_code == 200, links.text
-        assert [link["other_item"]["item_id"] for link in links.json()["links"] if link["other_item"]] == ["document:owner-doc"]
+        assert [link["other_item"]["item_id"] for link in links.json()["links"] if link["other_item"]] == [
+            "document:owner-doc"
+        ]
 
 
 def test_source_ref_to_foreign_item_is_rejected(monkeypatch, tmp_path):
@@ -364,4 +372,71 @@ def test_source_ref_to_foreign_item_is_rejected(monkeypatch, tmp_path):
 
         links = client.get("/api/item-links", headers=headers, params={"item_id": f"logbook:{entry['id']}"})
         assert links.status_code == 200, links.text
-        assert [link["other_item"]["item_id"] for link in links.json()["links"] if link["other_item"]] == ["document:owner-doc"]
+        assert [link["other_item"]["item_id"] for link in links.json()["links"] if link["other_item"]] == [
+            "document:owner-doc"
+        ]
+
+
+def test_deleting_document_cleans_up_item_links(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    _create_document_for_user(main, doc_id="doc-cleanup", user_id="owner")
+
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
+        create = client.post(
+            "/api/knowledge/entries",
+            headers=headers,
+            json={
+                "title": "Linked note",
+                "problem": "Problem",
+                "root_cause": "",
+                "solution": "Solution",
+                "tags": "",
+                "notes": "",
+                "status": "draft",
+                "source_type": "manual",
+                "source_ref": "",
+                "related_item_ids": ["document:doc-cleanup"],
+            },
+        )
+        assert create.status_code == 200, create.text
+        entry = client.get("/api/knowledge/entries", headers=headers).json()[0]
+
+        deleted = client.delete("/api/docs/doc-cleanup", headers=headers)
+        assert deleted.status_code == 200, deleted.text
+
+        links = client.get("/api/item-links", headers=headers, params={"item_id": f"knowledge:{entry['id']}"})
+        assert links.status_code == 200, links.text
+        assert links.json()["links"] == []
+
+
+def test_deleting_logbook_cleans_up_item_links(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    _create_document_for_user(main, doc_id="doc-linked", user_id="owner")
+
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
+        create = client.post(
+            "/api/logbook/entries",
+            headers=headers,
+            json={
+                "title": "Linked logbook",
+                "problem": "Problem",
+                "root_cause": "",
+                "solution": "Solution",
+                "tags": "",
+                "status": "draft",
+                "source_type": "manual",
+                "source_ref": "",
+                "related_item_ids": ["document:doc-linked"],
+            },
+        )
+        assert create.status_code == 200, create.text
+        entry = client.get("/api/logbook/entries", headers=headers).json()[0]
+
+        deleted = client.delete(f"/api/logbook/entries/{entry['id']}", headers=headers)
+        assert deleted.status_code == 200, deleted.text
+
+        links = client.get("/api/item-links", headers=headers, params={"item_id": "document:doc-linked"})
+        assert links.status_code == 200, links.text
+        assert links.json()["links"] == []

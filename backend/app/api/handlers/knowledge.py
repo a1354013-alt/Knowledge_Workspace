@@ -19,7 +19,6 @@ from app.api.common import (
 )
 from app.context import db
 from app.dependencies import get_current_user
-from app.kb_index import index_knowledge_entry
 from app.models import (
     KnowledgeEntryCreateRequest,
     KnowledgeEntryResponse,
@@ -28,6 +27,7 @@ from app.models import (
     KnowledgeRevisionResponse,
     MessageResponse,
 )
+from app.services.indexing_service import sync_knowledge_entry_index
 
 
 async def list_knowledge_entries(current_user: dict = Depends(get_current_user)) -> list[KnowledgeEntryResponse]:
@@ -78,7 +78,9 @@ async def create_knowledge_entry(
         source_ref=source_ref,
     )
     if not created:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create knowledge entry.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create knowledge entry."
+        )
 
     entry = db.get_knowledge_entry(entry_id)
     if entry:
@@ -98,7 +100,10 @@ async def create_knowledge_entry(
         warning = run_index_side_effect(
             label="Knowledge entry",
             item_id=entry_id,
-            operation=lambda: index_knowledge_entry(entry),
+            operation=lambda: sync_knowledge_entry_index(entry),
+            on_error=lambda index_status, detail: db.update_knowledge_entry(
+                entry_id, index_status=index_status, index_error=detail, indexed_at=""
+            ),
         )
     else:
         warning = None
@@ -136,7 +141,9 @@ async def update_knowledge_entry(
             created_by=user_id,
         )
     if updates and not db.update_knowledge_entry(entry_id, **updates):
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update knowledge entry.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update knowledge entry."
+        )
     if related is not None:
         db.set_reference_links(item_id_from_parts("knowledge", entry_id), related)
     if "source_type" in updates or "source_ref" in updates:
@@ -154,18 +161,26 @@ async def update_knowledge_entry(
     warning = run_index_side_effect(
         label="Knowledge entry",
         item_id=entry_id,
-        operation=lambda: index_knowledge_entry(updated),
+        operation=lambda: sync_knowledge_entry_index(updated),
+        on_error=lambda index_status, detail: db.update_knowledge_entry(
+            entry_id, index_status=index_status, index_error=detail, indexed_at=""
+        ),
     )
     return MessageResponse(message=side_effect_warning("Knowledge entry updated.", warning))
 
 
-async def list_knowledge_revisions(entry_id: str, current_user: dict = Depends(get_current_user)) -> list[KnowledgeRevisionResponse]:
+async def list_knowledge_revisions(
+    entry_id: str, current_user: dict = Depends(get_current_user)
+) -> list[KnowledgeRevisionResponse]:
     entry = db.get_knowledge_entry(entry_id)
     if not entry:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Knowledge entry not found.")
     if entry.get("created_by") != current_user["sub"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot access these revisions.")
-    return [serialize_knowledge_revision(row) for row in db.list_knowledge_revisions(entry_id, created_by=current_user["sub"])]
+    return [
+        serialize_knowledge_revision(row)
+        for row in db.list_knowledge_revisions(entry_id, created_by=current_user["sub"])
+    ]
 
 
 async def get_knowledge_revision_diff(
@@ -214,12 +229,14 @@ async def restore_knowledge_revision(
 
     restore_payload = {field: revision.get(field, entry.get(field, "")) for field in KNOWLEDGE_REVISION_FIELDS}
     if not db.update_knowledge_entry(entry_id, **restore_payload):
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to restore knowledge revision.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to restore knowledge revision."
+        )
 
     restored = db.get_knowledge_entry(entry_id) or entry
     warning = run_index_side_effect(
         label="Knowledge entry",
         item_id=entry_id,
-        operation=lambda: index_knowledge_entry(restored),
+        operation=lambda: sync_knowledge_entry_index(restored),
     )
     return MessageResponse(message=side_effect_warning("Knowledge revision restored.", warning))

@@ -29,11 +29,19 @@ def test_node_build_test_lint_are_skipped_when_scripts_missing(monkeypatch, tmp_
     main = load_main(monkeypatch, tmp_path)
     working_dir = tmp_path / "nodeproj"
     working_dir.mkdir()
-    (working_dir / "package.json").write_text('{"name":"demo","version":"1.0.0","scripts":{"test":"echo ok"}}', encoding="utf-8")
+    (working_dir / "package.json").write_text(
+        '{"name":"demo","version":"1.0.0","scripts":{"test":"echo ok"}}', encoding="utf-8"
+    )
 
-    should_build, reason_build = main._autotest_step_should_run(project_type="node", working_dir=working_dir, step_name="build")
-    should_test, reason_test = main._autotest_step_should_run(project_type="node", working_dir=working_dir, step_name="test")
-    should_lint, reason_lint = main._autotest_step_should_run(project_type="node", working_dir=working_dir, step_name="lint")
+    should_build, reason_build = main._autotest_step_should_run(
+        project_type="node", working_dir=working_dir, step_name="build"
+    )
+    should_test, reason_test = main._autotest_step_should_run(
+        project_type="node", working_dir=working_dir, step_name="test"
+    )
+    should_lint, reason_lint = main._autotest_step_should_run(
+        project_type="node", working_dir=working_dir, step_name="lint"
+    )
 
     assert should_build is False
     assert "Missing npm script" in reason_build
@@ -49,7 +57,8 @@ def test_python_tests_are_skipped_when_no_tests_detected(monkeypatch, tmp_path):
     working_dir.mkdir()
     (working_dir / "pyproject.toml").write_text("[project]\nname='demo'\nversion='0.1.0'\n", encoding="utf-8")
 
-    should_test, reason = main._autotest_step_should_run(project_type="python", working_dir=working_dir, step_name="test")
+    should_test, reason = main._autotest_step_should_run(
+        project_type="python", working_dir=working_dir, step_name="test"
+    )
     assert should_test is False
     assert "skipped" in reason.lower()
-

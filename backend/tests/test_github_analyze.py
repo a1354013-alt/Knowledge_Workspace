@@ -22,7 +22,7 @@ def test_analyze_github_repo_invalid_url(client: TestClient, auth_headers: dict[
         headers=auth_headers,
     )
     assert response.status_code == 400
-    assert "Invalid GitHub URL" in response.json()["detail"]
+    assert "Invalid GitHub URL" in response.json()["message"]
 
 
 def test_analyze_github_repo_success_trigger(app_module, client: TestClient, auth_headers: dict[str, str], monkeypatch):

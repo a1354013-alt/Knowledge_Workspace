@@ -55,9 +55,13 @@ def type_to_ts(schema: dict) -> str:
     if "const" in schema:
         return json.dumps(schema["const"])
     if "anyOf" in schema:
-        return " | ".join(_dedupe_preserve_order([type_to_ts(item) for item in schema["anyOf"]]))
+        return " | ".join(
+            _dedupe_preserve_order([type_to_ts(item) for item in schema["anyOf"]])
+        )
     if "enum" in schema:
-        return " | ".join(_dedupe_preserve_order([json.dumps(value) for value in schema["enum"]]))
+        return " | ".join(
+            _dedupe_preserve_order([json.dumps(value) for value in schema["enum"]])
+        )
     kind = schema.get("type")
     if kind == "array":
         return f"{type_to_ts(schema.get('items', {}))}[]"
@@ -74,7 +78,9 @@ def type_to_ts(schema: dict) -> str:
 
 def generate() -> str:
     if not OPENAPI_PATH.exists():
-        subprocess.run([sys.executable, str(ROOT / "scripts" / "export_openapi.py")], check=True)
+        subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "export_openapi.py")], check=True
+        )
     data = json.loads(OPENAPI_PATH.read_text(encoding="utf-8"))
     schemas = data.get("components", {}).get("schemas", {})
     body = [
@@ -89,13 +95,17 @@ def generate() -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate lightweight TypeScript types from OpenAPI schemas.")
+    parser = argparse.ArgumentParser(
+        description="Generate lightweight TypeScript types from OpenAPI schemas."
+    )
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     content = generate()
     if args.check:
         if not OUT_PATH.exists() or OUT_PATH.read_text(encoding="utf-8") != content:
-            raise SystemExit("Generated API types are out of date. Run npm run generate:api-types.")
+            raise SystemExit(
+                "Generated API types are out of date. Run npm run generate:api-types."
+            )
         print("OK: generated API types are up to date")
         return 0
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)

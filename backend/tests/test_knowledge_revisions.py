@@ -8,7 +8,7 @@ def test_knowledge_revision_flow(client: TestClient, auth_headers: dict[str, str
         "problem": "Initial Problem",
         "solution": "Initial Solution",
         "status": "draft",
-        "tags": "test"
+        "tags": "test",
     }
     resp = client.post("/api/knowledge/entries", json=entry_data, headers=auth_headers)
     assert resp.status_code == 200
@@ -27,10 +27,7 @@ def test_knowledge_revision_flow(client: TestClient, auth_headers: dict[str, str
     assert revs[0]["change_note"] == "Initial version"
 
     # 3. Update the entry
-    update_data = {
-        "title": "Updated Title",
-        "change_note": "Changed title for testing"
-    }
+    update_data = {"title": "Updated Title", "change_note": "Changed title for testing"}
     resp = client.patch(f"/api/knowledge/entries/{entry_id}", json=update_data, headers=auth_headers)
     assert resp.status_code == 200
 

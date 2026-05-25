@@ -145,6 +145,7 @@ import InputText from 'primevue/inputtext'
 import MultiSelect from 'primevue/multiselect'
 
 import { get } from '../api'
+import { apiPaths } from '../api/endpoints'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import type { ItemSummary, ResolveItemsResponse } from '../types'
 
@@ -231,7 +232,7 @@ async function runSearch() {
       date_to: String(dateTo.value || '').trim(),
       limit: Number(limit.value || 200),
     }
-    const response = await get<ResolveItemsResponse>('/api/search', { params })
+    const response = await get<ResolveItemsResponse>(apiPaths.search.resolve, { params })
     results.value = response.items || []
   } catch (error: unknown) {
     results.value = []

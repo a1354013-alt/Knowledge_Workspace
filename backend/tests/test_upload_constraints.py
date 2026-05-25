@@ -103,3 +103,47 @@ def test_ocr_status_reports_unavailable_when_tesseract_not_runnable(monkeypatch,
         assert payload["enabled"] is True
         assert payload["available"] is False
         assert isinstance(payload.get("details"), str)
+
+
+def test_photo_upload_rejects_invalid_image_parse(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
+        response = client.post(
+            "/api/photos/upload",
+            headers=headers,
+            files={"file": ("broken.png", b"\x89PNG\r\n\x1a\n" + b"not-a-real-image", "image/png")},
+            data={"tags": "demo", "description": "broken"},
+        )
+        assert response.status_code == 400, response.text
+
+
+def test_photo_upload_rejects_oversized_pixel_count(monkeypatch, tmp_path):
+    from PIL import Image
+
+    monkeypatch.setenv("IMAGE_MAX_PIXELS", "100")
+    main = load_app(monkeypatch, tmp_path)
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
+        image_path = tmp_path / "big.png"
+        Image.new("RGB", (11, 10), color="red").save(image_path, format="PNG")
+        response = client.post(
+            "/api/photos/upload",
+            headers=headers,
+            files={"file": ("big.png", image_path.read_bytes(), "image/png")},
+            data={"tags": "demo", "description": "too big"},
+        )
+        assert response.status_code == 413, response.text
+
+
+def test_document_upload_rejects_zip_mime_mismatch(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
+        response = client.post(
+            "/api/docs/upload",
+            headers=headers,
+            files={"file": ("manual.txt", b"PK\x03\x04not-text", "application/zip")},
+            data={"category": "notes", "tags": "bad"},
+        )
+        assert response.status_code == 400, response.text

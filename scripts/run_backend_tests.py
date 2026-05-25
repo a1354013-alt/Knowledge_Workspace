@@ -45,7 +45,9 @@ def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
 
 
 def main() -> int:
-    timeout_seconds = int(os.environ.get("KNOWLEDGE_WORKSPACE_PYTEST_TIMEOUT", DEFAULT_TIMEOUT_SECONDS))
+    timeout_seconds = int(
+        os.environ.get("KNOWLEDGE_WORKSPACE_PYTEST_TIMEOUT", DEFAULT_TIMEOUT_SECONDS)
+    )
     command = [sys.executable, "-m", "pytest", "-q", "--basetemp", str(PYTEST_BASETEMP)]
     print(f"+ {' '.join(command)}")
     env = os.environ.copy()
@@ -90,6 +92,7 @@ def main() -> int:
     if stderr:
         print(stderr, end="", file=sys.stderr)
     return int(process.returncode or 0)
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

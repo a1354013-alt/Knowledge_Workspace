@@ -18,7 +18,6 @@ from app.api.common import (
 from app.context import db
 from app.database import delete_from_kb_vector_db
 from app.dependencies import get_current_user
-from app.kb_index import index_knowledge_entry, index_logbook_entry
 from app.models import (
     LogbookEntryCreateRequest,
     LogbookEntryResponse,
@@ -26,6 +25,7 @@ from app.models import (
     MessageResponse,
     PromoteToKnowledgeResponse,
 )
+from app.services.indexing_service import sync_knowledge_entry_index, sync_logbook_entry_index
 
 
 async def list_logbook_entries(current_user: dict = Depends(get_current_user)) -> list[LogbookEntryResponse]:
@@ -90,7 +90,10 @@ async def create_logbook_entry(
         warning = run_index_side_effect(
             label="Logbook entry",
             item_id=entry_id,
-            operation=lambda: index_logbook_entry(entry),
+            operation=lambda: sync_logbook_entry_index(entry),
+            on_error=lambda index_status, detail: db.update_logbook_entry(
+                entry_id, index_status=index_status, index_error=detail, indexed_at=""
+            ),
         )
     else:
         warning = None
@@ -138,12 +141,17 @@ async def update_logbook_entry(
     warning = run_index_side_effect(
         label="Logbook entry",
         item_id=entry_id,
-        operation=lambda: index_logbook_entry(updated),
+        operation=lambda: sync_logbook_entry_index(updated),
+        on_error=lambda index_status, detail: db.update_logbook_entry(
+            entry_id, index_status=index_status, index_error=detail, indexed_at=""
+        ),
     )
     return MessageResponse(message=side_effect_warning("Logbook entry updated.", warning))
 
 
-async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depends(get_current_user)) -> PromoteToKnowledgeResponse:
+async def promote_logbook_to_knowledge(
+    entry_id: str, current_user: dict = Depends(get_current_user)
+) -> PromoteToKnowledgeResponse:
     user_id = current_user["sub"]
     logbook = db.get_logbook_entry(entry_id)
     if not logbook:
@@ -189,7 +197,10 @@ async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depen
         knowledge_warning = run_index_side_effect(
             label="Knowledge entry",
             item_id=knowledge_id,
-            operation=lambda: index_knowledge_entry(promoted),
+            operation=lambda: sync_knowledge_entry_index(promoted),
+            on_error=lambda index_status, detail: db.update_knowledge_entry(
+                knowledge_id, index_status=index_status, index_error=detail, indexed_at=""
+            ),
         )
         if knowledge_warning:
             warnings.append(knowledge_warning)
@@ -198,7 +209,10 @@ async def promote_logbook_to_knowledge(entry_id: str, current_user: dict = Depen
     archived_warning = run_index_side_effect(
         label="Logbook entry",
         item_id=entry_id,
-        operation=lambda: index_logbook_entry(archived_logbook),
+        operation=lambda: sync_logbook_entry_index(archived_logbook),
+        on_error=lambda index_status, detail: db.update_logbook_entry(
+            entry_id, index_status=index_status, index_error=detail, indexed_at=""
+        ),
     )
     if archived_warning:
         warnings.append(archived_warning)

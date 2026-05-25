@@ -1,8 +1,20 @@
 from __future__ import annotations
 
+import base64
+import sys
+from io import BytesIO
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+
+try:
+    from PIL import Image
+except ImportError:  # pragma: no cover - optional dependency in tests
+    Image = None
+
+
+def _handler_module(name: str):
+    return sys.modules[f"app.api.handlers.{name}"]
 
 
 def test_document_update_keeps_success_when_indexing_fails(
@@ -11,6 +23,9 @@ def test_document_update_keeps_success_when_indexing_fails(
     auth_headers: dict[str, str],
     monkeypatch,
 ):
+    async def fail_sync_document_index(*args, **kwargs):
+        raise RuntimeError("vector offline")
+
     uploads_dir = Path(app_module.legacy_main.UPLOAD_DIR)
     uploads_dir.mkdir(parents=True, exist_ok=True)
     file_path = uploads_dir / "doc.txt"
@@ -29,7 +44,11 @@ def test_document_update_keeps_success_when_indexing_fails(
         indexed_at="2026-05-07T00:00:00+00:00",
     )
 
-    monkeypatch.setattr(app_module.legacy_main, "process_file", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("vector offline")))
+    monkeypatch.setattr(
+        _handler_module("docs"),
+        "sync_document_index",
+        fail_sync_document_index,
+    )
 
     response = client.patch(
         "/api/docs/doc-side-effect",
@@ -52,10 +71,13 @@ def test_document_upload_reports_vector_index_unavailable(
     auth_headers: dict[str, str],
     monkeypatch,
 ):
+    async def fail_sync_document_index(*args, **kwargs):
+        raise RuntimeError("Vector index unavailable: chromadb is not installed.")
+
     monkeypatch.setattr(
-        app_module.legacy_main,
-        "process_file",
-        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("Vector index unavailable: chromadb is not installed.")),
+        _handler_module("docs"),
+        "sync_document_index",
+        fail_sync_document_index,
     )
 
     response = client.post(
@@ -111,8 +133,8 @@ def test_knowledge_create_keeps_success_when_indexing_fails(
     monkeypatch,
 ):
     monkeypatch.setattr(
-        app_module.legacy_main,
-        "index_knowledge_entry",
+        _handler_module("knowledge"),
+        "sync_knowledge_entry_index",
         lambda entry: (_ for _ in ()).throw(RuntimeError("kb index unavailable")),
     )
 
@@ -162,13 +184,13 @@ def test_logbook_promote_keeps_success_when_indexing_fails(
     logbook_id = app_module.db.list_logbook_entries(user_id="owner", include_archived=False)[0]["entry_id"]
 
     monkeypatch.setattr(
-        app_module.legacy_main,
-        "index_knowledge_entry",
+        _handler_module("logbook"),
+        "sync_knowledge_entry_index",
         lambda entry: (_ for _ in ()).throw(RuntimeError("knowledge index down")),
     )
     monkeypatch.setattr(
-        app_module.legacy_main,
-        "index_logbook_entry",
+        _handler_module("logbook"),
+        "sync_logbook_entry_index",
         lambda entry: (_ for _ in ()).throw(RuntimeError("logbook index down")),
     )
 
@@ -186,12 +208,17 @@ def test_photo_upload_keeps_success_when_indexing_fails(
 ):
     monkeypatch.setattr(app_module.legacy_main, "extract_text_from_image", lambda path: "")
     monkeypatch.setattr(
-        app_module.legacy_main,
-        "index_photo",
+        _handler_module("photos"),
+        "sync_photo_index",
         lambda photo: (_ for _ in ()).throw(RuntimeError("photo index down")),
     )
 
-    png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+    if Image is None:
+        png_bytes = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
+    else:
+        buffer = BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 255, 255)).save(buffer, format="PNG")
+        png_bytes = buffer.getvalue()
     response = client.post(
         "/api/photos/upload",
         headers=auth_headers,
@@ -210,8 +237,8 @@ def test_saved_prompt_create_keeps_success_when_indexing_fails(
     monkeypatch,
 ):
     monkeypatch.setattr(
-        app_module.legacy_main,
-        "index_saved_prompt",
+        _handler_module("prompts"),
+        "sync_prompt_index",
         lambda prompt: (_ for _ in ()).throw(RuntimeError("prompt index down")),
     )
 
@@ -223,7 +250,7 @@ def test_saved_prompt_create_keeps_success_when_indexing_fails(
     assert response.status_code == 200, response.text
     payload = response.json()
     assert payload["index_status"] == "failed"
-    assert "indexing failed" in payload["index_error"].lower()
+    assert "prompt index down" in payload["index_error"].lower()
 
     prompts = app_module.db.list_saved_prompts(user_id="owner", limit=200)
     assert len(prompts) == 1
@@ -236,8 +263,8 @@ def test_saved_prompt_create_reports_unavailable_vector_index(
     monkeypatch,
 ):
     monkeypatch.setattr(
-        app_module.legacy_main,
-        "index_saved_prompt",
+        _handler_module("prompts"),
+        "sync_prompt_index",
         lambda prompt: (_ for _ in ()).throw(RuntimeError("Vector index unavailable: chromadb is not installed.")),
     )
 

@@ -34,5 +34,3 @@ def get_autotest_capabilities() -> AutoTestCapabilitiesResponse:
         real_mode_available=available,
         message=message,
     )
-
-

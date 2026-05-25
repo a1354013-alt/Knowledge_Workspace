@@ -45,4 +45,3 @@ def read_text_file(path: str | Path) -> tuple[str, str]:
         raise ValueError("File appears to be binary but has a text extension.")
     text, encoding = decode_text_bytes(data)
     return text, encoding
-

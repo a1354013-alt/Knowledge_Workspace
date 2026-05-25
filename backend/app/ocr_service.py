@@ -1,4 +1,5 @@
 """OCR service for extracting text from images."""
+
 from __future__ import annotations
 
 import logging
@@ -64,10 +65,10 @@ def get_ocr_status() -> dict[str, Any]:
 def extract_text_from_image(image_path: str | Path) -> str:
     """
     Extract text from an image file using OCR.
-    
+
     Args:
         image_path: Path to the image file
-        
+
     Returns:
         Extracted text content, or empty string if OCR fails
     """
@@ -121,10 +122,10 @@ def extract_text_from_image(image_path: str | Path) -> str:
 def batch_extract_text(image_paths: list[str | Path]) -> dict[str, str]:
     """
     Extract text from multiple images.
-    
+
     Args:
         image_paths: List of image file paths
-        
+
     Returns:
         Dictionary mapping file paths to extracted text
     """
