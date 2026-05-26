@@ -1,6 +1,8 @@
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 
-from app.api.handlers.support import Depends, ItemSummary, ResolveItemsResponse, db, get_current_user
+from app.api.runtime import db
+from app.dependencies import get_current_user
+from app.models import ItemSummary, ResolveItemsResponse
 from app.repositories.search_repository import SUPPORTED_SEARCH_ITEM_TYPES
 from app.source_types import canonicalize_source_type
 

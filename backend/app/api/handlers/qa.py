@@ -1,17 +1,9 @@
-from app.api.handlers.support import (
-    Depends,
-    GenerateRequest,
-    GenerateResponse,
-    QARequest,
-    QAResponse,
-    Request,
-    db,
-    generate_form,
-    get_current_user,
-    limiter,
-    logger,
-    perform_qa,
-)
+from fastapi import Depends, Request
+
+from app.api.runtime import db, limiter, logger
+from app.dependencies import get_current_user
+from app.models import GenerateRequest, GenerateResponse, QARequest, QAResponse
+from app.services.core import generate_form, perform_qa
 
 
 @limiter.limit("10/minute")  # Rate limit: 10 requests per minute to prevent abuse

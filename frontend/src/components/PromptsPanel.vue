@@ -133,6 +133,7 @@ import Textarea from 'primevue/textarea'
 
 import { del, post } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { confirmDanger } from '../services/confirm'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import { useWorkspaceStore } from '../workspace-store'
 import type { MessageResponse, SavedPromptCreateRequest, SavedPromptResponse } from '../types'
@@ -221,7 +222,7 @@ async function deletePrompt(item: SavedPromptResponse) {
   if (!item?.id) {
     return
   }
-  if (!window.confirm(`Delete "${item.title}"?`)) {
+  if (!(await confirmDanger({ header: 'Delete prompt', message: `Delete "${item.title}"?`, acceptLabel: 'Delete' }))) {
     return
   }
   try {

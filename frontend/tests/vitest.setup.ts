@@ -1,8 +1,7 @@
 import { vi } from 'vitest'
+import { setConfirmHandler } from '../src/services/confirm'
 
-if (typeof window !== 'undefined') {
-  window.confirm = (_message?: string) => true
-}
+setConfirmHandler(async () => true)
 
 if (!globalThis.navigator) {
   ;(globalThis as unknown as { navigator: unknown }).navigator = {}

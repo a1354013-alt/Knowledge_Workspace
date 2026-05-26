@@ -382,10 +382,11 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
-import { del, get, patch, post } from '../api'
+import { del, patch, post } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { confirmDanger } from '../services/confirm'
+import { downloadDocumentFile, downloadPhotoFile, previewDocumentFile, previewPhotoFile } from '../services/downloads'
 import { useWorkspaceStore } from '../workspace-store'
-import { downloadBlob, openBlobInNewTab } from '../utils/blob'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import type {
   DocumentUpdateRequest,
@@ -592,8 +593,7 @@ async function previewDocument(doc: DocumentResponse) {
     return
   }
   try {
-    const blob = await get<Blob>(apiPaths.docs.download(doc.id), { params: { inline: 1 }, responseType: 'blob' })
-    openBlobInNewTab(blob)
+    await previewDocumentFile(doc)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: 'Preview failed', detail: apiError?.message || 'Request failed.', life: 4000 })
@@ -605,8 +605,7 @@ async function downloadDocument(doc: DocumentResponse) {
     return
   }
   try {
-    const blob = await get<Blob>(apiPaths.docs.download(doc.id), { responseType: 'blob' })
-    downloadBlob(blob, doc.filename || `document-${doc.id}`)
+    await downloadDocumentFile(doc)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: 'Download failed', detail: apiError?.message || 'Request failed.', life: 4000 })
@@ -653,7 +652,7 @@ async function archiveDocument(doc: DocumentResponse) {
   if (!doc?.id) {
     return
   }
-  if (!window.confirm(`Archive "${doc.filename}"?`)) {
+  if (!(await confirmDanger({ header: 'Archive document', message: `Archive "${doc.filename}"?`, acceptLabel: 'Archive' }))) {
     return
   }
   try {
@@ -670,7 +669,7 @@ async function deleteDocument(doc: DocumentResponse) {
   if (!doc?.id) {
     return
   }
-  if (!window.confirm(`Delete "${doc.filename}"?`)) {
+  if (!(await confirmDanger({ header: 'Delete document', message: `Delete "${doc.filename}"?`, acceptLabel: 'Delete' }))) {
     return
   }
   try {
@@ -705,8 +704,7 @@ async function previewPhoto(photo: PhotoResponse) {
     return
   }
   try {
-    const blob = await get<Blob>(apiPaths.photos.download(photo.id), { params: { inline: 1 }, responseType: 'blob' })
-    openBlobInNewTab(blob)
+    await previewPhotoFile(photo)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: 'Preview failed', detail: apiError?.message || 'Request failed.', life: 4000 })
@@ -718,8 +716,7 @@ async function downloadPhoto(photo: PhotoResponse) {
     return
   }
   try {
-    const blob = await get<Blob>(apiPaths.photos.download(photo.id), { responseType: 'blob' })
-    downloadBlob(blob, photo.filename || `photo-${photo.id}`)
+    await downloadPhotoFile(photo)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: 'Download failed', detail: apiError?.message || 'Request failed.', life: 4000 })
@@ -766,7 +763,7 @@ async function deletePhoto(photo: PhotoResponse) {
   if (!photo?.id) {
     return
   }
-  if (!window.confirm(`Delete "${photo.filename}"?`)) {
+  if (!(await confirmDanger({ header: 'Delete photo', message: `Delete "${photo.filename}"?`, acceptLabel: 'Delete' }))) {
     return
   }
   try {

@@ -1,3 +1,14 @@
+"""Deprecated handler compatibility exports.
+
+This module intentionally stays small. New code should import concrete
+dependencies from `app.api.common`, `app.api.runtime`, `app.dependencies`,
+`app.models`, `app.services.*`, or `app.utils` directly.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
 import uuid
 from pathlib import Path
 
@@ -18,8 +29,6 @@ from app.api.common import (
     maybe_link_source_item,
     normalize_related_item_ids,
     resolve_item_summary,
-    run_deindex_side_effect,
-    run_index_side_effect,
     safe_download_filename,
     safe_unlink,
     serialize_document,
@@ -35,13 +44,11 @@ from app.api.runtime import (
     UPLOAD_DIR,
     allow_credentials,
     allowed_origins,
-    asyncio,
     create_token,
     db,
     lifespan,
     limiter,
     logger,
-    logging,
     settings,
     validate_env_vars,
 )
@@ -82,33 +89,45 @@ from app.models import (
     UploadPhotoResponse,
 )
 from app.ocr_service import extract_text_from_image
-from app.services import FORM_TEMPLATES, generate_form, indexing_service, perform_qa, process_file
-from app.utils import (
-    generate_safe_filename,
-    stream_write_file,
-    validate_file_extension,
-    validate_file_magic_bytes,
-)
+from app.services import process_file
+from app.services.core import FORM_TEMPLATES, generate_form, perform_qa
+from app.services.indexing_service import sync_document_index, sync_prompt_index
+from app.utils import generate_safe_filename, stream_write_file, validate_file_extension, validate_file_magic_bytes
+
+logging = logging
+
+
+async def sync_document_index_in_background(document: dict) -> None:
+    await asyncio.to_thread(sync_document_index, document)
+
+
+def run_index_side_effect(*, label: str, item_id: str, operation, on_error=None):
+    try:
+        operation()
+    except Exception as exc:
+        index_status, detail = classify_index_failure(exc)
+        if on_error is not None:
+            on_error(index_status, detail)
+        logger.warning("%s indexing failed for %s: %s", label, item_id, exc)
+        return f"{label} indexing failed: {exc}"
+    return None
+
+
+def run_deindex_side_effect(*, label: str, item_id: str, operation):
+    try:
+        operation()
+    except Exception as exc:
+        logger.warning("%s de-indexing failed for %s: %s", label, item_id, exc)
+        return f"{label} de-index failed: {exc}"
+    return None
+
 
 _safe_download_filename = safe_download_filename
 _guess_media_type = guess_media_type
-
-
-async def sync_document_index(document: dict) -> None:
-    await asyncio.to_thread(indexing_service.sync_document_index, document)
-
-
 _side_effect_warning = side_effect_warning
 _run_index_side_effect = run_index_side_effect
 _run_deindex_side_effect = run_deindex_side_effect
 
-
-"""Deprecated handler support compatibility layer.
-
-New code should import concrete helpers from `app.api.common`, `app.api.runtime`,
-`app.services`, or `app.models` directly. This module is kept only to avoid
-breaking older handlers/tests during the transition away from a single god module.
-"""
 __all__ = (
     "APP_VERSION",
     "CORSMiddleware",
@@ -207,6 +226,8 @@ __all__ = (
     "status",
     "stream_write_file",
     "sync_document_index",
+    "sync_document_index_in_background",
+    "sync_prompt_index",
     "sync_source_ref_link",
     "utc_now_iso",
     "uuid",

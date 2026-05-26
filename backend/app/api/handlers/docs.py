@@ -1,38 +1,61 @@
-from app.api.handlers.support import (
-    UPLOAD_DIR,
-    Depends,
-    DocumentResponse,
-    DocumentUpdateRequest,
-    File,
-    FileResponse,
-    Form,
-    HTTPException,
-    ItemLinksResponse,
-    MessageResponse,
-    Path,
-    UploadDocumentResponse,
-    UploadFile,
-    _guess_media_type,
-    _run_deindex_side_effect,
-    _safe_download_filename,
-    _side_effect_warning,
+import uuid
+from pathlib import Path
+
+from fastapi import Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
+
+from app.api.common import (
     build_links_response,
     classify_index_failure,
-    db,
-    delete_from_vector_db,
-    generate_safe_filename,
-    get_current_user,
+    guess_media_type,
     item_id_from_parts,
-    logger,
+    safe_download_filename,
     safe_unlink,
     serialize_document,
-    status,
+    side_effect_warning,
+)
+from app.api.runtime import UPLOAD_DIR, asyncio, db, logger
+from app.database import delete_from_vector_db
+from app.dependencies import get_current_user
+from app.models import (
+    DocumentResponse,
+    DocumentUpdateRequest,
+    ItemLinksResponse,
+    MessageResponse,
+    UploadDocumentResponse,
+)
+from app.services.indexing_service import sync_document_index as _sync_document_index_impl
+from app.utils import (
+    generate_safe_filename,
     stream_write_file,
-    sync_document_index,
-    uuid,
     validate_file_extension,
     validate_file_magic_bytes,
 )
+
+
+def _safe_download_filename(value: str) -> str:
+    return safe_download_filename(value)
+
+
+def _guess_media_type(value: str) -> str:
+    return guess_media_type(value)
+
+
+def _side_effect_warning(message: str, warning: str | None) -> str:
+    return side_effect_warning(message, warning)
+
+
+def _run_deindex_side_effect(*, label: str, item_id: str, operation):
+    try:
+        operation()
+    except Exception as exc:
+        logger.warning("%s de-indexing failed for %s: %s", label, item_id, exc)
+        return f"{label} de-index failed: {exc}"
+    return None
+
+
+async def sync_document_index(document: dict) -> None:
+    await asyncio.to_thread(_sync_document_index_impl, document)
 
 
 async def upload_document(

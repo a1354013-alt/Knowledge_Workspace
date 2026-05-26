@@ -276,6 +276,7 @@ import Textarea from 'primevue/textarea'
 
 import { del, patch, post } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { confirmDanger } from '../services/confirm'
 import { useWorkspaceStore } from '../workspace-store'
 import type {
   AutoTestRunListItemResponse,
@@ -405,7 +406,7 @@ async function saveEntry() {
 }
 
 async function deleteEntry(item: LogbookEntryResponse) {
-  if (!window.confirm(`Delete "${item.title}"?`)) {
+  if (!(await confirmDanger({ header: 'Delete logbook entry', message: `Delete "${item.title}"?`, acceptLabel: 'Delete' }))) {
     return
   }
   try {
@@ -422,7 +423,13 @@ async function promoteEntry(item: LogbookEntryResponse) {
   if (!item?.id) {
     return
   }
-  if (!window.confirm(`Promote "${item.title}" to a verified knowledge entry?`)) {
+  if (
+    !(await confirmDanger({
+      header: 'Promote logbook entry',
+      message: `Promote "${item.title}" to a verified knowledge entry?`,
+      acceptLabel: 'Promote',
+    }))
+  ) {
     return
   }
   try {

@@ -244,6 +244,7 @@ import {
   promoteAutoTestProblem,
   startAutoTest,
 } from '../autotest-api'
+import { confirmDanger } from '../services/confirm'
 import type {
   AutoTestExportFormat,
   AutoTestCapabilitiesResponse,
@@ -415,7 +416,13 @@ async function promoteProblem() {
   if (!entryId) {
     return
   }
-  if (!window.confirm('Promote this AutoTest problem draft to a verified knowledge entry?')) {
+  if (
+    !(await confirmDanger({
+      header: 'Promote AutoTest problem',
+      message: 'Promote this AutoTest problem draft to a verified knowledge entry?',
+      acceptLabel: 'Promote',
+    }))
+  ) {
     return
   }
   try {

@@ -3,6 +3,7 @@ import { useToast } from 'primevue/usetoast'
 
 import { patch, post } from '../../api'
 import { apiPaths } from '../../api/endpoints'
+import { confirmDanger } from '../../services/confirm'
 import { useWorkspaceStore } from '../../workspace-store'
 import type {
   AutoTestRunListItemResponse,
@@ -192,21 +193,21 @@ export function useKnowledgeEntries() {
 
   async function loadRecent() {
     loadingRecent.value = true
-  try {
-    await store.refreshKnowledgeEntries({ force: true })
-    recent.value = store.state.lists.knowledgeEntries || []
-  } catch (error: unknown) {
-    recent.value = store.state.lists.knowledgeEntries || []
-    const apiError = error as { message?: string }
-    toast.add({
-      severity: recent.value.length ? 'warn' : 'error',
-      summary: 'Load failed',
-      detail: apiError?.message || store.state.error.knowledgeEntries || 'Request failed.',
-      life: 3500,
-    })
-  } finally {
-    loadingRecent.value = false
-  }
+    try {
+      await store.refreshKnowledgeEntries({ force: true })
+      recent.value = store.state.lists.knowledgeEntries || []
+    } catch (error: unknown) {
+      recent.value = store.state.lists.knowledgeEntries || []
+      const apiError = error as { message?: string }
+      toast.add({
+        severity: recent.value.length ? 'warn' : 'error',
+        summary: 'Load failed',
+        detail: apiError?.message || store.state.error.knowledgeEntries || 'Request failed.',
+        life: 3500,
+      })
+    } finally {
+      loadingRecent.value = false
+    }
   }
 
   async function loadPickers() {
@@ -299,7 +300,13 @@ export function useKnowledgeEntries() {
     if (!item?.id) {
       return
     }
-    if (!window.confirm(`Archive "${item.title || 'this entry'}"?`)) {
+    if (
+      !(await confirmDanger({
+        header: 'Archive knowledge entry',
+        message: `Archive "${item.title || 'this entry'}"?`,
+        acceptLabel: 'Archive',
+      }))
+    ) {
       return
     }
     try {

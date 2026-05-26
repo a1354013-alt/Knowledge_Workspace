@@ -101,7 +101,7 @@ import DataTable from 'primevue/datatable'
 
 import { get } from '../api'
 import { apiPaths } from '../api/endpoints'
-import { downloadBlob, openBlobInNewTab } from '../utils/blob'
+import { downloadRelatedItem, previewRelatedItem } from '../services/downloads'
 import type { ItemLinkResolved, ItemLinksResponse } from '../types'
 
 const props = defineProps({
@@ -163,15 +163,8 @@ async function downloadRelated(itemId: string) {
   if (!isDownloadable(itemId)) {
     return
   }
-  const [prefix, rawId] = itemId.split(':', 2)
   try {
-    if (prefix === 'document') {
-      const blob = await get<Blob>(apiPaths.docs.download(rawId), { responseType: 'blob' })
-      downloadBlob(blob, `document-${rawId}`)
-    } else if (prefix === 'photo') {
-      const blob = await get<Blob>(apiPaths.photos.download(rawId), { responseType: 'blob' })
-      downloadBlob(blob, `photo-${rawId}`)
-    }
+    await downloadRelatedItem(itemId)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: 'Download failed', detail: apiError?.message || 'Request failed.', life: 4000 })
@@ -182,15 +175,8 @@ async function previewRelated(itemId: string) {
   if (!isPreviewable(itemId)) {
     return
   }
-  const [prefix, rawId] = itemId.split(':', 2)
   try {
-    if (prefix === 'document') {
-      const blob = await get<Blob>(apiPaths.docs.download(rawId), { params: { inline: 1 }, responseType: 'blob' })
-      openBlobInNewTab(blob)
-    } else if (prefix === 'photo') {
-      const blob = await get<Blob>(apiPaths.photos.download(rawId), { params: { inline: 1 }, responseType: 'blob' })
-      openBlobInNewTab(blob)
-    }
+    await previewRelatedItem(itemId)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: 'Preview failed', detail: apiError?.message || 'Request failed.', life: 4000 })

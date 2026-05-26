@@ -1,42 +1,64 @@
-from app.api.handlers.support import (
-    PHOTO_DIR,
-    Depends,
-    File,
-    FileResponse,
-    Form,
-    HTTPException,
-    ItemLinksResponse,
-    MessageResponse,
-    Path,
-    PhotoResponse,
-    PhotoUpdateRequest,
-    UploadFile,
-    UploadPhotoResponse,
-    _guess_media_type,
-    _run_deindex_side_effect,
-    _run_index_side_effect,
-    _safe_download_filename,
-    _side_effect_warning,
+import uuid
+from pathlib import Path
+
+from fastapi import Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
+
+from app.api.common import (
     build_links_response,
-    db,
-    delete_from_kb_vector_db,
-    extract_text_from_image,
-    generate_safe_filename,
-    get_current_user,
+    classify_index_failure,
+    guess_media_type,
     item_id_from_parts,
+    safe_download_filename,
     safe_unlink,
-    status,
-    stream_write_file,
-    uuid,
+    side_effect_warning,
 )
+from app.api.runtime import PHOTO_DIR, db, logger
+from app.database import delete_from_kb_vector_db
+from app.dependencies import get_current_user
+from app.models import ItemLinksResponse, MessageResponse, PhotoResponse, PhotoUpdateRequest, UploadPhotoResponse
+from app.ocr_service import extract_text_from_image
 from app.core.config import get_settings
 from app.services.indexing_service import sync_photo_index
+from app.utils import generate_safe_filename, stream_write_file
 
 try:
     from PIL import Image, UnidentifiedImageError
 except ImportError:  # pragma: no cover - optional runtime dependency
     Image = None
     UnidentifiedImageError = ValueError
+
+
+def _safe_download_filename(value: str) -> str:
+    return safe_download_filename(value)
+
+
+def _guess_media_type(value: str) -> str:
+    return guess_media_type(value)
+
+
+def _side_effect_warning(message: str, warning: str | None) -> str:
+    return side_effect_warning(message, warning)
+
+
+def _run_index_side_effect(*, label: str, item_id: str, operation, on_error):
+    try:
+        operation()
+    except Exception as exc:
+        index_status, detail = classify_index_failure(exc)
+        on_error(index_status, detail)
+        logger.warning("%s indexing failed for %s: %s", label, item_id, exc)
+        return f"{label} indexing failed: {exc}"
+    return None
+
+
+def _run_deindex_side_effect(*, label: str, item_id: str, operation):
+    try:
+        operation()
+    except Exception as exc:
+        logger.warning("%s de-indexing failed for %s: %s", label, item_id, exc)
+        return f"{label} de-index failed: {exc}"
+    return None
 
 
 def validate_image_extension(filename: str) -> bool:

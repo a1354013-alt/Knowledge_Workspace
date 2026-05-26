@@ -1,6 +1,7 @@
 <template>
   <div class="app-shell">
     <Toast />
+    <AppConfirmDialog />
 
     <section
       v-if="!isLoggedIn"
@@ -120,6 +121,7 @@ import { get, post } from './api'
 import { apiPaths } from './api/endpoints'
 import { clearToken, onUnauthorized, restoreToken, setToken } from './auth'
 import { useWorkspaceStore } from './workspace-store'
+import AppConfirmDialog from './components/AppConfirmDialog.vue'
 import type { LoginRequest, LoginResponse, MeResponse } from './types'
 
 type TabKey =

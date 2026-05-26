@@ -1,19 +1,10 @@
 from app.api.errors import api_error, handle_validation_error, handle_value_error
-from app.api.handlers.support import (
-    APP_VERSION,
-    Depends,
-    HealthResponse,
-    LoginRequest,
-    LoginResponse,
-    MeResponse,
-    Request,
-    create_token,
-    db,
-    get_current_user,
-    limiter,
-    serialize_me,
-    status,
-)
+from fastapi import Depends, Request, status
+
+from app.api.common import serialize_me
+from app.api.runtime import APP_VERSION, create_token, db, limiter
+from app.dependencies import get_current_user
+from app.models import HealthResponse, LoginRequest, LoginResponse, MeResponse
 
 __all__ = [
     "api_healthcheck",

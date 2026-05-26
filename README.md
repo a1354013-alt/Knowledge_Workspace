@@ -117,10 +117,13 @@ Responsibility split:
 - `api/routes/*`: HTTP layer and dependency wiring
 - `services/*`: workflow orchestration, safety checks, formatting, and side effects
 - `repositories/*`: focused persistence queries/updates
+- `api/handlers/support.py`: compatibility-only exports for older imports; handlers should import concrete dependencies directly
 - `db/schema.py` + `db/migrations.py`: database contract and schema evolution
 - `docs/openapi.json`: API contract source of truth
 - `frontend/src/api/generated/api-types.ts`: generated frontend types from OpenAPI
 - `frontend/src/types/index.ts`: re-export layer plus UI-only client types
+- `frontend/src/services/downloads.ts`: shared blob/download helper layer
+- `frontend/src/services/confirm.ts`: shared confirm flow for dangerous actions
 
 ## AutoTest Safety Boundary
 
@@ -227,7 +230,7 @@ python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 python scripts/check_index_consistency.py
-python scripts/export_openapi.py
+python scripts/export_openapi.py --check
 python scripts/generate_api_types.py --check
 python scripts/check_version_consistency.py
 ```
@@ -263,7 +266,7 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 3. `python scripts/safe_compile.py -q .`
 4. `python -m ruff check backend scripts`
 5. `python scripts/run_backend_tests.py`
-6. `python scripts/export_openapi.py`
+6. `python scripts/export_openapi.py --check`
 7. `python scripts/generate_api_types.py --check`
 8. `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
 9. `python scripts/check_version_consistency.py`
@@ -360,7 +363,8 @@ Status meanings:
 
 ## Known Limitations
 
-- `legacy_main.py` is a compatibility shim for older imports and monkeypatch-based tests; remove it after all callers import concrete route/service modules directly
+- `legacy_main.py` is a compatibility shim for older imports and monkeypatch-based tests; it now forwards only the compatibility names that still need to reach concrete handlers
+- `api/handlers/support.py` is a compatibility export layer, not the preferred place for new handler dependencies
 - AutoTest real mode is constrained local trusted-workspace subprocess execution, not a hardened sandbox
 - AutoTest uses an in-process background worker, not a durable external queue; backend process crashes can interrupt active jobs
 - GitHub analyze is currently a queue-intake flow only: validated URL intake plus queued local-analysis metadata, not a remote clone-and-run executor or full repository scan

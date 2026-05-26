@@ -4,8 +4,6 @@ from __future__ import annotations
 import sys
 from types import ModuleType
 
-from fastapi.exceptions import RequestValidationError
-
 from app.api.handlers import (
     docs,
     items,
@@ -54,22 +52,20 @@ from app.api.handlers.photos import (
 from app.api.handlers.prompts import create_saved_prompt, delete_saved_prompt, list_saved_prompts
 from app.api.handlers.qa import generate, qa
 from app.api.handlers.search import global_search
-from app.api.handlers.support import (
+from app.api.runtime import (
     APP_VERSION,
+    PHOTO_DIR,
     UPLOAD_DIR,
+    create_token,
     db,
-    delete_from_kb_vector_db,
-    delete_from_vector_db,
-    extract_text_from_image,
-    index_knowledge_entry,
-    index_logbook_entry,
-    index_photo,
-    index_saved_prompt,
     lifespan,
     limiter,
-    perform_qa,
-    process_file,
 )
+from app.database import delete_from_kb_vector_db, delete_from_vector_db
+from app.kb_index import index_knowledge_entry, index_logbook_entry, index_photo, index_saved_prompt
+from fastapi.exceptions import RequestValidationError
+from app.ocr_service import extract_text_from_image
+from app.services.core import perform_qa, process_file
 from app.api.handlers.system import (
     api_healthcheck,
     handle_validation_error,

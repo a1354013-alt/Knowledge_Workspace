@@ -115,7 +115,7 @@ def test_document_delete_keeps_success_when_deindex_fails(
     )
 
     monkeypatch.setattr(
-        app_module.legacy_main,
+        _handler_module("docs"),
         "delete_from_vector_db",
         lambda doc_id: (_ for _ in ()).throw(RuntimeError(f"cannot deindex {doc_id}")),
     )
@@ -210,7 +210,7 @@ def test_photo_upload_keeps_success_when_indexing_fails(
     auth_headers: dict[str, str],
     monkeypatch,
 ):
-    monkeypatch.setattr(app_module.legacy_main, "extract_text_from_image", lambda path: "")
+    monkeypatch.setattr(_handler_module("photos"), "extract_text_from_image", lambda path: "")
     monkeypatch.setattr(
         _handler_module("photos"),
         "sync_photo_index",
@@ -300,7 +300,7 @@ def test_saved_prompt_delete_keeps_success_when_deindex_fails(
     prompt_id = created.json()["id"]
 
     monkeypatch.setattr(
-        app_module.legacy_main,
+        _handler_module("prompts"),
         "delete_from_kb_vector_db",
         lambda item_id: (_ for _ in ()).throw(RuntimeError(f"cannot remove {item_id}")),
     )

@@ -14,11 +14,12 @@
    - `python scripts/safe_compile.py -q .`
    - `python -m ruff check backend scripts`
    - `python scripts/run_backend_tests.py`
-   - `python scripts/export_openapi.py`
+   - `python scripts/export_openapi.py --check`
    - `python scripts/generate_api_types.py --check`
    - `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
    - `python scripts/check_version_consistency.py`
    - `python scripts/check_index_consistency.py`
+   - OpenAPI/export checks must run under Python 3.11; use the repo virtualenv if your system `python` is newer
 3. Frontend verification:
    - `cd frontend`
    - `npm ci`
@@ -27,9 +28,12 @@
    - `npm run typecheck`
    - `npm run test:run`
    - `npm run build`
+   - JSON APIs must go through `frontend/src/api.ts`
+   - blob/download flows must go through `frontend/src/services/downloads.ts`
+   - dangerous confirms must go through `frontend/src/services/confirm.ts`
 4. Release package:
-   - `python scripts/package_release.py --output dist`
-   - `python scripts/verify_release.py dist/knowledge_workspace_release.zip`
+   - `python scripts/package_release.py knowledge_workspace_release.zip`
+   - `python scripts/verify_release.py knowledge_workspace_release.zip`
    - `scripts/package_release.py` stages a source release and does not build or ship `frontend/dist` by default
    - release zip is a clean source package; it does not include `frontend/dist`
    - release verification rejects `node_modules`, `dist`, `.env`, runtime databases/journals, caches, uploads, AutoTest workdirs, and test artifacts

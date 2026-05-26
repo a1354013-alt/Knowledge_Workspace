@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -19,7 +20,7 @@ def validate_python_version() -> None:
         )
 
 
-def main() -> int:
+def generate_openapi_json() -> str:
     validate_python_version()
     os.environ.setdefault("JWT_SECRET", "openapi-secret-openapi-secret-123456")
     os.environ.setdefault("DEFAULT_OWNER_PASSWORD", "OwnerPass123!")
@@ -36,11 +37,23 @@ def main() -> int:
 
     from app.main import app
 
+    return json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Export FastAPI OpenAPI schema to docs/openapi.json.")
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+
     out_path = ROOT / "docs" / "openapi.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(
-        json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    content = generate_openapi_json()
+    if args.check:
+        if not out_path.exists() or out_path.read_text(encoding="utf-8") != content:
+            raise SystemExit("docs/openapi.json is out of date. Run python scripts/export_openapi.py.")
+        print("OK: docs/openapi.json is up to date")
+        return 0
+    out_path.write_text(content, encoding="utf-8")
     print(f"Wrote {out_path}")
     return 0
 

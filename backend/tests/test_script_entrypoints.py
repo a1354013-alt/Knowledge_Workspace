@@ -41,3 +41,31 @@ def test_wrapper_scripts_delegate_to_existing_modules():
 
     assert "from safe_compileall import main" in safe_compile
     assert "from verify_release_zip import main" in verify_release
+
+
+def test_export_openapi_check_runs_from_repo_root(tmp_path: Path):
+    python311 = ROOT / ".venv311" / "Scripts" / "python.exe"
+    command = [str(python311 if python311.exists() else Path(sys.executable)), "scripts/export_openapi.py", "--check"]
+    env = {
+        **os.environ,
+        "JWT_SECRET": "test-secret-test-secret-test-secret-1234",
+        "DEFAULT_OWNER_PASSWORD": "OwnerPass123!",
+        "DATABASE_PATH": str(tmp_path / "documents.db"),
+        "UPLOAD_DIR": str(tmp_path / "uploads"),
+        "PHOTO_DIR": str(tmp_path / "photos"),
+        "CHROMA_DB_PATH": str(tmp_path / "chroma"),
+        "AUTOTEST_DIR": str(tmp_path / "autotest"),
+        "AUTOTEST_MODE": "simulated",
+        "ALLOWED_ORIGINS": "http://localhost:5173",
+    }
+    result = subprocess.run(
+        command,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "up to date" in result.stdout.lower()

@@ -1,8 +1,7 @@
-from app.api.handlers.support import (
-    FORM_TEMPLATES,
-    Depends,
-    get_current_user,
-)
+from fastapi import Depends
+
+from app.dependencies import get_current_user
+from app.services.core import FORM_TEMPLATES
 
 
 async def list_templates(current_user: dict = Depends(get_current_user)) -> dict[str, list[dict[str, object]]]:

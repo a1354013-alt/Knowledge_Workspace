@@ -22,9 +22,11 @@ vi.mock('../src/api', () => ({
   del: mocks.del,
 }))
 
-vi.mock('../src/utils/blob', () => ({
-  downloadBlob: vi.fn(),
-  openBlobInNewTab: vi.fn(),
+vi.mock('../src/services/downloads', () => ({
+  downloadDocumentFile: vi.fn(async () => new Blob()),
+  downloadPhotoFile: vi.fn(async () => new Blob()),
+  previewDocumentFile: vi.fn(async () => new Blob()),
+  previewPhotoFile: vi.fn(async () => new Blob()),
 }))
 
 describe('DocsPhotosPanel flows', () => {
