@@ -11,7 +11,7 @@ python -m pip install --upgrade pip
 pip install -e ".[dev]"
 copy .env.example .env
 python scripts/check_python_version.py
-python scripts/safe_compileall.py -q .
+python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 ```
@@ -60,7 +60,7 @@ When the API contract intentionally changes, run `python scripts/generate_api_ty
 ```powershell
 python scripts/check_version_consistency.py
 python scripts/package_release.py /tmp/kw_release.zip
-python scripts/verify_release_zip.py /tmp/kw_release.zip
+python scripts/verify_release.py /tmp/kw_release.zip
 python scripts/smoke_check.py --password "OwnerPass123!"
 ```
 

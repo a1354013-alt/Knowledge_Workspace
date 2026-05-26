@@ -26,7 +26,7 @@ jobs:
         run: python scripts/check_python_version.py
 
       - name: Backend compile check
-        run: python scripts/safe_compileall.py -q .
+        run: python scripts/safe_compile.py -q .
 
       - name: Backend lint
         run: python -m ruff check backend scripts
@@ -56,6 +56,18 @@ jobs:
 
       - name: Version consistency
         run: python scripts/check_version_consistency.py
+
+      - name: Index consistency
+        env:
+          JWT_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-1234
+          DEFAULT_OWNER_PASSWORD: OwnerPass123!
+          DATABASE_PATH: ./ci_test.db
+          UPLOAD_DIR: ./ci_uploads
+          PHOTO_DIR: ./ci_photos
+          CHROMA_DB_PATH: ./ci_chroma
+          AUTOTEST_DIR: ./ci_autotest
+          AUTOTEST_MODE: simulated
+        run: python scripts/check_index_consistency.py
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -92,7 +104,7 @@ jobs:
         run: python scripts/package_release.py ./knowledge_workspace_release.zip
 
       - name: Verify release zip
-        run: python scripts/verify_release_zip.py knowledge_workspace_release.zip
+        run: python scripts/verify_release.py knowledge_workspace_release.zip
 
       - name: Start backend (for smoke)
         env:

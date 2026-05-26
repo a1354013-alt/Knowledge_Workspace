@@ -134,7 +134,7 @@ def run_smoke_check() -> None:
 
 def main() -> int:
     run([sys.executable, "scripts/check_python_version.py"])
-    run([sys.executable, "scripts/safe_compileall.py", "-q", "."])
+    run([sys.executable, "scripts/safe_compile.py", "-q", "."])
     run([sys.executable, "-m", "ruff", "check", "backend", "scripts"])
     run([sys.executable, "scripts/run_backend_tests.py"])
     run([sys.executable, "scripts/export_openapi.py"])
@@ -149,6 +149,7 @@ def main() -> int:
         ]
     )
     run([sys.executable, "scripts/check_version_consistency.py"])
+    run([sys.executable, "scripts/check_index_consistency.py"])
 
     npm = npm_command()
     run([npm, "ci"], cwd=FRONTEND_DIR)
@@ -159,7 +160,7 @@ def main() -> int:
     run([npm, "run", "build"], cwd=FRONTEND_DIR)
 
     run([sys.executable, "scripts/package_release.py", str(DEFAULT_RELEASE_ZIP)])
-    run([sys.executable, "scripts/verify_release_zip.py", str(DEFAULT_RELEASE_ZIP)])
+    run([sys.executable, "scripts/verify_release.py", str(DEFAULT_RELEASE_ZIP)])
     run_smoke_check()
     return 0
 

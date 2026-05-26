@@ -15,12 +15,13 @@ def run(command: list[str]) -> None:
 
 def main() -> int:
     run([sys.executable, str(ROOT / "scripts" / "check_python_version.py")])
-    run([sys.executable, str(ROOT / "scripts" / "safe_compileall.py"), "-q", "."])
+    run([sys.executable, str(ROOT / "scripts" / "safe_compile.py"), "-q", "."])
     run([sys.executable, "-m", "ruff", "check", "backend", "scripts"])
     run([sys.executable, str(ROOT / "scripts" / "run_backend_tests.py")])
     run([sys.executable, str(ROOT / "scripts" / "export_openapi.py")])
     run([sys.executable, str(ROOT / "scripts" / "generate_api_types.py"), "--check"])
     run([sys.executable, str(ROOT / "scripts" / "check_version_consistency.py")])
+    run([sys.executable, str(ROOT / "scripts" / "check_index_consistency.py")])
     return 0
 
 

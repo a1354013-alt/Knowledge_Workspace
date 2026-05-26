@@ -11,7 +11,7 @@
    - `python -m pip install -U pip`
    - `pip install -e ".[dev]"`
    - `python scripts/check_python_version.py`
-   - `python scripts/safe_compileall.py -q .`
+   - `python scripts/safe_compile.py -q .`
    - `python -m ruff check backend scripts`
    - `python scripts/run_backend_tests.py`
    - `python scripts/export_openapi.py`
@@ -29,7 +29,7 @@
    - `npm run build`
 4. Release package:
    - `python scripts/package_release.py --output dist`
-   - `python scripts/verify_release_zip.py dist/knowledge_workspace_release.zip`
+   - `python scripts/verify_release.py dist/knowledge_workspace_release.zip`
    - `scripts/package_release.py` stages a source release and does not build or ship `frontend/dist` by default
    - release zip is a clean source package; it does not include `frontend/dist`
    - release verification rejects `node_modules`, `dist`, `.env`, runtime databases/journals, caches, uploads, AutoTest workdirs, and test artifacts

@@ -30,6 +30,13 @@ htmlcov/
 *.sqlite
 *.sqlite-journal
 chroma.sqlite3
+ci_documents.db
+ci_test.db
+*.tmp.db
+*.test.db
+*.ci.db
+*.ci.sqlite
+*.ci.sqlite3
 
 # Node / frontend
 node_modules/
@@ -56,11 +63,21 @@ backend/.openapi-runtime/
 backend/**/.openapi-runtime/
 uploads/
 backend/uploads/
+photos/
 backend/photos/
 autotest_uploads/
+autotest/
 backend/autotest_uploads/
 chroma_db/
 backend/chroma_db/
+ci_uploads/
+ci_photos/
+ci_chroma/
+ci_autotest/
+*.chroma/
+*.uploads/
+*.photos/
+*.autotest/
 backend/.pytest_cache/
 backend/.pytest-tmp/
 backend/.pytest-chroma/
@@ -72,6 +89,12 @@ ci_backend.log
 ci_backend.pid
 *.zip
 *.tar.gz
+knowledge_workspace_release.zip
+release-validation.zip
+tmp_release*.zip
+tmp_release_verify*.zip
+tmp_release_ci*.zip
+ci_backend.*
 
 # OS generated files
 .DS_Store

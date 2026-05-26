@@ -223,7 +223,7 @@ py -3.11 -m venv .venv
 python -m pip install -U pip
 pip install -e ".[dev]"
 python scripts/check_python_version.py
-python scripts/safe_compileall.py -q .
+python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 python scripts/check_index_consistency.py
@@ -260,7 +260,7 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 
 1. backend dependency install on Python `3.11`
 2. `python scripts/check_python_version.py`
-3. `python scripts/safe_compileall.py -q .`
+3. `python scripts/safe_compile.py -q .`
 4. `python -m ruff check backend scripts`
 5. `python scripts/run_backend_tests.py`
 6. `python scripts/export_openapi.py`
@@ -275,10 +275,10 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 15. frontend `npm run test:run`
 16. frontend `npm run build`
 17. `python scripts/package_release.py ./knowledge_workspace_release.zip`
-18. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
+18. `python scripts/verify_release.py knowledge_workspace_release.zip`
 19. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
 
-`python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, release zip verification, and smoke.
+`python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, `python scripts/check_index_consistency.py`, release zip verification, and smoke.
 
 The release zip is a clean source package. `scripts/package_release.py` does not build or ship `frontend/dist` by default, and the archive deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
 

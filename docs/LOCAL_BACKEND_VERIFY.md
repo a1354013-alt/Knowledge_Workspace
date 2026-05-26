@@ -11,12 +11,13 @@ py -3.11 -m venv .venv
 python -m pip install -U pip
 pip install -e ".[dev]"
 python scripts/check_python_version.py
-python scripts/safe_compileall.py -q .
+python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
 python scripts/check_version_consistency.py
+python scripts/check_index_consistency.py
 ```
 
 For the full CI-equivalent gate from the repo root, including frontend, release packaging, and smoke:
@@ -42,3 +43,4 @@ python scripts/verify_all.py
 - OpenAPI export
 - OpenAPI -> TypeScript contract sync check
 - version consistency check
+- index consistency check

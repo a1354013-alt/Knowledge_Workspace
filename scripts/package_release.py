@@ -30,6 +30,14 @@ COMMON_IGNORE_PATTERNS = (
     "*.sqlite3-journal",
     ".env",
     ".env.*",
+    "knowledge_workspace_release.zip",
+    "release-validation.zip",
+    "tmp_release*.zip",
+    "tmp_release_verify*.zip",
+    "tmp_release_ci*.zip",
+    "ci_backend.*",
+    "ci_documents.db",
+    "ci_test.db",
 )
 BACKEND_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + (
     "uploads",
@@ -70,6 +78,16 @@ FORBIDDEN_DIR_NAMES = {
     "coverage",
     "playwright-report",
     "test-results",
+    "ci_chroma",
+    "ci_uploads",
+    "ci_photos",
+    "ci_autotest",
+}
+FORBIDDEN_FILE_NAMES = {
+    "ci_documents.db",
+    "ci_test.db",
+    "knowledge_workspace_release.zip",
+    "release-validation.zip",
 }
 FORBIDDEN_FILE_SUFFIXES = (
     ".db",
@@ -191,6 +209,8 @@ def build_release_zip(release_root: Path, out_zip: Path) -> None:
                 if filename == ".env" or (
                     filename.startswith(".env.") and filename != ".env.example"
                 ):
+                    continue
+                if filename in FORBIDDEN_FILE_NAMES:
                     continue
                 if filename.endswith(FORBIDDEN_FILE_SUFFIXES):
                     continue

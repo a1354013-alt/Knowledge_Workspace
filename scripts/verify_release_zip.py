@@ -30,6 +30,16 @@ FORBIDDEN_PARTS = {
     "coverage",
     "playwright-report",
     "test-results",
+    "ci_chroma",
+    "ci_uploads",
+    "ci_photos",
+    "ci_autotest",
+}
+FORBIDDEN_FILE_NAMES = {
+    "ci_documents.db",
+    "ci_test.db",
+    "knowledge_workspace_release.zip",
+    "release-validation.zip",
 }
 FORBIDDEN_SUFFIXES = (
     ".db",
@@ -70,6 +80,8 @@ def verify(zip_path: Path) -> None:
             basename.startswith(".env.") and basename != ".env.example"
         ):
             bad.append(name)
+        if basename in FORBIDDEN_FILE_NAMES:
+            bad.append(name)
         if name.endswith(FORBIDDEN_SUFFIXES):
             bad.append(name)
     if bad:
@@ -95,6 +107,8 @@ def verify(zip_path: Path) -> None:
             name = candidate.name
             if name == ".env" or (name.startswith(".env.") and name != ".env.example"):
                 raise SystemExit(f"Forbidden extracted secret file found: {candidate}")
+            if name in FORBIDDEN_FILE_NAMES:
+                raise SystemExit(f"Forbidden extracted runtime file found: {candidate}")
             if candidate.is_file() and any(
                 name.endswith(suffix) for suffix in FORBIDDEN_SUFFIXES
             ):

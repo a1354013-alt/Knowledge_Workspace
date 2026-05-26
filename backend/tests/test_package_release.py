@@ -75,7 +75,17 @@ def test_release_package_excludes_runtime_artifacts(tmp_path: Path):
     root_dir = tmp_path / "workspace"
     release_root = tmp_path / "stage" / "knowledge_workspace"
 
-    for directory in ("backend/app", "frontend/src", "frontend/dist", "scripts", "docs", "uploads", "chroma_db"):
+    for directory in (
+        "backend/app",
+        "frontend/src",
+        "frontend/dist",
+        "scripts",
+        "docs",
+        "uploads",
+        "chroma_db",
+        "ci_chroma",
+        "ci_uploads",
+    ):
         (root_dir / directory).mkdir(parents=True)
 
     runtime_files = [
@@ -87,6 +97,11 @@ def test_release_package_excludes_runtime_artifacts(tmp_path: Path):
         ".env",
         "uploads/private.txt",
         "chroma_db/index.bin",
+        "ci_documents.db",
+        "ci_test.db",
+        "ci_uploads/private.txt",
+        "ci_chroma/index.bin",
+        "knowledge_workspace_release.zip",
         "frontend/dist/index.html",
     ]
     for rel_path in runtime_files:
@@ -119,6 +134,8 @@ def test_verify_release_zip_rejects_runtime_artifacts(tmp_path: Path):
         "knowledge_workspace/.env",
         "knowledge_workspace/uploads/private.txt",
         "knowledge_workspace/chroma_db/index.bin",
+        "knowledge_workspace/ci_uploads/private.txt",
+        "knowledge_workspace/ci_documents.db",
         "knowledge_workspace/frontend/dist/index.html",
     ]
 

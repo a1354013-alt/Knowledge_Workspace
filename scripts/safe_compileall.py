@@ -45,6 +45,8 @@ def should_skip(path: Path) -> bool:
         for part in EXCLUDED_PATH_PARTS
     ):
         return True
+    if any(part.startswith(".venv") or part.startswith("venv") for part in path.parts):
+        return True
     return any(part in EXCLUDED_DIR_NAMES for part in path.parts)
 
 

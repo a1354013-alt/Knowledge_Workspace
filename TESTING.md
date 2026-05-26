@@ -10,7 +10,7 @@ py -3.11 -m venv .venv
 python -m pip install --upgrade pip
 pip install -e ".[dev]"
 python scripts/check_python_version.py
-python scripts/safe_compileall.py -q .
+python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 ```
@@ -46,9 +46,10 @@ Direct repo-root validation:
 
 ```powershell
 python scripts/check_python_version.py
-python scripts/safe_compileall.py -q .
+python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
+python scripts/check_index_consistency.py
 ```
 
 ## Frontend
@@ -74,7 +75,7 @@ git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
 python scripts/check_version_consistency.py
 python scripts/check_index_consistency.py
 python scripts/package_release.py /tmp/kw_release.zip
-python scripts/verify_release_zip.py /tmp/kw_release.zip
+python scripts/verify_release.py /tmp/kw_release.zip
 ```
 
 Recommended full verification flow before release:
@@ -89,12 +90,12 @@ Recommended full verification flow before release:
 8. `python scripts/check_index_consistency.py`
 9. `cd frontend && npm ci && npm audit --omit=dev --audit-level=high && npm run lint && npm run typecheck && npm run test && npm run build`
 10. `python scripts/package_release.py ./knowledge_workspace_release.zip`
-11. `python scripts/verify_release_zip.py knowledge_workspace_release.zip`
+11. `python scripts/verify_release.py knowledge_workspace_release.zip`
 
 The same end-to-end gate can also be run with `python scripts/verify_all.py`.
 
 Release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts.
-`python scripts/verify_release_zip.py` now also extracts the archive to a temporary directory and re-checks the extracted tree, so archive contents and unzip results stay aligned.
+`python scripts/verify_release.py` now also extracts the archive to a temporary directory and re-checks the extracted tree, so archive contents and unzip results stay aligned.
 The release zip is a clean source package. `scripts/package_release.py` intentionally does not build or include `frontend/dist`; build frontend assets after extracting the package.
 
 ## Smoke
