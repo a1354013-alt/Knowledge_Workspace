@@ -642,7 +642,8 @@
               "pending",
               "indexed",
               "failed",
-              "unavailable"
+              "unavailable",
+              "excluded"
             ],
             "title": "Index Status",
             "type": "string"
@@ -1047,7 +1048,8 @@
               "pending",
               "indexed",
               "failed",
-              "unavailable"
+              "unavailable",
+              "excluded"
             ],
             "title": "Status",
             "type": "string"
@@ -1102,6 +1104,10 @@
       "IndexStatusSummaryItem": {
         "additionalProperties": false,
         "properties": {
+          "excluded": {
+            "title": "Excluded",
+            "type": "integer"
+          },
           "failed": {
             "title": "Failed",
             "type": "integer"
@@ -1128,7 +1134,8 @@
           "pending",
           "indexed",
           "failed",
-          "unavailable"
+          "unavailable",
+          "excluded"
         ],
         "title": "IndexStatusSummaryItem",
         "type": "object"
@@ -2332,7 +2339,8 @@
               "pending",
               "indexed",
               "failed",
-              "unavailable"
+              "unavailable",
+              "excluded"
             ],
             "title": "Index Status",
             "type": "string"
@@ -2556,7 +2564,8 @@
               "pending",
               "indexed",
               "failed",
-              "unavailable"
+              "unavailable",
+              "excluded"
             ],
             "title": "Index Status",
             "type": "string"

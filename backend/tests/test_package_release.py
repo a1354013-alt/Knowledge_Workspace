@@ -32,6 +32,8 @@ def test_release_package_includes_docs_and_excludes_cache(tmp_path: Path):
     (root_dir / "scripts" / "__pycache__" / "helper.pyc").write_text("cache", encoding="utf-8")
     (root_dir / "docs" / "AUTOTEST.md").write_text("# AutoTest\n", encoding="utf-8")
     (root_dir / "docs" / "PORTFOLIO_CASE_STUDY.md").write_text("# Case Study\n", encoding="utf-8")
+    (root_dir / "docs" / "KNOWN_LIMITATIONS.md").write_text("# Known Limitations\n", encoding="utf-8")
+    (root_dir / "docs" / "RUNBOOK.md").write_text("# Runbook\n", encoding="utf-8")
     (root_dir / "README.md").write_text(
         "See [AutoTest](docs/AUTOTEST.md) and [Case Study](docs/PORTFOLIO_CASE_STUDY.md).\n",
         encoding="utf-8",
@@ -52,6 +54,8 @@ def test_release_package_includes_docs_and_excludes_cache(tmp_path: Path):
 
     assert (release_root / "docs" / "AUTOTEST.md").exists()
     assert (release_root / "docs" / "PORTFOLIO_CASE_STUDY.md").exists()
+    assert (release_root / "docs" / "KNOWN_LIMITATIONS.md").exists()
+    assert (release_root / "docs" / "RUNBOOK.md").exists()
     assert not (release_root / "frontend" / "node_modules").exists()
     assert not list(release_root.rglob("__pycache__"))
 
@@ -125,6 +129,53 @@ def test_release_package_excludes_runtime_artifacts(tmp_path: Path):
         assert f"knowledge_workspace/{rel_path}" not in names
 
 
+def test_release_package_excludes_packaging_artifacts(tmp_path: Path):
+    package_release = import_module("scripts.package_release")
+    root_dir = tmp_path / "workspace"
+    release_root = tmp_path / "stage" / "knowledge_workspace"
+
+    for directory in (
+        "backend/app",
+        "backend/knowledge_workspace.egg-info",
+        "frontend/src",
+        "frontend/pkg.dist-info",
+        "scripts",
+        "docs",
+    ):
+        (root_dir / directory).mkdir(parents=True, exist_ok=True)
+
+    (root_dir / "backend" / "app" / "main.py").write_text("print('backend')\n", encoding="utf-8")
+    (root_dir / "backend" / "knowledge_workspace.egg-info" / "PKG-INFO").write_text("meta\n", encoding="utf-8")
+    (root_dir / "frontend" / "src" / "main.ts").write_text("console.log('frontend')\n", encoding="utf-8")
+    (root_dir / "frontend" / "pkg.dist-info" / "METADATA").write_text("meta\n", encoding="utf-8")
+    (root_dir / "scripts" / "helper.py").write_text("print('helper')\n", encoding="utf-8")
+    (root_dir / "docs" / "AUTOTEST.md").write_text("# AutoTest\n", encoding="utf-8")
+    (root_dir / "docs" / "PORTFOLIO_CASE_STUDY.md").write_text("# Case Study\n", encoding="utf-8")
+    (root_dir / "docs" / "KNOWN_LIMITATIONS.md").write_text("# Known Limitations\n", encoding="utf-8")
+    (root_dir / "docs" / "RUNBOOK.md").write_text("# Runbook\n", encoding="utf-8")
+    for name in (
+        ".python-version",
+        ".env.example",
+        "README.md",
+        "SECURITY_MODEL.md",
+        "API_CONTRACT.md",
+        "TESTING.md",
+        "RELEASE_CHECKLIST.md",
+    ):
+        (root_dir / name).write_text(f"{name}\n", encoding="utf-8")
+
+    package_release.copy_release_tree(root_dir, release_root, build_frontend=False)
+    out_zip = tmp_path / "knowledge_workspace_release.zip"
+    package_release.build_release_zip(release_root, out_zip)
+
+    with zipfile.ZipFile(out_zip) as archive:
+        names = set(archive.namelist())
+
+    assert "knowledge_workspace/backend/app/main.py" in names
+    assert not any(name.endswith(".egg-info") or ".egg-info/" in name for name in names)
+    assert not any(name.endswith(".dist-info") or ".dist-info/" in name for name in names)
+
+
 def test_verify_release_zip_rejects_runtime_artifacts(tmp_path: Path):
     verify_release_zip = import_module("scripts.verify_release_zip")
     forbidden_paths = [
@@ -137,6 +188,8 @@ def test_verify_release_zip_rejects_runtime_artifacts(tmp_path: Path):
         "knowledge_workspace/ci_uploads/private.txt",
         "knowledge_workspace/ci_documents.db",
         "knowledge_workspace/frontend/dist/index.html",
+        "knowledge_workspace/backend/knowledge_workspace.egg-info/PKG-INFO",
+        "knowledge_workspace/frontend/pkg.dist-info/METADATA",
     ]
 
     for rel_path in forbidden_paths:
@@ -167,6 +220,7 @@ def test_verify_release_zip_accepts_clean_zip(tmp_path: Path):
         "knowledge_workspace/docs/AUTOTEST.md": "# AutoTest\n",
         "knowledge_workspace/docs/PORTFOLIO_CASE_STUDY.md": "# Case Study\n",
         "knowledge_workspace/docs/KNOWN_LIMITATIONS.md": "# Known Limitations\n",
+        "knowledge_workspace/docs/RUNBOOK.md": "# Runbook\n",
         "knowledge_workspace/backend/app/main.py": "print('ok')\n",
         "knowledge_workspace/frontend/src/main.ts": "console.log('ok')\n",
     }

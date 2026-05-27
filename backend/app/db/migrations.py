@@ -233,6 +233,7 @@ def migrate_documents_table(cursor: sqlite3.Cursor) -> None:
         """
         UPDATE documents
         SET index_status = CASE
+            WHEN is_active = 0 OR status = 'archived' THEN 'excluded'
             WHEN status IN ('reviewed', 'verified') THEN 'indexed'
             WHEN status = 'draft' THEN 'pending'
             ELSE 'failed'
@@ -290,12 +291,13 @@ def migrate_photos_table(cursor: sqlite3.Cursor) -> None:
         """
         UPDATE photos
         SET index_status = CASE
-            WHEN is_active = 0 OR status = 'archived' THEN 'pending'
+            WHEN is_active = 0 OR status = 'archived' THEN 'excluded'
             ELSE 'indexed'
         END
         WHERE index_status IS NULL OR index_status = ''
         """
     )
+    cursor.execute("UPDATE photos SET index_status = 'excluded', index_error = '', indexed_at = '' WHERE is_active = 0 OR status = 'archived'")
     cursor.execute(
         """
         UPDATE photos
@@ -330,12 +332,13 @@ def migrate_knowledge_entries_table(cursor: sqlite3.Cursor) -> None:
         """
         UPDATE knowledge_entries
         SET index_status = CASE
-            WHEN is_active = 0 OR status = 'archived' THEN 'pending'
+            WHEN is_active = 0 OR status = 'archived' THEN 'excluded'
             ELSE 'indexed'
         END
         WHERE index_status IS NULL OR index_status = ''
         """
     )
+    cursor.execute("UPDATE knowledge_entries SET index_status = 'excluded', index_error = '', indexed_at = '' WHERE is_active = 0 OR status = 'archived'")
     cursor.execute(
         """
         UPDATE knowledge_entries
@@ -369,12 +372,13 @@ def migrate_logbook_entries_table(cursor: sqlite3.Cursor) -> None:
         """
         UPDATE logbook_entries
         SET index_status = CASE
-            WHEN is_active = 0 OR status = 'archived' THEN 'pending'
+            WHEN is_active = 0 OR status = 'archived' THEN 'excluded'
             ELSE 'indexed'
         END
         WHERE index_status IS NULL OR index_status = ''
         """
     )
+    cursor.execute("UPDATE logbook_entries SET index_status = 'excluded', index_error = '', indexed_at = '' WHERE is_active = 0 OR status = 'archived'")
     cursor.execute(
         """
         UPDATE logbook_entries
@@ -404,12 +408,13 @@ def migrate_saved_prompts_table(cursor: sqlite3.Cursor) -> None:
         """
         UPDATE saved_prompts
         SET index_status = CASE
-            WHEN is_active = 0 THEN 'pending'
+            WHEN is_active = 0 THEN 'excluded'
             ELSE 'indexed'
         END
         WHERE index_status IS NULL OR index_status = ''
         """
     )
+    cursor.execute("UPDATE saved_prompts SET index_status = 'excluded', index_error = '', indexed_at = '' WHERE is_active = 0")
     cursor.execute(
         """
         UPDATE saved_prompts

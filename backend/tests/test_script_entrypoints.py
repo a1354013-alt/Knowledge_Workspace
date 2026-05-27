@@ -69,3 +69,40 @@ def test_export_openapi_check_runs_from_repo_root(tmp_path: Path):
 
     assert result.returncode == 0, result.stderr
     assert "up to date" in result.stdout.lower()
+
+
+def test_verify_release_zip_defaults_to_versioned_dist_zip(tmp_path: Path):
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    dist_dir = ROOT / "dist"
+    zip_path = dist_dir / f"knowledge-workspace-{version}.zip"
+    dist_dir.mkdir(parents=True, exist_ok=True)
+
+    import zipfile
+
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("knowledge_workspace/.python-version", "3.11\n")
+        archive.writestr("knowledge_workspace/.env.example", "JWT_SECRET=replace-me\n")
+        archive.writestr("knowledge_workspace/README.md", "# README\n")
+        archive.writestr("knowledge_workspace/SECURITY_MODEL.md", "# Security\n")
+        archive.writestr("knowledge_workspace/API_CONTRACT.md", "# API\n")
+        archive.writestr("knowledge_workspace/TESTING.md", "# Testing\n")
+        archive.writestr("knowledge_workspace/RELEASE_CHECKLIST.md", "# Release\n")
+        archive.writestr("knowledge_workspace/docs/AUTOTEST.md", "# AutoTest\n")
+        archive.writestr("knowledge_workspace/docs/PORTFOLIO_CASE_STUDY.md", "# Case Study\n")
+        archive.writestr("knowledge_workspace/docs/KNOWN_LIMITATIONS.md", "# Known Limitations\n")
+        archive.writestr("knowledge_workspace/docs/RUNBOOK.md", "# Runbook\n")
+        archive.writestr("knowledge_workspace/backend/app/main.py", "print('ok')\n")
+        archive.writestr("knowledge_workspace/frontend/src/main.ts", "console.log('ok')\n")
+
+    try:
+        result = subprocess.run(
+            [sys.executable, "scripts/verify_release_zip.py"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "verified" in result.stdout.lower()
+    finally:
+        zip_path.unlink(missing_ok=True)

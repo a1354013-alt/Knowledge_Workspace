@@ -61,7 +61,13 @@ REQUIRED = {
     "knowledge_workspace/docs/AUTOTEST.md",
     "knowledge_workspace/docs/PORTFOLIO_CASE_STUDY.md",
     "knowledge_workspace/docs/KNOWN_LIMITATIONS.md",
+    "knowledge_workspace/docs/RUNBOOK.md",
 }
+
+
+def _default_release_zip(root_dir: Path) -> Path:
+    version = (root_dir / "VERSION").read_text(encoding="utf-8").strip() or "unknown"
+    return root_dir / "dist" / f"knowledge-workspace-{version}.zip"
 
 
 def verify(zip_path: Path) -> None:
@@ -84,6 +90,8 @@ def verify(zip_path: Path) -> None:
             bad.append(name)
         if name.endswith(FORBIDDEN_SUFFIXES):
             bad.append(name)
+        if any(part.endswith(".egg-info") or part.endswith(".dist-info") for part in parts):
+            bad.append(name)
     if bad:
         raise SystemExit(
             "Forbidden paths in zip:\n" + "\n".join(sorted(set(bad))[:200])
@@ -105,6 +113,8 @@ def verify(zip_path: Path) -> None:
                 raise SystemExit(f"Forbidden extracted path found: {forbidden}")
         for candidate in extracted_release.rglob("*"):
             name = candidate.name
+            if name.endswith(".egg-info") or name.endswith(".dist-info"):
+                raise SystemExit(f"Forbidden extracted packaging artifact found: {candidate}")
             if name == ".env" or (name.startswith(".env.") and name != ".env.example"):
                 raise SystemExit(f"Forbidden extracted secret file found: {candidate}")
             if name in FORBIDDEN_FILE_NAMES:
@@ -121,12 +131,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Verify release zip exclusions and required docs."
     )
-    parser.add_argument(
-        "zip_path", nargs="?", default="knowledge_workspace_release.zip"
-    )
+    parser.add_argument("zip_path", nargs="?", default="")
     args = parser.parse_args()
     root_dir = Path(__file__).resolve().parents[1]
-    zip_path = Path(args.zip_path)
+    zip_path = _default_release_zip(root_dir) if not args.zip_path else Path(args.zip_path)
     if not zip_path.is_absolute():
         zip_path = root_dir / zip_path
     verify(zip_path)

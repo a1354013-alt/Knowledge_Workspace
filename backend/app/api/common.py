@@ -19,6 +19,7 @@ from app.models import (
     KnowledgeRevisionResponse,
     MeResponse,
 )
+from app.repositories.repository_utils import normalize_index_status
 from app.source_types import canonicalize_source_type
 
 logger = logging.getLogger("knowledge_workspace")
@@ -35,6 +36,11 @@ def serialize_me(current_user: dict) -> MeResponse:
 
 
 def serialize_document(document: dict) -> DocumentResponse:
+    index_status = normalize_index_status(
+        document.get("index_status"),
+        is_active=document.get("is_active", 1),
+        workflow_status=document.get("status", ""),
+    )
     return DocumentResponse(
         id=document["doc_id"],
         filename=document["filename"],
@@ -45,7 +51,7 @@ def serialize_document(document: dict) -> DocumentResponse:
         updated_at=str(document.get("updated_at") or document["uploaded_at"]),
         file_size=int(document.get("file_size", 0)),
         uploaded_by=document.get("uploaded_by"),
-        index_status=str(document.get("index_status", "") or "pending"),
+        index_status=index_status,
         index_error=str(document.get("index_error", "") or ""),
         indexed_at=str(document.get("indexed_at", "") or ""),
     )

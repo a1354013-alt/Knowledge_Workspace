@@ -18,7 +18,7 @@ AutoTestStepStatus = Literal["queued", "running", "passed", "failed", "skipped",
 AutoTestExecutionMode = Literal["real", "simulated"]
 AutoTestExportFormat = Literal["md", "html"]
 IndexItemType = Literal["document", "knowledge", "logbook", "photo", "prompt"]
-IndexStatusValue = Literal["pending", "indexed", "failed", "unavailable"]
+IndexStatusValue = Literal["pending", "indexed", "failed", "unavailable", "excluded"]
 EmbeddingProviderKind = Literal["demo-fallback", "ollama", "sentence-transformers", "openai-compatible", "none"]
 
 
@@ -407,6 +407,7 @@ class IndexStatusSummaryItem(StrictModel):
     indexed: int
     failed: int
     unavailable: int
+    excluded: int
 
 
 class IndexStatusItemResponse(StrictModel):

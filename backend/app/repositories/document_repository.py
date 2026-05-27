@@ -7,6 +7,7 @@ from typing import Any
 from app.repositories.repository_utils import (
     DOC_STATUS_VALUES,
     WORKFLOW_STATUS_VALUES,
+    normalize_index_status,
     utc_now_iso,
 )
 
@@ -28,7 +29,8 @@ class DocumentRepositoryMixin:
     ) -> bool:
         if status not in DOC_STATUS_VALUES and status not in WORKFLOW_STATUS_VALUES:
             raise ValueError(f"Unsupported document status: {status}")
-        if index_status not in {"pending", "indexed", "failed", "unavailable"}:
+        index_status = normalize_index_status(index_status, is_active=1 if status != "archived" else 0, workflow_status=status)
+        if index_status not in {"pending", "indexed", "failed", "unavailable", "excluded"}:
             raise ValueError(f"Unsupported document index_status: {index_status}")
         now = utc_now_iso()
         is_active = 0 if status == "archived" else 1
@@ -71,7 +73,11 @@ class DocumentRepositoryMixin:
         document["status"] = str(document.get("status", "") or "reviewed")
         document["category"] = str(document.get("category", "") or "")
         document["tags"] = str(document.get("tags", "") or "")
-        document["index_status"] = str(document.get("index_status", "") or "pending")
+        document["index_status"] = normalize_index_status(
+            document.get("index_status"),
+            is_active=document.get("is_active", 1),
+            workflow_status=document.get("status", ""),
+        )
         document["index_error"] = str(document.get("index_error", "") or "")
         document["indexed_at"] = str(document.get("indexed_at", "") or "")
         return document
@@ -115,9 +121,20 @@ class DocumentRepositoryMixin:
                 params.append(status_value)
                 columns.append("is_active = ?")
                 params.append(0 if status_value == "archived" else 1)
+                if status_value == "archived":
+                    columns.append("index_status = ?")
+                    params.append("excluded")
+                    columns.append("index_error = ?")
+                    params.append("")
+                    columns.append("indexed_at = ?")
+                    params.append("")
         if "index_status" in updates:
-            index_status = str(updates["index_status"] or "").strip()
-            if index_status not in {"pending", "indexed", "failed", "unavailable"}:
+            index_status = normalize_index_status(
+                updates["index_status"],
+                is_active=updates.get("is_active", 1),
+                workflow_status=updates.get("status", ""),
+            )
+            if index_status not in {"pending", "indexed", "failed", "unavailable", "excluded"}:
                 raise ValueError(f"Unsupported document index_status: {index_status}")
             columns.append("index_status = ?")
             params.append(index_status)

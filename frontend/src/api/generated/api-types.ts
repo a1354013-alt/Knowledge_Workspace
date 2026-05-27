@@ -133,7 +133,7 @@ export interface DocumentResponse {
   filename: string;
   id: string;
   index_error?: string;
-  index_status?: "pending" | "indexed" | "failed" | "unavailable";
+  index_status?: "pending" | "indexed" | "failed" | "unavailable" | "excluded";
   indexed_at?: string;
   status?: "draft" | "reviewed" | "verified" | "archived";
   tags: string;
@@ -214,7 +214,7 @@ export interface IndexStatusItemResponse {
   indexed_at?: string;
   item_id: string;
   item_type: "document" | "knowledge" | "logbook" | "photo" | "prompt";
-  status: "pending" | "indexed" | "failed" | "unavailable";
+  status: "pending" | "indexed" | "failed" | "unavailable" | "excluded";
   title: string;
   updated_at?: string;
 }
@@ -226,6 +226,7 @@ export interface IndexStatusResponse {
 }
 
 export interface IndexStatusSummaryItem {
+  excluded: number;
   failed: number;
   indexed: number;
   pending: number;
@@ -442,7 +443,7 @@ export interface SavedPromptResponse {
   created_at: string;
   id: string;
   index_error?: string;
-  index_status?: "pending" | "indexed" | "failed" | "unavailable";
+  index_status?: "pending" | "indexed" | "failed" | "unavailable" | "excluded";
   tags: string;
   title: string;
   updated_at: string;
@@ -490,7 +491,7 @@ export interface UploadDocumentResponse {
   filename: string;
   id: string;
   index_error?: string;
-  index_status?: "pending" | "indexed" | "failed" | "unavailable";
+  index_status?: "pending" | "indexed" | "failed" | "unavailable" | "excluded";
   indexed_at?: string;
   message: string;
   status?: "draft" | "reviewed" | "verified" | "archived";

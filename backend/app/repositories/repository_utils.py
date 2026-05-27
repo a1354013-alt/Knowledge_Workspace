@@ -15,7 +15,7 @@ AUTOTEST_STATUS_VALUES = schema.AUTOTEST_STATUS_VALUES
 AUTOTEST_RUN_STATUS_VALUES = schema.AUTOTEST_RUN_STATUS_VALUES
 AUTOTEST_STEP_STATUS_VALUES = schema.AUTOTEST_STEP_STATUS_VALUES
 AUTOTEST_EXECUTION_MODE_VALUES = ("real", "simulated")
-INDEX_STATUS_VALUES = ("pending", "indexed", "failed", "unavailable")
+INDEX_STATUS_VALUES = ("pending", "indexed", "failed", "unavailable", "excluded")
 
 
 def utc_now_iso() -> str:
@@ -34,3 +34,14 @@ def normalize_autotest_execution_mode(value: Any) -> str:
     if normalized == "real":
         return "real"
     return "simulated"
+
+
+def normalize_index_status(value: Any, *, is_active: Any = 1, workflow_status: Any = "") -> str:
+    normalized = str(value or "").strip().lower()
+    active = int_or_zero(is_active) == 1
+    status_value = str(workflow_status or "").strip().lower()
+    if not active or status_value == "archived":
+        return "excluded"
+    if normalized in INDEX_STATUS_VALUES:
+        return normalized
+    return "pending"

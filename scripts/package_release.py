@@ -38,6 +38,8 @@ COMMON_IGNORE_PATTERNS = (
     "ci_backend.*",
     "ci_documents.db",
     "ci_test.db",
+    "*.egg-info",
+    "*.dist-info",
 )
 BACKEND_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + (
     "uploads",
@@ -118,6 +120,7 @@ REQUIRED_RELEASE_DOCS = (
     "docs/AUTOTEST.md",
     "docs/PORTFOLIO_CASE_STUDY.md",
     "docs/KNOWN_LIMITATIONS.md",
+    "docs/RUNBOOK.md",
 )
 
 
@@ -187,6 +190,10 @@ def prune_release_tree(release_root: Path) -> None:
         for candidate in release_root.rglob(dir_name):
             rm_tree(candidate)
 
+    for pattern in ("*.egg-info", "*.dist-info"):
+        for candidate in release_root.rglob(pattern):
+            rm_tree(candidate)
+
     # Remove env, database, journal, and pytest scratch artifacts anywhere.
     for candidate in release_root.rglob("*"):
         if not candidate.exists():
@@ -200,6 +207,12 @@ def prune_release_tree(release_root: Path) -> None:
             continue
         if candidate.is_file() and name.endswith(FORBIDDEN_FILE_SUFFIXES):
             rm_tree(candidate)
+            continue
+        if candidate.is_dir() and (name.endswith(".egg-info") or name.endswith(".dist-info")):
+            rm_tree(candidate)
+            continue
+        if candidate.is_file() and (name.endswith(".egg-info") or name.endswith(".dist-info")):
+            rm_tree(candidate)
 
 
 def build_release_zip(release_root: Path, out_zip: Path) -> None:
@@ -208,7 +221,10 @@ def build_release_zip(release_root: Path, out_zip: Path) -> None:
             dirs[:] = [
                 d
                 for d in dirs
-                if d not in FORBIDDEN_DIR_NAMES and not d.startswith(".pytest-")
+                if d not in FORBIDDEN_DIR_NAMES
+                and not d.startswith(".pytest-")
+                and not d.endswith(".egg-info")
+                and not d.endswith(".dist-info")
             ]
             for filename in files:
                 if filename == ".env" or (
@@ -219,7 +235,14 @@ def build_release_zip(release_root: Path, out_zip: Path) -> None:
                     continue
                 if filename.endswith(FORBIDDEN_FILE_SUFFIXES):
                     continue
+                if filename.endswith(".egg-info") or filename.endswith(".dist-info"):
+                    continue
                 path = Path(root) / filename
+                if any(
+                    part.endswith(".egg-info") or part.endswith(".dist-info")
+                    for part in path.relative_to(release_root).parts
+                ):
+                    continue
                 rel = path.relative_to(release_root.parent).as_posix()
                 zf.write(path, rel)
 

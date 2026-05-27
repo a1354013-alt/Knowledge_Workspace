@@ -72,4 +72,30 @@ describe('ProjectHealthDashboard', () => {
     expect(wrapper.text()).toContain('Dashboard API returned an invalid payload.')
     expect(wrapper.text()).toContain('Retry')
   })
+
+  it('renders archived counts without implying pending indexing work', async () => {
+    mocks.get.mockResolvedValueOnce({
+      knowledge: { total: 2, by_status: { draft: 1, reviewed: 1, verified: 0, archived: 0 } },
+      logbook: { total: 1, with_solution: 1, promoted_to_knowledge: 1, resolution_rate: 100 },
+      autotest: { total_runs: 1, passed: 1, failed: 0, pass_rate: 100, recent_runs: [] },
+      documents: { total: 1, indexed: 1, pending: 0, failed_documents: 0, archived_documents: 2 },
+      recent_activity: {
+        days: 7,
+        documents_added: 1,
+        knowledge_added: 1,
+        logbook_added: 1,
+        autotest_runs: 1,
+        autotest_passed: 1,
+        autotest_failed: 0,
+      },
+    })
+
+    const wrapper = mount(ProjectHealthDashboard, { global: { stubs: PrimeStubs } })
+    await Promise.resolve()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('Archived')
+    expect(wrapper.text()).toContain('Pending')
+    expect(wrapper.text()).not.toContain('Pending 2')
+  })
 })

@@ -99,6 +99,7 @@ Contract-specific checks now include:
 - backend pytest coverage for public OpenAPI route groups plus internal-only endpoint inventory
 - frontend Vitest coverage that every `apiPaths` route maps to an OpenAPI path
 - `export_openapi.py` and `check_api_types.py` so generated artifacts drift is caught before release
+- archived/inactive index rows are expected to become `excluded` so they do not appear as pending indexing work
 
 Frontend API usage rules:
 
@@ -107,6 +108,7 @@ Frontend API usage rules:
 - dangerous confirm flows should use `frontend/src/services/confirm.ts` so tests can stub them consistently
 
 Release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts.
+It also rejects packaging artifacts such as `*.egg-info` and `*.dist-info`.
 `python scripts/verify_release_package.py` resolves the versioned `dist/knowledge-workspace-*.zip`, extracts it to a temporary directory, and re-checks the extracted tree so archive contents and unzip results stay aligned.
 The release zip is a clean source package. `scripts/package_release.py` intentionally does not build or include `frontend/dist`; build frontend assets after extracting the package.
 

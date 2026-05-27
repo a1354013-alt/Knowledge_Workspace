@@ -109,3 +109,16 @@ def test_autotest_openapi_and_generated_types_reflect_registered_intake_only_con
     generated_types = GENERATED_TYPES_PATH.read_text(encoding="utf-8")
     assert 'status: "registered";' in generated_types
     assert 'analysis_scope?: "intake_only";' in generated_types
+
+
+def test_index_status_openapi_and_generated_types_include_excluded_state(client: TestClient):
+    schema = client.get("/openapi.json").json()
+    index_status_enum = schema["components"]["schemas"]["IndexStatusItemResponse"]["properties"]["status"]["enum"]
+    assert "excluded" in index_status_enum
+
+    index_summary = schema["components"]["schemas"]["IndexStatusSummaryItem"]["properties"]
+    assert "excluded" in index_summary
+
+    generated_types = GENERATED_TYPES_PATH.read_text(encoding="utf-8")
+    assert '"pending" | "indexed" | "failed" | "unavailable" | "excluded"' in generated_types
+    assert "excluded: number;" in generated_types

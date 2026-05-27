@@ -156,7 +156,16 @@
             <div class="value">
               {{ indexStatus.provider.message || '-' }}
             </div>
+            <div class="key">
+              Excluded
+            </div>
+            <div class="value">
+              {{ totalExcludedItems }}
+            </div>
           </div>
+          <p class="muted">
+            Archived or inactive items are tracked as `excluded`, so they do not count as pending indexing work.
+          </p>
         </div>
       </template>
     </Card>
@@ -220,7 +229,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
@@ -266,14 +275,21 @@ const indexStatus = ref<IndexStatusResponse>({
     details: [],
   },
   summary: {
-    document: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
-    knowledge: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
-    logbook: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
-    photo: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
-    prompt: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
+    document: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+    knowledge: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+    logbook: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+    photo: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+    prompt: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
   },
   failed_items: [],
 })
+
+const totalExcludedItems = computed(() =>
+  (Object.values(indexStatus.value.summary) as Array<{ excluded?: number }>).reduce(
+    (sum, item) => sum + (item.excluded ?? 0),
+    0,
+  )
+)
 
 async function loadStatus() {
   loading.value = true

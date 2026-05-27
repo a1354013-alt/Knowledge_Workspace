@@ -83,3 +83,32 @@ def test_rebuild_all_indexes_marks_failures(app_module, client, auth_headers, mo
     assert prompt is not None
     assert prompt["index_status"] == "failed"
     assert "vector provider missing" in prompt["index_error"]
+
+
+def test_index_status_excludes_archived_and_inactive_items_from_pending_summary(app_module, client, auth_headers):
+    assert app_module.db.add_document(
+        doc_id="doc-archived-excluded",
+        filename="archived.txt",
+        saved_filename="archived.txt",
+        file_size=1,
+        uploaded_by="owner",
+        status="archived",
+        index_status="excluded",
+    )
+    assert app_module.db.add_saved_prompt(
+        prompt_id="prompt-excluded",
+        title="Archived prompt",
+        content="Body",
+        tags="demo",
+        created_by="owner",
+        index_status="excluded",
+    )
+    assert app_module.db.delete_saved_prompt("prompt-excluded")
+
+    response = client.get("/api/index/status", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["summary"]["document"]["pending"] == 0
+    assert payload["summary"]["document"]["excluded"] >= 1
+    assert payload["summary"]["prompt"]["excluded"] >= 1
+    assert all(item["status"] != "excluded" for item in payload["failed_items"])

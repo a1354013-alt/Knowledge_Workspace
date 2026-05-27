@@ -118,3 +118,27 @@ def test_dashboard_document_index_metrics_are_based_on_index_status(
     assert documents["indexed"] == 1
     assert documents["failed_documents"] == 1
     assert documents["pending"] == 1
+
+
+def test_dashboard_document_metrics_do_not_count_archived_items_as_pending(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+):
+    db = app_module.db
+    assert db.add_document(
+        doc_id="doc-archived",
+        filename="archived.txt",
+        saved_filename="archived.txt",
+        file_size=1,
+        uploaded_by="owner",
+        status="archived",
+        index_status="excluded",
+    )
+
+    response = client.get("/api/dashboard/health", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    documents = response.json()["documents"]
+    assert documents["pending"] == 0
+    assert documents["failed_documents"] == 0
+    assert documents["archived_documents"] >= 1

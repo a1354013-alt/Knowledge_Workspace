@@ -8,6 +8,7 @@ from app.repositories.repository_utils import (
     INDEX_STATUS_VALUES,
     PHOTO_STATUS_VALUES,
     WORKFLOW_STATUS_VALUES,
+    normalize_index_status,
     utc_now_iso,
 )
 
@@ -30,6 +31,7 @@ class PhotoRepositoryMixin:
     ) -> bool:
         if status not in PHOTO_STATUS_VALUES and status not in WORKFLOW_STATUS_VALUES:
             raise ValueError(f"Unsupported photo status: {status}")
+        index_status = normalize_index_status(index_status, is_active=1 if status != "archived" else 0, workflow_status=status)
         if index_status not in INDEX_STATUS_VALUES:
             raise ValueError(f"Unsupported photo index_status: {index_status}")
         now = utc_now_iso()
@@ -82,12 +84,30 @@ class PhotoRepositoryMixin:
                 sql += " WHERE " + " AND ".join(where)
             sql += " ORDER BY created_at DESC LIMIT ?"
             rows = conn.execute(sql, tuple(params)).fetchall()
-        return [dict(row) for row in rows]
+        return [
+            {
+                **dict(row),
+                "index_status": normalize_index_status(
+                    dict(row).get("index_status"),
+                    is_active=dict(row).get("is_active", 1),
+                    workflow_status=dict(row).get("status", ""),
+                ),
+            }
+            for row in rows
+        ]
 
     def get_photo(self, photo_id: str) -> dict[str, Any] | None:
         with self._connection() as conn:
             row = conn.execute("SELECT * FROM photos WHERE photo_id = ?", (photo_id,)).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        data = dict(row)
+        data["index_status"] = normalize_index_status(
+            data.get("index_status"),
+            is_active=data.get("is_active", 1),
+            workflow_status=data.get("status", ""),
+        )
+        return data
 
     def update_photo(self, photo_id: str, **updates: Any) -> bool:
         columns: list[str] = []
@@ -107,8 +127,19 @@ class PhotoRepositoryMixin:
                 params.append(status_value)
                 columns.append("is_active = ?")
                 params.append(0 if status_value == "archived" else 1)
+                if status_value == "archived":
+                    columns.append("index_status = ?")
+                    params.append("excluded")
+                    columns.append("index_error = ?")
+                    params.append("")
+                    columns.append("indexed_at = ?")
+                    params.append("")
         if "index_status" in updates:
-            index_status = str(updates["index_status"] or "").strip()
+            index_status = normalize_index_status(
+                updates["index_status"],
+                is_active=updates.get("is_active", 1),
+                workflow_status=updates.get("status", ""),
+            )
             if index_status not in INDEX_STATUS_VALUES:
                 raise ValueError(f"Unsupported photo index_status: {index_status}")
             columns.append("index_status = ?")

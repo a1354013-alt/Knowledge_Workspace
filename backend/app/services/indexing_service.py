@@ -29,6 +29,10 @@ from app.vector_db import (
 )
 
 
+def _is_excluded_row(row: dict[str, Any]) -> bool:
+    return int(row.get("is_active", 1)) != 1 or str(row.get("status", "")).strip().lower() == "archived"
+
+
 def get_provider_status() -> EmbeddingProviderStatusResponse:
     descriptor = get_embedding_provider_descriptor()
     status = "ready" if descriptor.available and descriptor.semantic_search_ready else "degraded"
@@ -61,7 +65,7 @@ def _document_target(row: dict[str, Any]) -> IndexTarget:
         item_type="document",
         item_id=str(row["doc_id"]),
         title=str(row.get("filename", "") or "Document"),
-        status=str(row.get("index_status", "pending") or "pending"),
+        status="excluded" if _is_excluded_row(row) else str(row.get("index_status", "pending") or "pending"),
         error=str(row.get("index_error", "") or ""),
         indexed_at=str(row.get("indexed_at", "") or ""),
         updated_at=str(row.get("updated_at", "") or row.get("uploaded_at", "") or ""),
@@ -73,7 +77,7 @@ def _kb_target(item_type: IndexItemType, row: dict[str, Any], *, id_key: str, ti
         item_type=item_type,
         item_id=str(row[id_key]),
         title=str(row.get(title_key, "") or item_type.title()),
-        status=str(row.get("index_status", "pending") or "pending"),
+        status="excluded" if _is_excluded_row(row) else str(row.get("index_status", "pending") or "pending"),
         error=str(row.get("index_error", "") or ""),
         indexed_at=str(row.get("indexed_at", "") or ""),
         updated_at=str(row.get("updated_at", "") or row.get("created_at", "") or ""),
@@ -170,9 +174,9 @@ def sync_document_index(document: dict[str, Any]) -> None:
     doc_id = str(document["doc_id"])
     document_item_id = f"document:{doc_id}"
     delete_from_vector_db(doc_id)
-    if int(document.get("is_active", 1)) != 1 or str(document.get("status", "")) == "archived":
+    if _is_excluded_row(document):
         db.delete_search_content(document_item_id)
-        _sync_document_status(doc_id, status="pending", error="", indexed_at="")
+        _sync_document_status(doc_id, status="excluded", error="", indexed_at="")
         _clear_repair(document_item_id)
         return
 
@@ -229,9 +233,9 @@ def sync_document_index(document: dict[str, Any]) -> None:
 def sync_knowledge_entry_index(entry: dict[str, Any]) -> None:
     item_id = f"knowledge:{entry['entry_id']}"
     delete_from_kb_vector_db(item_id)
-    if int(entry.get("is_active", 1)) != 1 or str(entry.get("status", "")) == "archived":
+    if _is_excluded_row(entry):
         db.delete_search_content(item_id)
-        _sync_knowledge_status(str(entry["entry_id"]), status="pending", error="", indexed_at="")
+        _sync_knowledge_status(str(entry["entry_id"]), status="excluded", error="", indexed_at="")
         _clear_repair(item_id)
         return
     try:
@@ -274,9 +278,9 @@ def sync_knowledge_entry_index(entry: dict[str, Any]) -> None:
 def sync_logbook_entry_index(entry: dict[str, Any]) -> None:
     item_id = f"logbook:{entry['entry_id']}"
     delete_from_kb_vector_db(item_id)
-    if int(entry.get("is_active", 1)) != 1 or str(entry.get("status", "")) == "archived":
+    if _is_excluded_row(entry):
         db.delete_search_content(item_id)
-        _sync_logbook_status(str(entry["entry_id"]), status="pending", error="", indexed_at="")
+        _sync_logbook_status(str(entry["entry_id"]), status="excluded", error="", indexed_at="")
         _clear_repair(item_id)
         return
     try:
@@ -319,9 +323,9 @@ def sync_logbook_entry_index(entry: dict[str, Any]) -> None:
 def sync_photo_index(entry: dict[str, Any]) -> None:
     item_id = f"photo:{entry['photo_id']}"
     delete_from_kb_vector_db(item_id)
-    if int(entry.get("is_active", 1)) != 1 or str(entry.get("status", "")) == "archived":
+    if _is_excluded_row(entry):
         db.delete_search_content(item_id)
-        _sync_photo_status(str(entry["photo_id"]), status="pending", error="", indexed_at="")
+        _sync_photo_status(str(entry["photo_id"]), status="excluded", error="", indexed_at="")
         _clear_repair(item_id)
         return
     try:
@@ -364,9 +368,9 @@ def sync_photo_index(entry: dict[str, Any]) -> None:
 def sync_prompt_index(entry: dict[str, Any]) -> None:
     item_id = f"prompt:{entry['prompt_id']}"
     delete_from_kb_vector_db(item_id)
-    if int(entry.get("is_active", 1)) != 1:
+    if _is_excluded_row(entry):
         db.delete_search_content(item_id)
-        _sync_prompt_status(str(entry["prompt_id"]), status="pending", error="", indexed_at="")
+        _sync_prompt_status(str(entry["prompt_id"]), status="excluded", error="", indexed_at="")
         _clear_repair(item_id)
         return
     try:
@@ -423,7 +427,7 @@ def get_index_status(current_user: dict[str, Any]) -> IndexStatusResponse:
     ]
     prompts = [
         _kb_target("prompt", row, id_key="prompt_id", title_key="title")
-        for row in db.list_saved_prompts(user_id=user_id, limit=500)
+        for row in db.list_saved_prompts(user_id=user_id, limit=500, include_inactive=True)
     ]
 
     grouped = {
@@ -440,6 +444,7 @@ def get_index_status(current_user: dict[str, Any]) -> IndexStatusResponse:
             indexed=sum(1 for item in items if item.status == "indexed"),
             failed=sum(1 for item in items if item.status == "failed"),
             unavailable=sum(1 for item in items if item.status == "unavailable"),
+            excluded=sum(1 for item in items if item.status == "excluded"),
         )
         for item_type, items in grouped.items()
     }
@@ -490,7 +495,7 @@ def rebuild_single_item_type(current_user: dict[str, Any], item_type: IndexItemT
     elif item_type == "photo":
         rows = db.list_photos(user_id=user_id, include_archived=True, limit=500)
     else:
-        rows = db.list_saved_prompts(user_id=user_id, limit=500)
+        rows = db.list_saved_prompts(user_id=user_id, limit=500, include_inactive=True)
 
     result_items: list[IndexStatusItemResponse] = []
     rebuilt = 0
@@ -608,7 +613,7 @@ def get_index_consistency_report(*, owner_user_id: str | None = None) -> list[di
         for photo in db.list_photos(user_id=user_id, include_archived=True, limit=500):
             item_id = f"photo:{photo['photo_id']}"
             report.extend(_check_row_consistency("photo", item_id, photo))
-        for prompt in db.list_saved_prompts(user_id=user_id, limit=500):
+        for prompt in db.list_saved_prompts(user_id=user_id, limit=500, include_inactive=True):
             item_id = f"prompt:{prompt['prompt_id']}"
             report.extend(_check_row_consistency("prompt", item_id, prompt))
     report.extend(
@@ -665,7 +670,7 @@ def _repair_index_item(item_type: str, item_id: str) -> None:
 
 def _check_row_consistency(item_type: str, item_id: str, row: dict[str, Any]) -> list[dict[str, Any]]:
     issues: list[dict[str, Any]] = []
-    is_active = int(row.get("is_active", 1)) == 1 and str(row.get("status", "")) != "archived"
+    is_active = not _is_excluded_row(row)
     search_content = db.get_search_content(item_id)
     vector_count = (
         count_vector_records_for_document(str(row["doc_id"])) if item_type == "document" else count_vector_records_for_item(item_id)
@@ -688,6 +693,15 @@ def _check_row_consistency(item_type: str, item_id: str, row: dict[str, Any]) ->
                 "item_id": item_id,
                 "item_type": item_type,
                 "issue": "stale_search_content",
+                "last_index_error": last_index_error,
+            }
+        )
+    if not is_active and status_value != "excluded":
+        issues.append(
+            {
+                "item_id": item_id,
+                "item_type": item_type,
+                "issue": "inactive_row_not_marked_excluded",
                 "last_index_error": last_index_error,
             }
         )

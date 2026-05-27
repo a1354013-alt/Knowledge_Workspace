@@ -95,6 +95,10 @@
                     v-if="slotProps.data.index_error"
                     class="muted"
                   >{{ slotProps.data.index_error }}</span>
+                  <span
+                    v-else-if="slotProps.data.index_status === 'excluded'"
+                    class="muted"
+                  >Archived items are excluded from active indexing work.</span>
                 </div>
               </template>
             </Column>
@@ -102,7 +106,7 @@
               <template #body="slotProps">
                 <div class="actions-inline">
                   <Button
-                    v-if="slotProps.data.index_status !== 'indexed'"
+                    v-if="slotProps.data.index_status !== 'indexed' && slotProps.data.index_status !== 'excluded'"
                     icon="pi pi-wrench"
                     text
                     severity="warning"

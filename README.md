@@ -302,6 +302,7 @@ Key guarantees:
 - `logbook.promoted_to_knowledge` is counted from canonical `logbook -> knowledge` links
 - promoted logbooks remain countable even after the source logbook is archived
 - `documents.indexed`, `documents.pending`, and `documents.failed_documents` come from persisted document index state, not UI inference
+- archived or inactive items are marked `excluded` for indexing and do not count as pending indexing work
 - metrics are scoped to the current authenticated user
 
 Metric sources:
@@ -386,6 +387,8 @@ Status meanings:
 See [SECURITY_MODEL.md](SECURITY_MODEL.md), [API_CONTRACT.md](API_CONTRACT.md), [TESTING.md](TESTING.md), [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md), and [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the security, contract, verification, and release rules.
 
 See [docs/AUTOTEST.md](docs/AUTOTEST.md) for the AutoTest architecture, modes, timeline contract, and safety boundary.
+
+See [docs/RUNBOOK.md](docs/RUNBOOK.md) for the reproducible Windows PowerShell setup, Python 3.11 / Node 20 workflow, API contract refresh commands, and release packaging steps.
 
 See [docs/PORTFOLIO_CASE_STUDY.md](docs/PORTFOLIO_CASE_STUDY.md) for:
 

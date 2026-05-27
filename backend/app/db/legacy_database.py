@@ -67,23 +67,29 @@ class DocumentDatabase(
     SearchContentRepositoryMixin,
     IndexRepairRepositoryMixin,
 ):
+    SQLITE_BUSY_TIMEOUT_MS = 5000
+
     def __init__(self, db_path: str = "documents.db"):
         self.db_path = db_path
         self._memory_conn: sqlite3.Connection | None = None
         self.init_db()
 
+    @classmethod
+    def _configure_connection(cls, conn: sqlite3.Connection) -> sqlite3.Connection:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute(f"PRAGMA busy_timeout = {cls.SQLITE_BUSY_TIMEOUT_MS}")
+        if conn.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
+            conn.execute("PRAGMA journal_mode = WAL")
+        return conn
+
     def _connect(self) -> sqlite3.Connection:
         if self.db_path == ":memory:":
             if self._memory_conn is None:
-                self._memory_conn = sqlite3.connect(":memory:", check_same_thread=False)
-                self._memory_conn.row_factory = sqlite3.Row
-                self._memory_conn.execute("PRAGMA foreign_keys = ON")
+                self._memory_conn = self._configure_connection(sqlite3.connect(":memory:", check_same_thread=False))
             return self._memory_conn
 
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
+        return self._configure_connection(sqlite3.connect(self.db_path))
 
     @contextmanager
     def _connection(self) -> sqlite3.Connection:

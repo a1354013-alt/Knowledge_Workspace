@@ -10,6 +10,21 @@ def test_every_connection_enables_foreign_keys(app_module):
     assert value == 1
 
 
+def test_connection_helper_sets_busy_timeout_and_wal_for_file_databases(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEFAULT_OWNER_PASSWORD", "OwnerPass123!")
+
+    from app.db import DocumentDatabase
+
+    db = DocumentDatabase(str(tmp_path / "pragma-test.db"))
+    with db._connection() as conn:
+        busy_timeout = conn.execute("PRAGMA busy_timeout").fetchone()[0]
+        journal_mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+        foreign_keys = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+    assert busy_timeout == 5000
+    assert str(journal_mode).lower() == "wal"
+    assert foreign_keys == 1
+
+
 def test_item_links_unique_constraint_blocks_duplicate_links(app_module):
     assert app_module.db.add_link("knowledge:k1", "document:d1", "references") is True
     assert app_module.db.add_link("knowledge:k1", "document:d1", "references") is False

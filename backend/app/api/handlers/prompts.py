@@ -7,6 +7,7 @@ from app.api.runtime import db
 from app.database import delete_from_kb_vector_db
 from app.dependencies import get_current_user
 from app.models import MessageResponse, SavedPromptCreateRequest, SavedPromptResponse
+from app.repositories.repository_utils import normalize_index_status
 from app.services.indexing_service import sync_prompt_index
 
 
@@ -28,7 +29,7 @@ async def list_saved_prompts(current_user: dict = Depends(get_current_user)) -> 
             tags=row.get("tags", ""),
             created_at=row.get("created_at", ""),
             updated_at=row.get("updated_at", ""),
-            index_status=row.get("index_status", "pending") or "pending",
+            index_status=normalize_index_status(row.get("index_status"), is_active=row.get("is_active", 1)),
             index_error=row.get("index_error", "") or "",
         )
         for row in db.list_saved_prompts(user_id=user_id, limit=200)
@@ -79,7 +80,7 @@ async def create_saved_prompt(
         tags=str(prompt.get("tags", "")),
         created_at=str(prompt.get("created_at", "")),
         updated_at=str(prompt.get("updated_at", "")),
-        index_status=str(prompt.get("index_status", "pending") or "pending"),
+        index_status=normalize_index_status(prompt.get("index_status"), is_active=prompt.get("is_active", 1)),
         index_error=str(prompt.get("index_error", "") or warning or ""),
     )
 

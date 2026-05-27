@@ -154,11 +154,11 @@ describe('frontend smoke flows', () => {
             details: [],
           },
           summary: {
-            document: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
-            knowledge: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
-            logbook: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
-            photo: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
-            prompt: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0 },
+            document: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 2 },
+            knowledge: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+            logbook: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+            photo: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+            prompt: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 1 },
           },
           failed_items: [],
         }
@@ -171,5 +171,6 @@ describe('frontend smoke flows', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('Index health')
     expect(wrapper.text()).toContain('demo / fallback')
+    expect(wrapper.text()).toContain('Excluded')
   })
 })
