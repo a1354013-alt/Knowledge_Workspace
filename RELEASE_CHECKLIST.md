@@ -14,10 +14,10 @@
    - `python scripts/safe_compile.py -q .`
    - `python -m ruff check backend scripts`
    - `python scripts/run_backend_tests.py`
-   - `python scripts/export_openapi.py --check`
-   - `python scripts/generate_api_types.py --check`
+   - `python scripts/export_openapi.py`
+   - `python scripts/check_api_types.py`
    - `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
-   - `python scripts/check_version_consistency.py`
+   - `python scripts/check_versions.py`
    - `python scripts/check_index_consistency.py`
    - OpenAPI/export checks must run under Python 3.11; use the repo virtualenv if your system `python` is newer
 3. Frontend verification:
@@ -32,8 +32,9 @@
    - blob/download flows must go through `frontend/src/services/downloads.ts`
    - dangerous confirms must go through `frontend/src/services/confirm.ts`
 4. Release package:
-   - `python scripts/package_release.py knowledge_workspace_release.zip`
-   - `python scripts/verify_release.py knowledge_workspace_release.zip`
+   - `python scripts/package_release.py`
+   - `python scripts/verify_release_package.py dist/knowledge-workspace-*.zip`
    - `scripts/package_release.py` stages a source release and does not build or ship `frontend/dist` by default
+   - default output is `dist/knowledge-workspace-<version>.zip`
    - release zip is a clean source package; it does not include `frontend/dist`
    - release verification rejects `node_modules`, `dist`, `.env`, runtime databases/journals, caches, uploads, AutoTest workdirs, and test artifacts

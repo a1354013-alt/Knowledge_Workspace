@@ -121,6 +121,11 @@ REQUIRED_RELEASE_DOCS = (
 )
 
 
+def _default_release_zip(root_dir: Path) -> Path:
+    version = (root_dir / "VERSION").read_text(encoding="utf-8").strip() or "unknown"
+    return root_dir / "dist" / f"knowledge-workspace-{version}.zip"
+
+
 def rm_tree(path: Path) -> None:
     if not path.exists():
         return
@@ -233,7 +238,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Package a clean release zip (cross-platform)."
     )
-    parser.add_argument("out_zip", nargs="?", default="knowledge_workspace_release.zip")
+    parser.add_argument("out_zip", nargs="?", default="")
     parser.add_argument(
         "--output",
         "-o",
@@ -249,9 +254,9 @@ def main() -> int:
     args = parser.parse_args()
 
     root_dir = Path(__file__).resolve().parents[1]
-    out_zip = Path(args.out_zip)
-    if args.output_dir and args.out_zip == "knowledge_workspace_release.zip":
-        out_zip = Path(args.output_dir) / "knowledge_workspace_release.zip"
+    out_zip = _default_release_zip(root_dir) if not args.out_zip else Path(args.out_zip)
+    if args.output_dir and not args.out_zip:
+        out_zip = Path(args.output_dir) / out_zip.name
     if not out_zip.is_absolute():
         out_zip = root_dir / out_zip
 

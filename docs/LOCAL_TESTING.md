@@ -48,7 +48,7 @@ npm run build
 
 ```powershell
 python scripts/export_openapi.py
-python scripts/generate_api_types.py --check
+python scripts/check_api_types.py
 git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
 python scripts/check_index_consistency.py
 ```
@@ -58,9 +58,9 @@ When the API contract intentionally changes, run `python scripts/generate_api_ty
 ## Release And Smoke
 
 ```powershell
-python scripts/check_version_consistency.py
-python scripts/package_release.py /tmp/kw_release.zip
-python scripts/verify_release.py /tmp/kw_release.zip
+python scripts/check_versions.py
+python scripts/package_release.py
+python scripts/verify_release_package.py dist/knowledge-workspace-*.zip
 python scripts/smoke_check.py --password "OwnerPass123!"
 ```
 

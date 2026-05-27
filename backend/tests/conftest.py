@@ -11,12 +11,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = BACKEND_DIR.parent
 TEST_RUNTIME_DIR = BACKEND_DIR / "pytest_runtime"
 TEST_RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
 BOOTSTRAP_DIR = TEST_RUNTIME_DIR / f"bootstrap-{uuid.uuid4().hex}"
 BOOTSTRAP_DIR.mkdir(parents=True, exist_ok=True)
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 os.environ.setdefault("JWT_SECRET", "test-secret-test-secret-test-secret-1234")
 os.environ.setdefault("DEFAULT_OWNER_PASSWORD", "OwnerPass123!")

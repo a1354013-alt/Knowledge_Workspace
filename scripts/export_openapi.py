@@ -3,12 +3,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
+PY311_CANDIDATES = (
+    ROOT / ".venv311" / "Scripts" / "python.exe",
+    ROOT / ".venv311_clean" / "Scripts" / "python.exe",
+)
 
 
 def validate_python_version() -> None:
@@ -18,6 +23,22 @@ def validate_python_version() -> None:
             "Unsupported Python runtime for OpenAPI export. "
             "Use Python 3.11.x so docs/openapi.json matches the supported backend dependency set."
         )
+
+
+def _delegate_to_python311() -> int | None:
+    version = sys.version_info
+    if (version.major, version.minor) == (3, 11):
+        return None
+    if os.environ.get("KNOWLEDGE_WORKSPACE_OPENAPI_DELEGATED") == "1":
+        return None
+
+    for candidate in PY311_CANDIDATES:
+        if not candidate.exists():
+            continue
+        env = {**os.environ, "KNOWLEDGE_WORKSPACE_OPENAPI_DELEGATED": "1"}
+        result = subprocess.run([str(candidate), __file__, *sys.argv[1:]], cwd=ROOT, env=env, check=False)
+        return int(result.returncode)
+    return None
 
 
 def generate_openapi_json() -> str:
@@ -41,6 +62,10 @@ def generate_openapi_json() -> str:
 
 
 def main() -> int:
+    delegated = _delegate_to_python311()
+    if delegated is not None:
+        return delegated
+
     parser = argparse.ArgumentParser(description="Export FastAPI OpenAPI schema to docs/openapi.json.")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()

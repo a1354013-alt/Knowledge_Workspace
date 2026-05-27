@@ -230,9 +230,9 @@ python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 python scripts/check_index_consistency.py
-python scripts/export_openapi.py --check
-python scripts/generate_api_types.py --check
-python scripts/check_version_consistency.py
+python scripts/export_openapi.py
+python scripts/check_api_types.py
+python scripts/check_versions.py
 ```
 
 Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md) and `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
@@ -266,10 +266,10 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 3. `python scripts/safe_compile.py -q .`
 4. `python -m ruff check backend scripts`
 5. `python scripts/run_backend_tests.py`
-6. `python scripts/export_openapi.py --check`
-7. `python scripts/generate_api_types.py --check`
+6. `python scripts/export_openapi.py`
+7. `python scripts/check_api_types.py`
 8. `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
-9. `python scripts/check_version_consistency.py`
+9. `python scripts/check_versions.py`
 10. `python scripts/check_index_consistency.py`
 11. frontend `npm ci`
 12. frontend `npm audit --omit=dev --audit-level=high`
@@ -277,13 +277,20 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 14. frontend `npm run typecheck`
 15. frontend `npm run test:run`
 16. frontend `npm run build`
-17. `python scripts/package_release.py ./knowledge_workspace_release.zip`
-18. `python scripts/verify_release.py knowledge_workspace_release.zip`
+17. `python scripts/package_release.py`
+18. `python scripts/verify_release_package.py dist/knowledge-workspace-*.zip`
 19. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
 
 `python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, `python scripts/check_index_consistency.py`, release zip verification, and smoke.
 
-The release zip is a clean source package. `scripts/package_release.py` does not build or ship `frontend/dist` by default, and the archive deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
+The release zip is a clean source package. `scripts/package_release.py` now writes `dist/knowledge-workspace-<version>.zip` by default, does not build or ship `frontend/dist`, and deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
+
+## Knowledge Restore And Index Repair
+
+- restoring a knowledge revision updates the SQLite row, refreshes `source_ref` / `derived_from` links, and immediately re-runs indexing
+- restore is not allowed to pretend success if re-indexing raises or returns a degraded `False`/falsy result
+- restore indexing failure persists `index_status`, stores `index_error`, and queues repair work so UI state and search state cannot silently drift apart
+- `python scripts/check_index_consistency.py --repair` replays queued index/deindex work after the underlying issue is fixed
 
 ## Dashboard Metric Contract
 

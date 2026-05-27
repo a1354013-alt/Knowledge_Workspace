@@ -438,7 +438,7 @@ def run_index_side_effect(
             on_error(status_value, detail)
         logger.warning("%s indexing failed for %s: %s", label, item_id, exc)
         return _detailed_side_effect_warning(action="indexing", label=label, exc=exc)
-    if result is False:
+    if result is not None and not result:
         if on_error is not None:
             on_error(
                 "failed",

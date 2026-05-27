@@ -1,7 +1,7 @@
-from app.api.errors import api_error, handle_validation_error, handle_value_error
 from fastapi import Depends, Request, status
 
 from app.api.common import serialize_me
+from app.api.errors import api_error, handle_validation_error, handle_value_error
 from app.api.runtime import APP_VERSION, create_token, db, limiter
 from app.dependencies import get_current_user
 from app.models import HealthResponse, LoginRequest, LoginResponse, MeResponse

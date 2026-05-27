@@ -50,6 +50,10 @@ Real mode is guarded execution, not a true sandbox. For production-style isolati
 
 Global search returns typed item summaries. The built-in index uses a deterministic lightweight hash embedding so the project stays reproducible in CI and dependency-light local environments. It is useful for demos and stable tests, but it is not a full semantic understanding model. When vector indexing is unavailable, the app falls back further to deterministic keyword-style matching. A real embedding-provider integration would be the path to production-grade semantic search.
 
+Handlers share the same index side-effect helper in `backend/app/api/common.py`. That helper treats successful indexing, raised exceptions, and degraded `False`/falsy results consistently so `index_status`, `index_error`, and the repair queue do not diverge by handler.
+
+Knowledge revision restore follows the same contract as create/update: it writes the revision snapshot back to SQLite, synchronizes `source_ref` / `derived_from` links, and immediately re-indexes so DB state, search content, vector state, and queued repair work stay aligned.
+
 ## Release Flow
 
 Release packaging copies backend, frontend, scripts, and docs into a temporary tree, builds the frontend, removes runtime artifacts, creates a ZIP, and verifies required docs plus forbidden paths.
@@ -57,8 +61,8 @@ Release packaging copies backend, frontend, scripts, and docs into a temporary t
 ## Contract Maintenance
 
 - `docs/openapi.json` is the checked-in backend contract snapshot
-- `python scripts/export_openapi.py --check` verifies that snapshot against the FastAPI app using the supported Python 3.11 runtime
-- `python scripts/generate_api_types.py --check` verifies `frontend/src/api/generated/api-types.ts`
+- `python scripts/export_openapi.py` verifies that snapshot against the FastAPI app using the supported Python 3.11 runtime, auto-delegating to the repo `.venv311` when needed
+- `python scripts/check_api_types.py` verifies `frontend/src/api/generated/api-types.ts`
 - frontend JSON APIs should go through `frontend/src/api.ts`; blob/download flows should go through `frontend/src/services/downloads.ts`
 
 ## Deprecation Status

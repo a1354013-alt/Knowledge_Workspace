@@ -253,11 +253,22 @@ async def restore_knowledge_revision(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to restore knowledge revision."
         )
 
+    sync_source_ref_link(
+        from_item_id=item_id_from_parts("knowledge", entry_id),
+        old_source_ref=str(entry.get("source_ref", "")),
+        new_source_ref=str(restore_payload.get("source_ref", entry.get("source_ref", ""))),
+        source_type=str(restore_payload.get("source_type", entry.get("source_type", "manual"))),
+        user_id=user_id,
+    )
+
     restored = db.get_knowledge_entry(entry_id) or entry
     warning = run_index_side_effect(
         label="Knowledge entry",
         item_id=entry_id,
         operation=lambda: sync_knowledge_entry_index(restored),
+        on_error=lambda index_status, detail: db.update_knowledge_entry(
+            entry_id, index_status=index_status, index_error=detail, indexed_at=""
+        ),
     )
     if warning:
         db.queue_index_repair(

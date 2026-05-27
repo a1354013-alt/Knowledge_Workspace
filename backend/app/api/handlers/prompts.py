@@ -2,8 +2,8 @@ import uuid
 
 from fastapi import Depends, HTTPException, status
 
-from app.api.common import classify_index_failure, item_id_from_parts, side_effect_warning
-from app.api.runtime import db, logger
+from app.api.common import item_id_from_parts, run_deindex_side_effect, run_index_side_effect, side_effect_warning
+from app.api.runtime import db
 from app.database import delete_from_kb_vector_db
 from app.dependencies import get_current_user
 from app.models import MessageResponse, SavedPromptCreateRequest, SavedPromptResponse
@@ -14,24 +14,8 @@ def _side_effect_warning(message: str, warning: str | None) -> str:
     return side_effect_warning(message, warning)
 
 
-def _run_index_side_effect(*, label: str, item_id: str, operation, on_error):
-    try:
-        operation()
-    except Exception as exc:
-        index_status, detail = classify_index_failure(exc)
-        on_error(index_status, detail)
-        logger.warning("%s indexing failed for %s: %s", label, item_id, exc)
-        return f"{label} indexing failed: {exc}"
-    return None
-
-
-def _run_deindex_side_effect(*, label: str, item_id: str, operation):
-    try:
-        operation()
-    except Exception as exc:
-        logger.warning("%s de-indexing failed for %s: %s", label, item_id, exc)
-        return f"{label} de-index failed: {exc}"
-    return None
+_run_index_side_effect = run_index_side_effect
+_run_deindex_side_effect = run_deindex_side_effect
 
 
 async def list_saved_prompts(current_user: dict = Depends(get_current_user)) -> list[SavedPromptResponse]:

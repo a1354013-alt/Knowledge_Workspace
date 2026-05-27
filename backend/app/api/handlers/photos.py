@@ -6,19 +6,20 @@ from fastapi.responses import FileResponse
 
 from app.api.common import (
     build_links_response,
-    classify_index_failure,
     guess_media_type,
     item_id_from_parts,
+    run_deindex_side_effect,
+    run_index_side_effect,
     safe_download_filename,
     safe_unlink,
     side_effect_warning,
 )
-from app.api.runtime import PHOTO_DIR, db, logger
+from app.api.runtime import PHOTO_DIR, db
+from app.core.config import get_settings
 from app.database import delete_from_kb_vector_db
 from app.dependencies import get_current_user
 from app.models import ItemLinksResponse, MessageResponse, PhotoResponse, PhotoUpdateRequest, UploadPhotoResponse
 from app.ocr_service import extract_text_from_image
-from app.core.config import get_settings
 from app.services.indexing_service import sync_photo_index
 from app.utils import generate_safe_filename, stream_write_file
 
@@ -41,24 +42,8 @@ def _side_effect_warning(message: str, warning: str | None) -> str:
     return side_effect_warning(message, warning)
 
 
-def _run_index_side_effect(*, label: str, item_id: str, operation, on_error):
-    try:
-        operation()
-    except Exception as exc:
-        index_status, detail = classify_index_failure(exc)
-        on_error(index_status, detail)
-        logger.warning("%s indexing failed for %s: %s", label, item_id, exc)
-        return f"{label} indexing failed: {exc}"
-    return None
-
-
-def _run_deindex_side_effect(*, label: str, item_id: str, operation):
-    try:
-        operation()
-    except Exception as exc:
-        logger.warning("%s de-indexing failed for %s: %s", label, item_id, exc)
-        return f"{label} de-index failed: {exc}"
-    return None
+_run_index_side_effect = run_index_side_effect
+_run_deindex_side_effect = run_deindex_side_effect
 
 
 def validate_image_extension(filename: str) -> bool:

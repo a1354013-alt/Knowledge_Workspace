@@ -6,10 +6,10 @@ The source of truth for backend contracts is the Pydantic schema set in `backend
 
 ```bash
 python scripts/export_openapi.py
-python scripts/export_openapi.py --check
+python scripts/check_api_types.py
 ```
 
-The first command writes `docs/openapi.json`. The `--check` form is the CI/local drift guard and must run with Python 3.11.x.
+The export command writes `docs/openapi.json`. It auto-delegates to the repo `.venv311` when the current repo-root `python` is newer than the supported Python 3.11 runtime.
 
 ## Frontend Types
 
@@ -21,7 +21,7 @@ npm run generate:api-types
 The generated file is `frontend/src/api/generated/api-types.ts`. CI checks that generated types are current with:
 
 ```bash
-python scripts/generate_api_types.py --check
+python scripts/check_api_types.py
 git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
 ```
 

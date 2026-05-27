@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 
-def test_knowledge_revision_flow(client: TestClient, auth_headers: dict[str, str]):
+def test_knowledge_revision_flow(app_module, client: TestClient, auth_headers: dict[str, str]):
     # 1. Create a knowledge entry
     entry_data = {
         "title": "Initial Title",
@@ -54,6 +54,12 @@ def test_knowledge_revision_flow(client: TestClient, auth_headers: dict[str, str
     entries = client.get("/api/knowledge/entries", headers=auth_headers).json()
     restored_entry = next(e for e in entries if e["id"] == entry_id)
     assert restored_entry["title"] == "Initial Title"
+    restored_row = app_module.db.get_knowledge_entry(entry_id)
+    assert restored_row is not None
+    assert restored_row["index_status"] == "indexed"
+    search_content = app_module.db.get_search_content(f"knowledge:{entry_id}")
+    assert search_content is not None
+    assert "Initial Title" in search_content["content"]
 
     # Verify a new revision was created before restore
     revs = client.get(f"/api/knowledge/{entry_id}/revisions", headers=auth_headers).json()

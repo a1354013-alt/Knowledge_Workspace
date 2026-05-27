@@ -313,3 +313,189 @@ def test_saved_prompt_delete_keeps_success_when_deindex_fails(
     assert int(prompt["is_active"]) == 0
     repairs = app_module.db.list_index_repairs(owner_user_id="owner")
     assert any(row["item_id"] == f"prompt:{prompt_id}" and row["action"] == "deindex" for row in repairs)
+
+
+def test_knowledge_restore_marks_failed_when_reindex_raises(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    created = client.post(
+        "/api/knowledge/entries",
+        headers=auth_headers,
+        json={
+            "title": "Before update",
+            "problem": "Problem",
+            "root_cause": "",
+            "solution": "Solution",
+            "tags": "",
+            "notes": "",
+            "status": "draft",
+            "source_type": "manual",
+            "source_ref": "",
+            "related_item_ids": [],
+        },
+    )
+    assert created.status_code == 200, created.text
+
+    entry_id = app_module.db.list_knowledge_entries(user_id="owner", include_archived=False)[0]["entry_id"]
+    updated = client.patch(
+        f"/api/knowledge/entries/{entry_id}",
+        headers=auth_headers,
+        json={"title": "After update", "change_note": "update for restore"},
+    )
+    assert updated.status_code == 200, updated.text
+
+    revision_id = client.get(f"/api/knowledge/{entry_id}/revisions", headers=auth_headers).json()[0]["revision_id"]
+    monkeypatch.setattr(
+        _handler_module("knowledge"),
+        "sync_knowledge_entry_index",
+        lambda entry: (_ for _ in ()).throw(RuntimeError("restore index down")),
+    )
+
+    restored = client.post(f"/api/knowledge/{entry_id}/revisions/{revision_id}/restore", headers=auth_headers)
+    assert restored.status_code == 200, restored.text
+    assert "indexing failed" in restored.json()["message"].lower()
+
+    entry = app_module.db.get_knowledge_entry(entry_id)
+    assert entry is not None
+    assert entry["title"] == "Before update"
+    assert entry["index_status"] == "failed"
+    assert "restore index down" in entry["index_error"].lower()
+    repairs = app_module.db.list_index_repairs(owner_user_id="owner")
+    assert any(row["item_id"] == f"knowledge:{entry_id}" and row["action"] == "index" for row in repairs)
+
+
+def test_knowledge_restore_marks_failed_when_reindex_returns_false(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    created = client.post(
+        "/api/knowledge/entries",
+        headers=auth_headers,
+        json={
+            "title": "Revision title",
+            "problem": "Problem",
+            "root_cause": "",
+            "solution": "Solution",
+            "tags": "",
+            "notes": "",
+            "status": "draft",
+            "source_type": "manual",
+            "source_ref": "",
+            "related_item_ids": [],
+        },
+    )
+    assert created.status_code == 200, created.text
+
+    entry_id = app_module.db.list_knowledge_entries(user_id="owner", include_archived=False)[0]["entry_id"]
+    updated = client.patch(
+        f"/api/knowledge/entries/{entry_id}",
+        headers=auth_headers,
+        json={"title": "New title", "change_note": "update for restore"},
+    )
+    assert updated.status_code == 200, updated.text
+
+    revision_id = client.get(f"/api/knowledge/{entry_id}/revisions", headers=auth_headers).json()[0]["revision_id"]
+    monkeypatch.setattr(_handler_module("knowledge"), "sync_knowledge_entry_index", lambda entry: False)
+
+    restored = client.post(f"/api/knowledge/{entry_id}/revisions/{revision_id}/restore", headers=auth_headers)
+    assert restored.status_code == 200, restored.text
+    assert "indexing failed" in restored.json()["message"].lower()
+
+    entry = app_module.db.get_knowledge_entry(entry_id)
+    assert entry is not None
+    assert entry["title"] == "Revision title"
+    assert entry["index_status"] == "failed"
+    assert "degraded status" in entry["index_error"].lower()
+    repairs = app_module.db.list_index_repairs(owner_user_id="owner")
+    assert any(row["item_id"] == f"knowledge:{entry_id}" and row["action"] == "index" for row in repairs)
+
+
+def test_knowledge_create_marks_failed_when_indexing_returns_false(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    monkeypatch.setattr(_handler_module("knowledge"), "sync_knowledge_entry_index", lambda entry: False)
+
+    created = client.post(
+        "/api/knowledge/entries",
+        headers=auth_headers,
+        json={
+            "title": "False result knowledge",
+            "problem": "Problem",
+            "root_cause": "",
+            "solution": "Solution",
+            "tags": "",
+            "notes": "",
+            "status": "draft",
+            "source_type": "manual",
+            "source_ref": "",
+            "related_item_ids": [],
+        },
+    )
+    assert created.status_code == 200, created.text
+
+    entry = app_module.db.list_knowledge_entries(user_id="owner", include_archived=False)[0]
+    assert entry["index_status"] == "failed"
+    assert "degraded status" in entry["index_error"].lower()
+    repairs = app_module.db.list_index_repairs(owner_user_id="owner")
+    assert any(row["item_id"] == f"knowledge:{entry['entry_id']}" and row["action"] == "index" for row in repairs)
+
+
+def test_photo_upload_marks_failed_when_indexing_returns_false(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    monkeypatch.setattr(_handler_module("photos"), "extract_text_from_image", lambda path: "")
+    monkeypatch.setattr(_handler_module("photos"), "sync_photo_index", lambda photo: False)
+
+    if Image is None:
+        png_bytes = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
+    else:
+        buffer = BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 255, 255)).save(buffer, format="PNG")
+        png_bytes = buffer.getvalue()
+
+    response = client.post(
+        "/api/photos/upload",
+        headers=auth_headers,
+        files={"file": ("demo.png", png_bytes, "image/png")},
+        data={"tags": "demo", "description": "desc"},
+    )
+    assert response.status_code == 200, response.text
+
+    photo = app_module.db.list_photos(user_id="owner", include_archived=False)[0]
+    assert photo["index_status"] == "failed"
+    assert "degraded status" in photo["index_error"].lower()
+    repairs = app_module.db.list_index_repairs(owner_user_id="owner")
+    assert any(row["item_id"] == f"photo:{photo['photo_id']}" and row["action"] == "index" for row in repairs)
+
+
+def test_saved_prompt_create_marks_failed_when_indexing_returns_false(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    monkeypatch.setattr(_handler_module("prompts"), "sync_prompt_index", lambda prompt: False)
+
+    response = client.post(
+        "/api/prompts",
+        headers=auth_headers,
+        json={"title": "Prompt", "content": "Body", "tags": "demo"},
+    )
+    assert response.status_code == 200, response.text
+
+    prompt = app_module.db.list_saved_prompts(user_id="owner", limit=200)[0]
+    assert prompt["index_status"] == "failed"
+    assert "degraded status" in prompt["index_error"].lower()
+    repairs = app_module.db.list_index_repairs(owner_user_id="owner")
+    assert any(row["item_id"] == f"prompt:{prompt['prompt_id']}" and row["action"] == "index" for row in repairs)

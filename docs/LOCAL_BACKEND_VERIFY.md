@@ -15,8 +15,8 @@ python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 python scripts/export_openapi.py
-python scripts/generate_api_types.py --check
-python scripts/check_version_consistency.py
+python scripts/check_api_types.py
+python scripts/check_versions.py
 python scripts/check_index_consistency.py
 ```
 
@@ -40,7 +40,7 @@ python scripts/verify_all.py
 - Ruff lint on `backend` and `scripts`
 - backend pytest suite via `scripts/run_backend_tests.py`
 - whole-process exit verification so pytest cannot print `passed` and still hang on background resources
-- OpenAPI export
+- OpenAPI export, with automatic delegation to the repo `.venv311` when repo-root `python` is newer than 3.11
 - OpenAPI -> TypeScript contract sync check
 - version consistency check
 - index consistency check

@@ -69,13 +69,13 @@ Use Node 20.19+ LTS to match CI and the Vite/Vitest toolchain engine range.
 ## Release
 
 ```powershell
-python scripts/export_openapi.py --check
-python scripts/generate_api_types.py --check
+python scripts/export_openapi.py
+python scripts/check_api_types.py
 git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
-python scripts/check_version_consistency.py
+python scripts/check_versions.py
 python scripts/check_index_consistency.py
-python scripts/package_release.py knowledge_workspace_release.zip
-python scripts/verify_release.py knowledge_workspace_release.zip
+python scripts/package_release.py
+python scripts/verify_release_package.py dist/knowledge-workspace-*.zip
 ```
 
 Recommended full verification flow before release:
@@ -83,14 +83,14 @@ Recommended full verification flow before release:
 1. `python scripts/check_python_version.py`
 2. `python -m compileall backend`
 3. `pytest backend/tests`
-4. `python scripts/export_openapi.py --check`
-5. `python scripts/generate_api_types.py --check`
+4. `python scripts/export_openapi.py`
+5. `python scripts/check_api_types.py`
 6. `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
-7. `python scripts/check_version_consistency.py`
+7. `python scripts/check_versions.py`
 8. `python scripts/check_index_consistency.py`
 9. `cd frontend && npm ci && npm audit --omit=dev --audit-level=high && npm run lint && npm run typecheck && npm run test && npm run build`
-10. `python scripts/package_release.py knowledge_workspace_release.zip`
-11. `python scripts/verify_release.py knowledge_workspace_release.zip`
+10. `python scripts/package_release.py`
+11. `python scripts/verify_release_package.py dist/knowledge-workspace-*.zip`
 
 The same end-to-end gate can also be run with `python scripts/verify_all.py`.
 
@@ -98,7 +98,7 @@ Contract-specific checks now include:
 
 - backend pytest coverage for public OpenAPI route groups plus internal-only endpoint inventory
 - frontend Vitest coverage that every `apiPaths` route maps to an OpenAPI path
-- `export_openapi.py --check` and `generate_api_types.py --check` so generated artifacts drift is caught before release
+- `export_openapi.py` and `check_api_types.py` so generated artifacts drift is caught before release
 
 Frontend API usage rules:
 
@@ -107,7 +107,7 @@ Frontend API usage rules:
 - dangerous confirm flows should use `frontend/src/services/confirm.ts` so tests can stub them consistently
 
 Release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts.
-`python scripts/verify_release.py` now also extracts the archive to a temporary directory and re-checks the extracted tree, so archive contents and unzip results stay aligned.
+`python scripts/verify_release_package.py` resolves the versioned `dist/knowledge-workspace-*.zip`, extracts it to a temporary directory, and re-checks the extracted tree so archive contents and unzip results stay aligned.
 The release zip is a clean source package. `scripts/package_release.py` intentionally does not build or include `frontend/dist`; build frontend assets after extracting the package.
 
 ## Smoke

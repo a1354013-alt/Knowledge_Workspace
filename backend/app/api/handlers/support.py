@@ -29,6 +29,8 @@ from app.api.common import (
     maybe_link_source_item,
     normalize_related_item_ids,
     resolve_item_summary,
+    run_deindex_side_effect,
+    run_index_side_effect,
     safe_download_filename,
     safe_unlink,
     serialize_document,
@@ -99,27 +101,6 @@ logging = logging
 
 async def sync_document_index_in_background(document: dict) -> None:
     await asyncio.to_thread(sync_document_index, document)
-
-
-def run_index_side_effect(*, label: str, item_id: str, operation, on_error=None):
-    try:
-        operation()
-    except Exception as exc:
-        index_status, detail = classify_index_failure(exc)
-        if on_error is not None:
-            on_error(index_status, detail)
-        logger.warning("%s indexing failed for %s: %s", label, item_id, exc)
-        return f"{label} indexing failed: {exc}"
-    return None
-
-
-def run_deindex_side_effect(*, label: str, item_id: str, operation):
-    try:
-        operation()
-    except Exception as exc:
-        logger.warning("%s de-indexing failed for %s: %s", label, item_id, exc)
-        return f"{label} de-index failed: {exc}"
-    return None
 
 
 _safe_download_filename = safe_download_filename
