@@ -13,7 +13,7 @@ export interface AutoTestRunListItemResponse {
   created_at: string;
   id: string;
   project_name: string;
-  status: "queued" | "running" | "passed" | "failed";
+  status: "registered" | "queued" | "running" | "passed" | "failed";
   summary: string;
 }
 
@@ -30,7 +30,7 @@ export interface AutoTestRunResponse {
   solution_entry_id?: string;
   source_ref: string;
   source_type: string;
-  status: "queued" | "running" | "passed" | "failed";
+  status: "registered" | "queued" | "running" | "passed" | "failed";
   steps?: AutoTestStepResponse[];
   suggestion: string;
   summary: string;
@@ -172,18 +172,18 @@ export interface GitHubAnalyzeRequest {
 }
 
 export interface GitHubAnalyzeResponse {
-  analysis_scope?: "queued_local_intake_only";
+  analysis_scope?: "intake_only";
   execution_mode?: "simulated";
   message: string;
   remote_clone_performed?: boolean;
   repo_info: GitHubRepoInfoResponse;
   report_ready?: boolean;
   run_id: string;
-  status: "queued";
+  status: "registered";
 }
 
 export interface GitHubRepoInfoResponse {
-  analysis_scope?: "queued_local_intake_only";
+  analysis_scope?: "intake_only";
   clone_supported?: boolean;
   default_branch?: string;
   owner: string;

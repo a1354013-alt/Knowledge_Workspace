@@ -12,7 +12,7 @@ KNOWLEDGE_STATUS_VALUES = WORKFLOW_STATUS_VALUES
 LOGBOOK_STATUS_VALUES = WORKFLOW_STATUS_VALUES
 DOC_STATUS_VALUES = WORKFLOW_STATUS_VALUES
 PHOTO_STATUS_VALUES = WORKFLOW_STATUS_VALUES
-AUTOTEST_RUN_STATUS_VALUES = ("queued", "running", "passed", "failed")
+AUTOTEST_RUN_STATUS_VALUES = ("registered", "queued", "running", "passed", "failed")
 AUTOTEST_STEP_STATUS_VALUES = ("queued", "running", "passed", "failed", "skipped", "unavailable")
 AUTOTEST_STATUS_VALUES = AUTOTEST_RUN_STATUS_VALUES
 
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS autotest_runs (
     run_id TEXT PRIMARY KEY,
     source_type TEXT NOT NULL,
     source_ref TEXT NOT NULL,
-    execution_mode TEXT NOT NULL DEFAULT 'real',
+    execution_mode TEXT NOT NULL DEFAULT 'simulated',
     project_type_detected TEXT NOT NULL DEFAULT '',
     working_directory TEXT NOT NULL DEFAULT '',
     project_name TEXT NOT NULL DEFAULT '',

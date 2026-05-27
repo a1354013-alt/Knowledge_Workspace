@@ -105,13 +105,19 @@
           <div class="result-box">
             <h3>Execution</h3>
             <p class="muted">
-              Mode: {{ selectedRun.execution_mode || '-' }}
+              Mode: {{ selectedRunMode }}
             </p>
             <p
-              v-if="selectedRun.execution_mode === 'real'"
+              v-if="selectedRunMode === 'real'"
               class="warning-text"
             >
               Real mode executes commands from uploaded projects. Use only with trusted local projects.
+            </p>
+            <p
+              v-if="selectedRunIsGitHubIntakeOnly"
+              class="muted"
+            >
+              GitHub analyze is currently intake-only registration. This run is not queued for clone/test execution.
             </p>
             <p class="muted">
               Failed reason: {{ selectedRun.failed_reason || '-' }}
@@ -275,6 +281,11 @@ const AUTO_TEST_POLL_TIMEOUT_MS = 5 * 60 * 1000
 const canExportSelectedRun = computed(() => {
   const status = selectedRun.value?.status
   return status === 'passed' || status === 'failed'
+})
+const selectedRunMode = computed(() => selectedRun.value?.execution_mode || 'simulated')
+const selectedRunIsGitHubIntakeOnly = computed(() => {
+  const run = selectedRun.value
+  return run?.source_type === 'github_repo' && run?.status === 'registered'
 })
 const aiFixPromptText = computed(() => {
   const run = selectedRun.value

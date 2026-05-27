@@ -185,4 +185,34 @@ describe('AutoTestPanel flows', () => {
     expect(clipboardWrite).toHaveBeenCalledWith('Fix the failing test\n\nRe-run pytest after the fix')
     expect(wrapper.text()).toContain('Real mode executes commands from uploaded projects. Use only with trusted local projects.')
   })
+
+  it('renders registered GitHub intake-only runs without implying queued execution', async () => {
+    const wrapper = mount(AutoTestPanel, { global: { stubs: PrimeStubs } })
+    const vm = wrapper.vm as any
+    vm.selectedRun = {
+      id: 'github-registered',
+      source_type: 'github_repo',
+      source_ref: 'https://github.com/example/repo',
+      execution_mode: undefined,
+      project_type_detected: '',
+      working_directory: '',
+      project_name: 'repo',
+      project_type: 'github',
+      status: 'registered',
+      summary: 'GitHub repository registered for intake-only analysis metadata. It is not queued for execution.',
+      suggestion: '',
+      prompt_output: '',
+      failed_reason: '',
+      problem_entry_id: '',
+      solution_entry_id: '',
+      created_at: '2026-05-08T00:00:00Z',
+      steps: [],
+      timeline: [],
+    }
+    await vm.$nextTick()
+
+    expect(wrapper.text()).toContain('Mode: simulated')
+    expect(wrapper.text()).toContain('intake-only registration')
+    expect(wrapper.text()).toContain('not queued for clone/test execution')
+  })
 })

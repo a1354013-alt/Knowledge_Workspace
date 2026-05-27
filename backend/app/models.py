@@ -10,10 +10,10 @@ ROLE_VALUES = ("owner",)
 WORKFLOW_STATUS_VALUES = ("draft", "reviewed", "verified", "archived")
 SOURCE_TYPE_VALUES = ("manual", "document-derived", "autotest-derived")
 PUBLIC_SOURCE_TYPE_VALUES = ("knowledge", "logbook", "prompt", "document", "photo")
-AUTOTEST_RUN_STATUS_VALUES = ("queued", "running", "passed", "failed")
+AUTOTEST_RUN_STATUS_VALUES = ("registered", "queued", "running", "passed", "failed")
 AUTOTEST_STEP_STATUS_VALUES = ("queued", "running", "passed", "failed", "skipped", "unavailable")
 
-AutoTestRunStatus = Literal["queued", "running", "passed", "failed"]
+AutoTestRunStatus = Literal["registered", "queued", "running", "passed", "failed"]
 AutoTestStepStatus = Literal["queued", "running", "passed", "failed", "skipped", "unavailable"]
 AutoTestExecutionMode = Literal["real", "simulated"]
 AutoTestExportFormat = Literal["md", "html"]
@@ -366,7 +366,7 @@ class AutoTestRunResponse(StrictModel):
     id: str
     source_type: str
     source_ref: str
-    execution_mode: AutoTestExecutionMode = "real"
+    execution_mode: AutoTestExecutionMode = "simulated"
     project_type_detected: str = ""
     working_directory: str = ""
     project_name: str = ""
@@ -444,14 +444,14 @@ class GitHubRepoInfoResponse(StrictModel):
     default_branch: str = ""
     provider: str = "github"
     clone_supported: bool = False
-    analysis_scope: Literal["queued_local_intake_only"] = "queued_local_intake_only"
+    analysis_scope: Literal["intake_only"] = "intake_only"
 
 
 class GitHubAnalyzeResponse(StrictModel):
     run_id: str
-    status: Literal["queued"]
+    status: Literal["registered"]
     execution_mode: Literal["simulated"] = "simulated"
-    analysis_scope: Literal["queued_local_intake_only"] = "queued_local_intake_only"
+    analysis_scope: Literal["intake_only"] = "intake_only"
     remote_clone_performed: bool = False
     report_ready: bool = False
     message: str

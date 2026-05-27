@@ -14,6 +14,7 @@ PHOTO_STATUS_VALUES = schema.PHOTO_STATUS_VALUES
 AUTOTEST_STATUS_VALUES = schema.AUTOTEST_STATUS_VALUES
 AUTOTEST_RUN_STATUS_VALUES = schema.AUTOTEST_RUN_STATUS_VALUES
 AUTOTEST_STEP_STATUS_VALUES = schema.AUTOTEST_STEP_STATUS_VALUES
+AUTOTEST_EXECUTION_MODE_VALUES = ("real", "simulated")
 INDEX_STATUS_VALUES = ("pending", "indexed", "failed", "unavailable")
 
 
@@ -26,3 +27,10 @@ def int_or_zero(value: Any) -> int:
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def normalize_autotest_execution_mode(value: Any) -> str:
+    normalized = str(value or "").strip().lower()
+    if normalized == "real":
+        return "real"
+    return "simulated"

@@ -50,7 +50,7 @@ graph TD
 
 ### AutoTest
 
-- upload `.zip` projects or register GitHub repos for queued local analysis intake
+- upload `.zip` projects or register GitHub repos for intake-only analysis registration
 - simulated mode by default for demos, CI, and safe reproducibility
 - real mode is opt-in behind `AUTOTEST_MODE=real` plus `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`, and uses fixed timeouts, `shell=False`, output limits, path sanitization, symlink/path-escape checks, and sensitive env scrubbing
 - backend is now split into:
@@ -375,7 +375,7 @@ Status meanings:
 - `api/handlers/support.py` is a compatibility export layer, not the preferred place for new handler dependencies
 - AutoTest real mode is constrained local trusted-workspace subprocess execution, not a hardened sandbox
 - AutoTest uses an in-process background worker, not a durable external queue; backend process crashes can interrupt active jobs
-- GitHub analyze is currently a queue-intake flow only: validated URL intake plus queued local-analysis metadata, not a remote clone-and-run executor or full repository scan
+- GitHub analyze is currently an intake-only flow: validated URL intake plus `registered` local-analysis metadata, not a remote clone-and-run executor, full repository scan, or real execution queue entry
 - built-in vector search uses deterministic lightweight hash embeddings for demos/tests; it is not a production semantic retrieval model
 - Chroma emits third-party deprecation warnings in tests
 - frontend verification should be run with Node `20` to match CI

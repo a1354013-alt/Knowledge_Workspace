@@ -168,7 +168,7 @@ It should not infer success/failure from missing fields or command text alone.
 - real mode tasks fail if they exceed the configured backend command timeout
 - timeline/log updates currently use polling; SSE can be added later without changing the run contract
 - a process crash can interrupt an active worker, so a future queue should recover or requeue interrupted runs
-- GitHub analyze is still URL intake and queued local-analysis registration, not a full remote clone-and-run path or complete repository scan
+- GitHub analyze is URL intake plus `registered` intake-only metadata, not a queued execution job, remote clone-and-run path, or complete repository scan
 - report export is generated on demand rather than persisted as a versioned artifact
 
 ## Interview Demo Flow

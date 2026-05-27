@@ -307,8 +307,8 @@ def analyze_github_repo(payload: GitHubAnalyzeRequest, current_user: dict) -> Gi
     repo_info_data = get_repo_info(repo_url)
     run_id = str(uuid.uuid4())
     summary = (
-        "GitHub repository registered for queued local analysis intake. "
-        "Remote clone, remote test execution, and full repository scan are not performed."
+        "GitHub repository registered for intake-only analysis metadata. "
+        "It is not queued for execution; remote clone, remote test execution, and full repository scan are not performed."
     )
     created = autotest_repository.create_run(
         run_id=run_id,
@@ -319,7 +319,7 @@ def analyze_github_repo(payload: GitHubAnalyzeRequest, current_user: dict) -> Gi
         working_directory="",
         project_name=str(repo_info_data["repo"]),
         project_type="github",
-        status="queued",
+        status="registered",
         summary=summary,
         suggestion="",
         prompt_output="",
@@ -332,9 +332,9 @@ def analyze_github_repo(payload: GitHubAnalyzeRequest, current_user: dict) -> Gi
     repo_info = GitHubRepoInfoResponse(**repo_info_data)
     return GitHubAnalyzeResponse(
         run_id=run_id,
-        status="queued",
+        status="registered",
         execution_mode="simulated",
-        analysis_scope="queued_local_intake_only",
+        analysis_scope="intake_only",
         remote_clone_performed=False,
         report_ready=False,
         message=summary,

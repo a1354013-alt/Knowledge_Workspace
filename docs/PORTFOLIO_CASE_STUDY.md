@@ -131,7 +131,7 @@ Fix:
 
 - `legacy_main.py` still owns part of the document, knowledge, logbook, photo, prompt, and system surface
 - AutoTest real mode is process-constrained rather than sandbox-isolated
-- GitHub analyze is a validated URL intake plus queued flow, not a full remote clone-and-run executor
+- GitHub analyze is a validated URL intake plus `registered` intake-only flow, not a full remote clone-and-run executor
 - built-in retrieval is deterministic lightweight embedding for demo/test stability, not production-grade semantic understanding
 - Chroma still emits third-party deprecation warnings in tests
 

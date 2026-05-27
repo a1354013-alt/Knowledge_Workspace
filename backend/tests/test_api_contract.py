@@ -92,3 +92,20 @@ def test_public_openapi_endpoints_are_present_and_internal_endpoints_are_documen
 
     for path in INTERNAL_ONLY_ENDPOINTS:
         assert path in available_paths, f"internal endpoint missing from OpenAPI inventory: {path}"
+
+
+def test_autotest_openapi_and_generated_types_reflect_registered_intake_only_contract(client: TestClient):
+    schema = client.get("/openapi.json").json()
+    autotest_run_status = schema["components"]["schemas"]["AutoTestRunResponse"]["properties"]["status"]["enum"]
+    assert "registered" in autotest_run_status
+
+    autotest_execution_mode = schema["components"]["schemas"]["AutoTestRunResponse"]["properties"]["execution_mode"]
+    assert autotest_execution_mode["default"] == "simulated"
+
+    github_analyze = schema["components"]["schemas"]["GitHubAnalyzeResponse"]["properties"]
+    assert github_analyze["status"]["const"] == "registered"
+    assert github_analyze["analysis_scope"]["const"] == "intake_only"
+
+    generated_types = GENERATED_TYPES_PATH.read_text(encoding="utf-8")
+    assert 'status: "registered";' in generated_types
+    assert 'analysis_scope?: "intake_only";' in generated_types

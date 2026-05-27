@@ -8,11 +8,18 @@ from app.repositories.repository_utils import (
     AUTOTEST_STATUS_VALUES,
     AUTOTEST_STEP_STATUS_VALUES,
     int_or_zero,
+    normalize_autotest_execution_mode,
     utc_now_iso,
 )
 
 
 class AutoTestPersistenceRepositoryMixin:
+    @staticmethod
+    def _normalize_autotest_run_row(row: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(row)
+        normalized["execution_mode"] = normalize_autotest_execution_mode(normalized.get("execution_mode"))
+        return normalized
+
     def add_autotest_run(
         self,
         run_id: str,
@@ -46,7 +53,7 @@ class AutoTestPersistenceRepositoryMixin:
                         run_id,
                         source_type,
                         source_ref,
-                        execution_mode,
+                        normalize_autotest_execution_mode(execution_mode),
                         project_type_detected,
                         working_directory,
                         project_name,
@@ -141,7 +148,10 @@ class AutoTestPersistenceRepositoryMixin:
         ):
             if key in updates:
                 columns.append(f"{key} = ?")
-                params.append(str(updates[key]))
+                if key == "execution_mode":
+                    params.append(normalize_autotest_execution_mode(updates[key]))
+                else:
+                    params.append(str(updates[key]))
         columns.append("updated_at = ?")
         params.append(str(updates.get("updated_at") or utc_now_iso()))
         params.append(run_id)
@@ -188,7 +198,7 @@ class AutoTestPersistenceRepositoryMixin:
                 "SELECT * FROM autotest_runs WHERE created_by = ? ORDER BY COALESCE(NULLIF(updated_at, ''), created_at) DESC, created_at DESC LIMIT ?",
                 (created_by, int(limit)),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [self._normalize_autotest_run_row(dict(row)) for row in rows]
 
     def list_unfinished_autotest_runs(
         self, *, statuses: tuple[str, ...] = ("queued", "running")
@@ -201,7 +211,7 @@ class AutoTestPersistenceRepositoryMixin:
                 f"SELECT * FROM autotest_runs WHERE status IN ({placeholders}) ORDER BY COALESCE(NULLIF(updated_at, ''), created_at) ASC, created_at ASC",
                 tuple(statuses),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [self._normalize_autotest_run_row(dict(row)) for row in rows]
 
     def get_autotest_run(self, *, run_id: str, created_by: str) -> dict[str, Any] | None:
         with self._connection() as conn:
@@ -209,7 +219,7 @@ class AutoTestPersistenceRepositoryMixin:
                 "SELECT * FROM autotest_runs WHERE run_id = ? AND created_by = ?",
                 (run_id, created_by),
             ).fetchone()
-        return dict(row) if row else None
+        return self._normalize_autotest_run_row(dict(row)) if row else None
 
     def list_autotest_steps(self, run_id: str) -> list[dict[str, Any]]:
         with self._connection() as conn:

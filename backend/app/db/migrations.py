@@ -16,6 +16,111 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _normalize_autotest_execution_mode_sql(cursor: sqlite3.Cursor) -> None:
+    cursor.execute(
+        """
+        UPDATE autotest_runs
+        SET execution_mode = CASE
+            WHEN lower(trim(COALESCE(execution_mode, ''))) = 'real' THEN 'real'
+            ELSE 'simulated'
+        END
+        WHERE execution_mode IS NULL
+           OR trim(COALESCE(execution_mode, '')) = ''
+           OR lower(trim(COALESCE(execution_mode, ''))) NOT IN ('real', 'simulated')
+        """
+    )
+
+
+def _autotest_execution_mode_default_is_simulated(cursor: sqlite3.Cursor) -> bool:
+    cursor.execute("PRAGMA table_info(autotest_runs)")
+    for row in cursor.fetchall():
+        if row[1] == "execution_mode":
+            default_value = str(row[4] or "").strip().strip("'\"").lower()
+            return default_value == "simulated"
+    return False
+
+
+def _rebuild_autotest_runs_table(cursor: sqlite3.Cursor) -> None:
+    cursor.execute("PRAGMA foreign_keys = OFF")
+    cursor.execute(
+        """
+        CREATE TABLE autotest_runs__migrated (
+            run_id TEXT PRIMARY KEY,
+            source_type TEXT NOT NULL,
+            source_ref TEXT NOT NULL,
+            execution_mode TEXT NOT NULL DEFAULT 'simulated',
+            project_type_detected TEXT NOT NULL DEFAULT '',
+            working_directory TEXT NOT NULL DEFAULT '',
+            project_name TEXT NOT NULL DEFAULT '',
+            project_type TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'queued',
+            summary TEXT NOT NULL DEFAULT '',
+            suggestion TEXT NOT NULL DEFAULT '',
+            prompt_output TEXT NOT NULL DEFAULT '',
+            failed_reason TEXT NOT NULL DEFAULT '',
+            timeline_json TEXT NOT NULL DEFAULT '',
+            problem_entry_id TEXT NOT NULL DEFAULT '',
+            solution_entry_id TEXT NOT NULL DEFAULT '',
+            created_by TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    cursor.execute(
+        """
+        INSERT INTO autotest_runs__migrated (
+            run_id,
+            source_type,
+            source_ref,
+            execution_mode,
+            project_type_detected,
+            working_directory,
+            project_name,
+            project_type,
+            status,
+            summary,
+            suggestion,
+            prompt_output,
+            failed_reason,
+            timeline_json,
+            problem_entry_id,
+            solution_entry_id,
+            created_by,
+            created_at,
+            updated_at
+        )
+        SELECT
+            run_id,
+            source_type,
+            source_ref,
+            CASE
+                WHEN lower(trim(COALESCE(execution_mode, ''))) = 'real' THEN 'real'
+                ELSE 'simulated'
+            END,
+            project_type_detected,
+            working_directory,
+            project_name,
+            project_type,
+            status,
+            summary,
+            suggestion,
+            prompt_output,
+            failed_reason,
+            timeline_json,
+            problem_entry_id,
+            solution_entry_id,
+            created_by,
+            created_at,
+            updated_at
+        FROM autotest_runs
+        """
+    )
+    cursor.execute("DROP TABLE autotest_runs")
+    cursor.execute("ALTER TABLE autotest_runs__migrated RENAME TO autotest_runs")
+    cursor.execute("PRAGMA foreign_keys = ON")
+
+
 def migrate_item_links_table(cursor: sqlite3.Cursor) -> None:
     # Older versions used a generic 'related' link_type; normalize it to 'references'.
     cursor.execute(
@@ -318,7 +423,7 @@ def migrate_autotest_tables(cursor: sqlite3.Cursor) -> None:
     cursor.execute("PRAGMA table_info(autotest_runs)")
     run_columns = {row[1] for row in cursor.fetchall()}
     run_migrations = {
-        "execution_mode": "ALTER TABLE autotest_runs ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'real'",
+        "execution_mode": "ALTER TABLE autotest_runs ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'simulated'",
         "project_type_detected": "ALTER TABLE autotest_runs ADD COLUMN project_type_detected TEXT NOT NULL DEFAULT ''",
         "working_directory": "ALTER TABLE autotest_runs ADD COLUMN working_directory TEXT NOT NULL DEFAULT ''",
         "project_name": "ALTER TABLE autotest_runs ADD COLUMN project_name TEXT NOT NULL DEFAULT ''",
@@ -346,10 +451,13 @@ def migrate_autotest_tables(cursor: sqlite3.Cursor) -> None:
         WHERE status IS NULL OR status IN ('', 'unknown')
         """
     )
+    _normalize_autotest_execution_mode_sql(cursor)
     if "project_name" in run_columns:
         cursor.execute("UPDATE autotest_runs SET project_name = source_ref WHERE project_name = ''")
     cursor.execute("UPDATE autotest_runs SET created_by = 'owner' WHERE created_by = ''")
     cursor.execute("UPDATE autotest_runs SET updated_at = created_at WHERE updated_at = ''")
+    if not _autotest_execution_mode_default_is_simulated(cursor):
+        _rebuild_autotest_runs_table(cursor)
 
     cursor.execute("PRAGMA table_info(autotest_steps)")
     step_columns = {row[1] for row in cursor.fetchall()}

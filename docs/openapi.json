@@ -56,6 +56,7 @@
           },
           "status": {
             "enum": [
+              "registered",
               "queued",
               "running",
               "passed",
@@ -87,7 +88,7 @@
             "type": "string"
           },
           "execution_mode": {
-            "default": "real",
+            "default": "simulated",
             "enum": [
               "real",
               "simulated"
@@ -142,6 +143,7 @@
           },
           "status": {
             "enum": [
+              "registered",
               "queued",
               "running",
               "passed",
@@ -857,8 +859,8 @@
         "additionalProperties": false,
         "properties": {
           "analysis_scope": {
-            "const": "queued_local_intake_only",
-            "default": "queued_local_intake_only",
+            "const": "intake_only",
+            "default": "intake_only",
             "title": "Analysis Scope"
           },
           "execution_mode": {
@@ -888,7 +890,7 @@
             "type": "string"
           },
           "status": {
-            "const": "queued",
+            "const": "registered",
             "title": "Status"
           }
         },
@@ -905,8 +907,8 @@
         "additionalProperties": false,
         "properties": {
           "analysis_scope": {
-            "const": "queued_local_intake_only",
-            "default": "queued_local_intake_only",
+            "const": "intake_only",
+            "default": "intake_only",
             "title": "Analysis Scope"
           },
           "clone_supported": {

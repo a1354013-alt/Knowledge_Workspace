@@ -461,11 +461,70 @@ def test_autotest_run_returns_queued_response_before_background_execution(
     assert response.status_code == 202, response.text
     payload = response.json()
     assert payload["status"] == "queued"
+    assert payload["execution_mode"] == "simulated"
     assert "queued in simulated mode" in payload["summary"].lower()
     assert payload["steps"]
     assert all(step["status"] == "queued" for step in payload["steps"])
     assert scheduled
     assert scheduled[0]["run_id"] == payload["id"]
+
+
+def test_autotest_run_detail_falls_back_to_simulated_for_missing_execution_mode(
+    app_module, client: TestClient, auth_headers: dict[str, str]
+):
+    run_id = "legacy-missing-mode"
+    with app_module.db._connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO autotest_runs (
+                run_id,
+                source_type,
+                source_ref,
+                execution_mode,
+                project_type_detected,
+                working_directory,
+                project_name,
+                project_type,
+                status,
+                summary,
+                suggestion,
+                prompt_output,
+                failed_reason,
+                timeline_json,
+                problem_entry_id,
+                solution_entry_id,
+                created_by,
+                created_at,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                run_id,
+                "zip_upload",
+                "legacy.zip",
+                "",
+                "",
+                "",
+                "Legacy",
+                "zip",
+                "failed",
+                "legacy row",
+                "",
+                "",
+                "legacy failure",
+                "",
+                "",
+                "",
+                "owner",
+                "2026-05-08T00:00:00+00:00",
+                "2026-05-08T00:00:00+00:00",
+            ),
+        )
+        conn.commit()
+
+    response = client.get(f"/api/autotest/runs/{run_id}", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["execution_mode"] == "simulated"
 
 
 def test_set_timeline_item_can_clear_message(app_module):
@@ -717,4 +776,70 @@ def test_autotest_migration_backfills_updated_at_for_legacy_rows(tmp_path, monke
     migrated = DocumentDatabase(str(Path(db_path)))
     run = migrated.get_autotest_run(run_id="legacy-run", created_by="owner")
     assert run is not None
+    assert run["execution_mode"] == "simulated"
     assert run["updated_at"] == "2026-05-08T00:00:00+00:00"
+
+
+def test_autotest_migration_normalizes_invalid_execution_mode_and_schema_default(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEFAULT_OWNER_PASSWORD", "OwnerPass123!")
+    db_path = tmp_path / "legacy-autotest-invalid-mode.db"
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE autotest_runs (
+            run_id TEXT PRIMARY KEY,
+            source_type TEXT NOT NULL,
+            source_ref TEXT NOT NULL,
+            execution_mode TEXT NOT NULL DEFAULT 'real',
+            project_type_detected TEXT NOT NULL DEFAULT '',
+            working_directory TEXT NOT NULL DEFAULT '',
+            project_name TEXT NOT NULL DEFAULT '',
+            project_type TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'queued',
+            summary TEXT NOT NULL DEFAULT '',
+            suggestion TEXT NOT NULL DEFAULT '',
+            prompt_output TEXT NOT NULL DEFAULT '',
+            failed_reason TEXT NOT NULL DEFAULT '',
+            timeline_json TEXT NOT NULL DEFAULT '',
+            problem_entry_id TEXT NOT NULL DEFAULT '',
+            solution_entry_id TEXT NOT NULL DEFAULT '',
+            created_by TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT ''
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE autotest_steps (
+            step_id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            command TEXT NOT NULL,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO autotest_runs (
+            run_id, source_type, source_ref, execution_mode, project_name, project_type, status, created_by, created_at, updated_at
+        ) VALUES ('legacy-invalid-mode', 'github_repo', 'https://github.com/example/repo', 'unexpected', 'repo', 'github', 'registered', 'owner', '2026-05-08T00:00:00+00:00', '')
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    from app.db import DocumentDatabase
+
+    migrated = DocumentDatabase(str(Path(db_path)))
+    run = migrated.get_autotest_run(run_id="legacy-invalid-mode", created_by="owner")
+    assert run is not None
+    assert run["execution_mode"] == "simulated"
+
+    with migrated._connection() as check_conn:
+        execution_mode_info = next(
+            row for row in check_conn.execute("PRAGMA table_info(autotest_runs)").fetchall() if row[1] == "execution_mode"
+        )
+        assert str(execution_mode_info[4]).strip("'\"") == "simulated"
