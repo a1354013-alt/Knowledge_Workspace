@@ -12,7 +12,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TIMEOUT_SECONDS = 180
 TAIL_LINE_COUNT = 40
-PYTEST_BASETEMP = ROOT / "backend" / ".pytest-tmp" / "wrapper-basetemp"
+DEFAULT_PYTEST_BASETEMP = ROOT / "backend" / ".pytest-tmp" / "wrapper-basetemp"
+PYTEST_BASETEMP = Path(
+    os.environ.get("KNOWLEDGE_WORKSPACE_PYTEST_BASETEMP", str(DEFAULT_PYTEST_BASETEMP))
+)
 
 
 def _tail(text: str, *, lines: int = TAIL_LINE_COUNT) -> str:
@@ -44,16 +47,29 @@ def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
             os.killpg(process.pid, signal.SIGKILL)
 
 
+def _resolve_pytest_basetemp() -> Path:
+    if PYTEST_BASETEMP != DEFAULT_PYTEST_BASETEMP:
+        return PYTEST_BASETEMP
+
+    # Nested/self-tests can invoke this wrapper from inside another pytest run.
+    # Give the child run its own basetemp so we do not delete the parent's temp dir.
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return PYTEST_BASETEMP.with_name(f"{PYTEST_BASETEMP.name}-{os.getpid()}")
+
+    return PYTEST_BASETEMP
+
+
 def main() -> int:
     timeout_seconds = int(
         os.environ.get("KNOWLEDGE_WORKSPACE_PYTEST_TIMEOUT", DEFAULT_TIMEOUT_SECONDS)
     )
-    command = [sys.executable, "-m", "pytest", "-q", "--basetemp", str(PYTEST_BASETEMP)]
+    pytest_basetemp = _resolve_pytest_basetemp()
+    command = [sys.executable, "-m", "pytest", "-q", "--basetemp", str(pytest_basetemp)]
     print(f"+ {' '.join(command)}")
     env = os.environ.copy()
-    if PYTEST_BASETEMP.exists():
-        shutil.rmtree(PYTEST_BASETEMP, ignore_errors=True)
-    PYTEST_BASETEMP.parent.mkdir(parents=True, exist_ok=True)
+    if pytest_basetemp.exists():
+        shutil.rmtree(pytest_basetemp, ignore_errors=True)
+    pytest_basetemp.parent.mkdir(parents=True, exist_ok=True)
     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
     preexec_fn = os.setsid if os.name != "nt" else None
     process = subprocess.Popen(

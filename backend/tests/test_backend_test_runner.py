@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 
 
-def test_run_backend_tests_returns_pytest_exit_code(monkeypatch):
+def test_run_backend_tests_returns_pytest_exit_code(monkeypatch, tmp_path):
     from scripts import run_backend_tests
 
     popen_calls: list[dict[str, object]] = []
@@ -23,6 +23,9 @@ def test_run_backend_tests_returns_pytest_exit_code(monkeypatch):
         popen_calls.append({"command": command, **kwargs})
         return FakeProcess()
 
+    monkeypatch.setattr(
+        run_backend_tests, "PYTEST_BASETEMP", tmp_path / "runner-basetemp"
+    )
     monkeypatch.setattr(run_backend_tests.subprocess, "Popen", fake_popen)
 
     assert run_backend_tests.main() == 3
@@ -30,7 +33,7 @@ def test_run_backend_tests_returns_pytest_exit_code(monkeypatch):
     assert popen_calls[0]["command"][:3] == [run_backend_tests.sys.executable, "-m", "pytest"]
 
 
-def test_run_backend_tests_timeout_returns_124_and_terminates(monkeypatch):
+def test_run_backend_tests_timeout_returns_124_and_terminates(monkeypatch, tmp_path):
     from scripts import run_backend_tests
 
     terminate_calls: list[int] = []
@@ -49,6 +52,9 @@ def test_run_backend_tests_timeout_returns_124_and_terminates(monkeypatch):
             self.returncode = -9
             return ("late stdout\n", "late stderr\n")
 
+    monkeypatch.setattr(
+        run_backend_tests, "PYTEST_BASETEMP", tmp_path / "runner-basetemp"
+    )
     monkeypatch.setattr(run_backend_tests.subprocess, "Popen", lambda *args, **kwargs: FakeProcess())
     monkeypatch.setattr(
         run_backend_tests,
