@@ -1,4 +1,6 @@
-from fastapi import Depends, HTTPException, status
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, Query, status
 
 from app.api.runtime import db
 from app.dependencies import get_current_user
@@ -14,7 +16,7 @@ async def global_search(
     tag: str = "",
     date_from: str = "",
     date_to: str = "",
-    limit: int = 200,
+    limit: Annotated[int, Query(ge=1, le=200)] = 200,
     current_user: dict = Depends(get_current_user),
 ) -> ResolveItemsResponse:
     """

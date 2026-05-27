@@ -1,6 +1,7 @@
 # Known Limitations
 
 - AutoTest real mode is constrained local trusted-workspace command execution, not a hardened sandbox. It requires `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1` and should not be used for untrusted projects.
+- `DockerSandboxRunner` is still a placeholder, so real mode must not be described as container-isolated or exposed as a public upload execution service.
 - `/api/autotest/run` uses an async in-process job runner. Jobs are durable in SQLite and visible through `GET /api/autotest/runs/{run_id}`, but a process crash can still interrupt an active in-memory worker; a future queue should recover or requeue interrupted runs.
 - Python dependency installation for uploaded projects is disabled in AutoTest real mode until a trusted sandbox policy is added.
 - The Vite build still emits a large-chunk warning for the PrimeVue core bundle. Manual vendor chunking is already in place; the next improvement step is route/component lazy loading instead of hiding the warning with a larger limit.

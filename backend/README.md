@@ -116,6 +116,7 @@ AutoTest real mode note:
 - `AUTOTEST_MODE=real` without `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1` is rejected
 - real mode is not a hardened sandbox
 - it executes commands from uploaded projects
+- `DockerSandboxRunner` is still a placeholder, so there is no finished container isolation yet
 - use it only with trusted local code inside a sandbox/container
 
 Text uploads:

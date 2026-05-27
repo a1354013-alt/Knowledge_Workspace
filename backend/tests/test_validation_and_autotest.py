@@ -44,9 +44,9 @@ def test_invalid_template_returns_400(client: TestClient, auth_headers: dict[str
     assert response.status_code == 400
 
 
-def test_missing_field_returns_400(client: TestClient):
+def test_missing_field_returns_422(client: TestClient):
     response = client.post("/api/login", json={"user_id": "owner"})
-    assert response.status_code == 400
+    assert response.status_code == 422
 
 
 def test_autotest_db_rejects_invalid_status(app_module):

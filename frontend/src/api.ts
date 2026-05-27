@@ -17,6 +17,41 @@ export const apiClient: AxiosInstance = axios.create({
   timeout: API_TIMEOUT_MS,
 })
 
+function formatDetail(detail: unknown): string | undefined {
+  if (typeof detail === 'string') {
+    const value = detail.trim()
+    return value || undefined
+  }
+  if (!Array.isArray(detail)) {
+    return undefined
+  }
+
+  const parts = detail
+    .map((item) => {
+      if (typeof item === 'string') {
+        return item.trim()
+      }
+      if (!item || typeof item !== 'object') {
+        return ''
+      }
+      const record = item as { loc?: unknown; msg?: unknown }
+      const message = typeof record.msg === 'string' ? record.msg.trim() : ''
+      const location = Array.isArray(record.loc)
+        ? record.loc
+            .map((part) => String(part).trim())
+            .filter(Boolean)
+            .join('.')
+        : ''
+      if (location && message) {
+        return `${location}: ${message}`
+      }
+      return message
+    })
+    .filter(Boolean)
+
+  return parts.length ? parts.join('; ') : undefined
+}
+
 // Request interceptor: attach auth token
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig & { skipAuth?: boolean }) => {
@@ -36,15 +71,19 @@ apiClient.interceptors.response.use(
   (error: AxiosError<ApiError>) => {
     const status = error.response?.status ?? 0
     const responseData = error.response?.data
-    const message = responseData?.message || error.message || 'Request failed.'
     const code = responseData?.code
     const details = responseData?.details
     const detail =
-      typeof details === 'string'
-        ? details
-        : typeof responseData?.detail === 'string'
-          ? responseData.detail
-          : message
+      formatDetail(responseData?.detail) ||
+      formatDetail(details) ||
+      (typeof responseData?.message === 'string' ? responseData.message.trim() || undefined : undefined) ||
+      error.message ||
+      'Request failed.'
+    const message =
+      (typeof responseData?.message === 'string' ? responseData.message.trim() || undefined : undefined) ||
+      formatDetail(responseData?.detail) ||
+      error.message ||
+      'Request failed.'
     const requestUrl = String(error.config?.url || '')
 
     if (error.code === 'ECONNABORTED' || String(error.message || '').toLowerCase().includes('timeout')) {
@@ -65,39 +104,6 @@ apiClient.interceptors.response.use(
         status: 401,
         code: code || 'unauthorized',
         message: 'Session expired. Please sign in again.',
-        details,
-        detail,
-      })
-    }
-
-    // Handle 500 Internal Server Error
-    if (status === 500) {
-      return Promise.reject({
-        status: 500,
-        code: code || 'server_error',
-        message: 'Server error occurred. Please try again later.',
-        details,
-        detail,
-      })
-    }
-
-    // Handle 503 Service Unavailable
-    if (status === 503) {
-      return Promise.reject({
-        status: 503,
-        code: code || 'service_unavailable',
-        message: 'Service temporarily unavailable. Please try again later.',
-        details,
-        detail,
-      })
-    }
-
-    // Handle 429 Too Many Requests (Rate Limiting)
-    if (status === 429) {
-      return Promise.reject({
-        status: 429,
-        code: code || 'rate_limited',
-        message: 'Too many requests. Please slow down and try again later.',
         details,
         detail,
       })

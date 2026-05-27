@@ -153,6 +153,7 @@ Recommended usage:
 - use `real` mode only on a local or isolated environment you control
 - use `real` mode only with trusted local projects
 - `real` mode is local trusted-workspace execution, not Docker/Podman isolation
+- do not expose `real` mode as a public multi-user upload feature while `DockerSandboxRunner` remains a placeholder
 - recommended future hardening direction:
   - Docker or Podman sandboxing
   - disposable workspace per run
@@ -283,7 +284,7 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 
 `python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, `python scripts/check_index_consistency.py`, release zip verification, and smoke.
 
-The release zip is a clean source package. `scripts/package_release.py` now writes `dist/knowledge-workspace-<version>.zip` by default, does not build or ship `frontend/dist`, and deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
+The release zip is a clean source package. `scripts/package_release.py` writes `dist/knowledge-workspace-<version>.zip` by default, does not build frontend assets unless `--build-frontend` is passed, and still does not ship `frontend/dist` in the final archive even when that staging build flag is used. The archive deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
 
 ## Knowledge Restore And Index Repair
 

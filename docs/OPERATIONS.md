@@ -19,5 +19,7 @@
 ## Release Packaging
 
 - `python scripts/package_release.py` writes `dist/knowledge-workspace-<version>.zip`
+- `python scripts/package_release.py --build-frontend` runs `npm ci` and `npm run build` inside the temporary staging tree for verification, then removes the build output before the source zip is created
 - `python scripts/verify_release_package.py dist/knowledge-workspace-*.zip` verifies the packaged archive and the extracted tree
 - the release package intentionally excludes runtime DB files, journals, caches, uploads, `node_modules`, `frontend/dist`, and temporary AutoTest/Chroma workdirs
+- the release artifact is therefore a clean source package; frontend assets are built after extraction, not bundled into the shipped zip

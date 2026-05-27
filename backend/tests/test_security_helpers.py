@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+from pathlib import Path
 
 
 def _reload_security_modules(monkeypatch):
@@ -46,3 +47,33 @@ def test_password_hash_rejects_invalid_formats():
 
     assert verify_password_hash("OwnerPass123!", "") is False
     assert verify_password_hash("OwnerPass123!", "pbkdf2_sha256$bad$abc$def") is False
+
+
+def test_safe_download_filename_removes_header_injection_and_path_separators():
+    from app.api.common import safe_download_filename
+
+    filename = safe_download_filename('..\r\n"..//report\\final.txt')
+
+    assert "\r" not in filename
+    assert "\n" not in filename
+    assert "/" not in filename
+    assert "\\" not in filename
+    assert '"' not in filename
+    assert filename.endswith(".txt")
+
+
+def test_safe_download_filename_falls_back_for_empty_values():
+    from app.api.common import safe_download_filename
+
+    assert safe_download_filename("") == "file"
+    assert safe_download_filename("\u0000\u0001\r\n") == "file"
+
+
+def test_safe_download_filename_truncates_while_preserving_extension():
+    from app.api.common import MAX_SAFE_DOWNLOAD_FILENAME_LENGTH, safe_download_filename
+
+    filename = safe_download_filename(f'{"a" * 400}.tar.gz')
+
+    assert len(filename) <= MAX_SAFE_DOWNLOAD_FILENAME_LENGTH
+    assert filename.endswith(".gz")
+    assert Path(filename).suffix == ".gz"

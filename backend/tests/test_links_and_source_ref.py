@@ -158,6 +158,181 @@ def test_restore_revision_resyncs_source_ref_link(monkeypatch, tmp_path):
         assert f"document:{doc_b}" not in derived_ids
 
 
+def test_source_type_change_to_derived_creates_link_without_source_ref_change(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    _create_document_for_user(main, doc_id="doc-derived", user_id="owner")
+
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
+        create = client.post(
+            "/api/knowledge/entries",
+            headers=headers,
+            json={
+                "title": "Manual entry",
+                "problem": "Problem",
+                "root_cause": "",
+                "solution": "Solution",
+                "tags": "",
+                "notes": "",
+                "status": "draft",
+                "source_type": "manual",
+                "source_ref": "document:doc-derived",
+                "related_item_ids": [],
+            },
+        )
+        assert create.status_code == 200, create.text
+        entry_id = client.get("/api/knowledge/entries", headers=headers).json()[0]["id"]
+
+        patch = client.patch(
+            f"/api/knowledge/entries/{entry_id}",
+            headers=headers,
+            json={"source_type": "document-derived"},
+        )
+        assert patch.status_code == 200, patch.text
+
+        links = client.get("/api/item-links", headers=headers, params={"item_id": f"knowledge:{entry_id}"})
+        assert links.status_code == 200, links.text
+        derived_ids = [
+            link["other_item"]["item_id"]
+            for link in links.json()["links"]
+            if link["link_type"] == "derived_from" and link["other_item"]
+        ]
+        assert derived_ids == ["document:doc-derived"]
+
+
+def test_source_type_change_to_manual_removes_link_without_source_ref_change(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    _create_document_for_user(main, doc_id="doc-manual", user_id="owner")
+
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
+        create = client.post(
+            "/api/knowledge/entries",
+            headers=headers,
+            json={
+                "title": "Derived entry",
+                "problem": "Problem",
+                "root_cause": "",
+                "solution": "Solution",
+                "tags": "",
+                "notes": "",
+                "status": "draft",
+                "source_type": "document-derived",
+                "source_ref": "document:doc-manual",
+                "related_item_ids": [],
+            },
+        )
+        assert create.status_code == 200, create.text
+        entry_id = client.get("/api/knowledge/entries", headers=headers).json()[0]["id"]
+
+        patch = client.patch(
+            f"/api/knowledge/entries/{entry_id}",
+            headers=headers,
+            json={"source_type": "manual"},
+        )
+        assert patch.status_code == 200, patch.text
+
+        links = client.get("/api/item-links", headers=headers, params={"item_id": f"knowledge:{entry_id}"})
+        assert links.status_code == 200, links.text
+        assert [
+            link
+            for link in links.json()["links"]
+            if link["link_type"] == "derived_from" and link["other_item"]
+        ] == []
+
+
+def test_source_type_same_derived_does_not_duplicate_existing_link(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    _create_document_for_user(main, doc_id="doc-stable", user_id="owner")
+
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
+        create = client.post(
+            "/api/knowledge/entries",
+            headers=headers,
+            json={
+                "title": "Stable derived entry",
+                "problem": "Problem",
+                "root_cause": "",
+                "solution": "Solution",
+                "tags": "",
+                "notes": "",
+                "status": "draft",
+                "source_type": "document-derived",
+                "source_ref": "document:doc-stable",
+                "related_item_ids": [],
+            },
+        )
+        assert create.status_code == 200, create.text
+        entry_id = client.get("/api/knowledge/entries", headers=headers).json()[0]["id"]
+
+        patch = client.patch(
+            f"/api/knowledge/entries/{entry_id}",
+            headers=headers,
+            json={"source_type": "document-derived"},
+        )
+        assert patch.status_code == 200, patch.text
+
+        links = client.get("/api/item-links", headers=headers, params={"item_id": f"knowledge:{entry_id}"})
+        assert links.status_code == 200, links.text
+        derived_ids = [
+            link["other_item"]["item_id"]
+            for link in links.json()["links"]
+            if link["link_type"] == "derived_from" and link["other_item"]
+        ]
+        assert derived_ids == ["document:doc-stable"]
+
+
+def test_restore_revision_resyncs_source_type_and_source_ref_link(monkeypatch, tmp_path):
+    main = load_app(monkeypatch, tmp_path)
+    _create_document_for_user(main, doc_id="restore-doc", user_id="owner")
+
+    with TestClient(main.app) as client:
+        headers = auth_headers(client)
+        create = client.post(
+            "/api/knowledge/entries",
+            headers=headers,
+            json={
+                "title": "Restore type entry",
+                "problem": "Problem",
+                "root_cause": "",
+                "solution": "Solution",
+                "tags": "",
+                "notes": "",
+                "status": "draft",
+                "source_type": "document-derived",
+                "source_ref": "document:restore-doc",
+                "related_item_ids": [],
+            },
+        )
+        assert create.status_code == 200, create.text
+        entry_id = client.get("/api/knowledge/entries", headers=headers).json()[0]["id"]
+
+        patch = client.patch(
+            f"/api/knowledge/entries/{entry_id}",
+            headers=headers,
+            json={"source_type": "manual", "change_note": "manual mode"},
+        )
+        assert patch.status_code == 200, patch.text
+
+        revision_id = client.get(f"/api/knowledge/{entry_id}/revisions", headers=headers).json()[0]["revision_id"]
+        restore = client.post(f"/api/knowledge/{entry_id}/revisions/{revision_id}/restore", headers=headers)
+        assert restore.status_code == 200, restore.text
+
+        restored = client.get("/api/knowledge/entries", headers=headers).json()[0]
+        assert restored["source_type"] == "document-derived"
+        assert restored["source_ref"] == "document:restore-doc"
+
+        links = client.get("/api/item-links", headers=headers, params={"item_id": f"knowledge:{entry_id}"})
+        assert links.status_code == 200, links.text
+        derived_ids = [
+            link["other_item"]["item_id"]
+            for link in links.json()["links"]
+            if link["link_type"] == "derived_from" and link["other_item"]
+        ]
+        assert derived_ids == ["document:restore-doc"]
+
+
 def test_item_links_requires_owned_item(monkeypatch, tmp_path):
     main = load_app(monkeypatch, tmp_path)
     _seed_other_user(main)

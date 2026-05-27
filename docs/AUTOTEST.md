@@ -91,6 +91,7 @@ Recommended usage:
 - use `simulated` on shared/dev machines
 - use `real` only on isolated local environments you control
 - use `real` only with trusted local projects
+- do not expose `real` mode for multi-user or public ZIP upload execution while container isolation is unfinished
 - future hardening direction:
   - Docker or Podman sandbox
   - no-network execution
@@ -161,6 +162,7 @@ It should not infer success/failure from missing fields or command text alone.
 ## Known Limitations
 
 - no container or VM isolation
+- `DockerSandboxRunner` is still a placeholder and intentionally raises `NotImplementedError`
 - AutoTest jobs run in an in-process background worker, not an external durable queue
 - a restart/crash is handled by stale-run recovery, but interrupted work is not resumed
 - real mode tasks fail if they exceed the configured backend command timeout

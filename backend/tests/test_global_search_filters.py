@@ -82,3 +82,21 @@ def test_global_search_mixed_type_filter_returns_only_requested_types(app_module
     assert response.status_code == 200, response.text
     item_types = {item["item_type"] for item in response.json()["items"]}
     assert item_types == {"knowledge", "prompt"}
+
+
+def test_global_search_accepts_limit_bounds(client, auth_headers):
+    low = client.get("/api/search", headers=auth_headers, params={"limit": 1})
+    default = client.get("/api/search", headers=auth_headers)
+    high = client.get("/api/search", headers=auth_headers, params={"limit": 200})
+
+    assert low.status_code == 200, low.text
+    assert default.status_code == 200, default.text
+    assert high.status_code == 200, high.text
+
+
+def test_global_search_rejects_limit_out_of_bounds(client, auth_headers):
+    zero = client.get("/api/search", headers=auth_headers, params={"limit": 0})
+    over = client.get("/api/search", headers=auth_headers, params={"limit": 201})
+
+    assert zero.status_code == 422, zero.text
+    assert over.status_code == 422, over.text

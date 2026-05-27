@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+import unicodedata
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +23,7 @@ from app.source_types import canonicalize_source_type
 
 logger = logging.getLogger("knowledge_workspace")
 OWNED_ITEM_PREFIXES = frozenset({"document", "photo", "autotest_run", "prompt", "logbook", "knowledge"})
+MAX_SAFE_DOWNLOAD_FILENAME_LENGTH = 180
 
 
 def serialize_me(current_user: dict) -> MeResponse:
@@ -387,15 +389,36 @@ def sync_source_ref_link(
         if prefix in OWNED_ITEM_PREFIXES:
             db.delete_links(from_item_id=str(from_item_id), to_item_id=old_ref, link_type="derived_from")
 
-    if new_ref != old_ref:
-        maybe_link_source_item(from_item_id=from_item_id, source_type=source_type, source_ref=new_ref, user_id=user_id)
+    maybe_link_source_item(from_item_id=from_item_id, source_type=source_type, source_ref=new_ref, user_id=user_id)
 
 
 def safe_download_filename(value: str) -> str:
-    name = str(value or "").replace("\r", "").replace("\n", "").strip()
-    if not name:
+    raw_name = str(value or "")
+    filtered = "".join(ch for ch in raw_name if not unicodedata.category(ch).startswith("C"))
+    normalized = filtered.replace("/", "-").replace("\\", "-").replace('"', "'").strip()
+    if not normalized:
         return "file"
-    return name.replace('"', "'")
+
+    candidate = Path(normalized).name.strip(" .")
+    if not candidate:
+        return "file"
+
+    suffix = Path(candidate).suffix
+    stem = candidate[: -len(suffix)] if suffix else candidate
+    safe_stem = stem.strip(" .") or "file"
+    safe_suffix = "".join(ch for ch in suffix if ch.isalnum() or ch in {".", "-", "_"}).strip(" .")
+    if safe_suffix and not safe_suffix.startswith("."):
+        safe_suffix = f".{safe_suffix}"
+
+    max_stem_length = MAX_SAFE_DOWNLOAD_FILENAME_LENGTH - len(safe_suffix)
+    if max_stem_length < 1:
+        safe_suffix = ""
+        max_stem_length = MAX_SAFE_DOWNLOAD_FILENAME_LENGTH
+    if len(safe_stem) > max_stem_length:
+        safe_stem = safe_stem[:max_stem_length].rstrip(" .") or "file"
+
+    output = f"{safe_stem}{safe_suffix}"
+    return output[:MAX_SAFE_DOWNLOAD_FILENAME_LENGTH] or "file"
 
 
 def guess_media_type(filename: str, default: str = "application/octet-stream") -> str:

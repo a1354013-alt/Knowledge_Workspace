@@ -131,6 +131,34 @@ def test_service_source_does_not_use_shell_true(app_module):
     assert "shell=True" not in source
 
 
+def test_real_autotest_defaults_to_simulated_mode(app_module):
+    app_module.autotest_service.settings.AUTOTEST_MODE = "simulated"
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = False
+
+    capabilities = app_module.autotest_service.get_autotest_capabilities()
+
+    assert capabilities.mode == "simulated"
+    assert capabilities.real_mode_requested is False
+    assert capabilities.real_mode_available is False
+    assert "No uploaded project commands will run" in capabilities.message
+
+
+def test_docker_sandbox_runner_is_explicit_placeholder():
+    from app.services.autotest.runners import DockerSandboxRunner, RunnerCommand
+
+    runner = DockerSandboxRunner()
+    assert runner.name == "docker-sandbox"
+    assert runner.trusted is False
+    assert runner.sandboxed is True
+
+    try:
+        runner.run(RunnerCommand(argv=["python", "--version"], cwd=Path("."), timeout_seconds=5))
+    except NotImplementedError as exc:
+        assert "placeholder" in str(exc).lower()
+    else:
+        raise AssertionError("Expected DockerSandboxRunner placeholder to reject execution.")
+
+
 def test_report_paths_are_sanitized(app_module, tmp_path: Path):
     base_dir = tmp_path / "extract"
     project_dir = base_dir / "project"

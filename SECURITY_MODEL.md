@@ -22,9 +22,9 @@ KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1
 
 If `AUTOTEST_MODE=real` is set without the explicit enable flag, the API rejects the run with `403`.
 
-AutoTest real mode is constrained command execution, not a hardened sandbox. Real mode should be run only inside an isolated local environment. It uses `shell=False`, fixed command timeouts, output truncation, sanitized report paths, and environment scrubbing, but those controls are not a full sandbox.
+AutoTest real mode is constrained command execution, not a hardened sandbox. Real mode should be run only inside an isolated local environment. It uses `shell=False`, fixed command timeouts, output truncation, sanitized report paths, and environment scrubbing, but those controls are not a full sandbox. `DockerSandboxRunner` is still a placeholder, so production-style container isolation is not finished yet.
 
-Do not treat guarded execution as safe for arbitrary public ZIP uploads. Real mode is appropriate for controlled/local inputs that you trust, not for exposing uploaded code execution to unknown internet users.
+Do not treat guarded execution as safe for arbitrary public ZIP uploads. Real mode is appropriate for controlled/local inputs that you trust, not for exposing uploaded code execution to unknown internet users or multi-user public services.
 
 If you need production-style execution, add all of the following:
 
