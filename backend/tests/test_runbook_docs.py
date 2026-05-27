@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 RUNBOOK_PATH = ROOT / "docs" / "RUNBOOK.md"
 FRONTEND_PACKAGE_JSON = ROOT / "frontend" / "package.json"
