@@ -87,7 +87,7 @@ async def handle_validation_error(_request: Request, exc: RequestValidationError
     except (AttributeError, TypeError, ValueError):
         errors = []
     return error_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         code="validation_error",
         message=message,
         details=errors,
