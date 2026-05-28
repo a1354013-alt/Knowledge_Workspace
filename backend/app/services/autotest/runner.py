@@ -6,7 +6,8 @@ import subprocess
 from pathlib import Path
 
 from app.context import settings
-from app.services.autotest.security import current_autotest_execution_mode
+from app.services.autotest.runners import DockerSandboxRunner, RunnerCommand
+from app.services.autotest.security import current_autotest_execution_mode, current_autotest_runner_mode
 from app.services.autotest.timeline import clamp_output
 
 logger = logging.getLogger("knowledge_workspace")
@@ -29,6 +30,16 @@ def _scrubbed_autotest_env(base_env: dict[str, str] | None = None) -> dict[str, 
 def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[int, str, str]:
     if not argv:
         raise ValueError("Missing command argv.")
+    if current_autotest_runner_mode() == "docker_sandbox":
+        result = DockerSandboxRunner().run(
+            RunnerCommand(
+                argv=argv,
+                cwd=cwd,
+                timeout_seconds=timeout_seconds,
+                artifact_dir=settings.AUTOTEST_ARTIFACT_DIR,
+            )
+        )
+        return result.exit_code, clamp_output(result.stdout or ""), clamp_output(result.stderr or "")
     env = _scrubbed_autotest_env()
     preexec_fn = None
     if os.name == "posix":

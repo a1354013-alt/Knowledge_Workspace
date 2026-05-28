@@ -6,25 +6,27 @@ Knowledge Workspace is a local-first portfolio tool. It is designed for a develo
 
 - The backend trusts the authenticated local owner account.
 - Uploaded documents and photos are treated as untrusted content.
-- AutoTest ZIP uploads are treated as untrusted code unless real mode is explicitly enabled and the runtime is isolated.
+- AutoTest ZIP uploads are treated as untrusted code unless local trusted mode is explicitly enabled for trusted inputs or Docker sandbox mode is used.
 - Do not expose this app directly to the public internet without adding hardened auth, malware scanning, network isolation, and resource controls.
 
 ## AutoTest Modes
 
-Safe simulated mode is the default. It extracts and inspects project ZIPs, creates deterministic reports, and does not execute arbitrary uploaded project code.
+Disabled mode is the default. It extracts and inspects project ZIPs, creates deterministic reports, and does not execute arbitrary uploaded project code.
 
-Real mode requires both settings:
+Local trusted mode requires both settings:
 
 ```env
-AUTOTEST_MODE=real
+AUTOTEST_MODE=local_trusted
 KW_AUTOTEST_REAL_MODE=1
 ```
 
-If `AUTOTEST_MODE=real` is set without the explicit enable flag, the API rejects the run with `403`.
+If `AUTOTEST_MODE=local_trusted` is set without the explicit enable flag, the API rejects the run with `403`.
 
-AutoTest real mode is constrained command execution, not a hardened sandbox. Real mode should be run only inside an isolated local environment. It uses `shell=False`, fixed command timeouts, output truncation, sanitized report paths, and environment scrubbing, but those controls are not a full sandbox. `DockerSandboxRunner` is still a placeholder, so production-style container isolation is not finished yet. Treat real mode as trusted local execution only.
+AutoTest local trusted mode is constrained command execution, not a hardened sandbox. Use it only inside an isolated local environment with projects you trust. It uses `shell=False`, fixed command timeouts, output truncation, sanitized report paths, and environment scrubbing, but those controls are not a full sandbox.
 
-Do not treat guarded execution as safe for arbitrary public ZIP uploads. Real mode is appropriate for controlled/local inputs that you trust, not for exposing uploaded code execution to unknown internet users or multi-user public services.
+Docker sandbox mode uses Docker command execution with copied isolated workspaces, artifact logs, fixed timeouts, network disabled by default, and CPU/memory flags where Docker supports them. It still depends on the host Docker daemon and image policy, so do not present it as a complete multi-tenant execution platform.
+
+Do not treat guarded execution as safe for arbitrary public ZIP uploads. Local trusted mode is appropriate for controlled/local inputs that you trust, not for exposing uploaded code execution to unknown internet users or multi-user public services.
 
 The current AutoTest worker is also in-process rather than a durable queue. If the backend process is interrupted, an active run can become stale/interrupted and is later marked failed during startup recovery instead of being resumed mid-flight.
 
@@ -42,7 +44,7 @@ If you need production-style execution, add all of the following:
 - Node install uses `npm ci --ignore-scripts --no-audit --no-fund`.
 - Node package scripts are limited to the fixed AutoTest steps: `build`, `test`, and `lint`.
 - Missing Node scripts are skipped instead of guessed.
-- Python dependency installation is disabled for uploaded projects. Python real mode can compile and run tests only when tests are detected.
+- Python dependency installation is disabled for uploaded projects. Python local trusted mode can compile and run tests only when tests are detected.
 - Every subprocess receives a timeout and capped stdout/stderr.
 
 ## ZIP Intake

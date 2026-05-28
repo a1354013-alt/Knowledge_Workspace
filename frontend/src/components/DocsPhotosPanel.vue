@@ -16,6 +16,13 @@
           >
             {{ docLoadMessage }}
           </p>
+          <p
+            v-if="searchStatusMessage"
+            class="index-banner"
+            :class="{ 'index-banner-ok': searchStatusReady }"
+          >
+            {{ searchStatusMessage }}
+          </p>
           <div class="row">
             <input
               ref="docInput"
@@ -386,7 +393,7 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
-import { del, patch, post } from '../api'
+import { del, get, patch, post } from '../api'
 import { apiPaths } from '../api/endpoints'
 import { confirmDanger } from '../services/confirm'
 import { downloadDocumentFile, downloadPhotoFile, previewDocumentFile, previewPhotoFile } from '../services/downloads'
@@ -396,6 +403,7 @@ import type {
   DocumentUpdateRequest,
   DocumentResponse,
   IndexRebuildResponse,
+  IndexStatusResponse,
   MessageResponse,
   PhotoResponse,
   PhotoUpdateRequest,
@@ -456,6 +464,25 @@ const docLoadMessage = computed(() => store.state.error.documents || '')
 const photoLoadMessage = computed(() => store.state.error.photos || '')
 const showDocReloadWarning = computed(() => store.state.status.documents === 'error' && documents.value.length > 0)
 const showPhotoReloadWarning = computed(() => store.state.status.photos === 'error' && photos.value.length > 0)
+const indexStatus = ref<IndexStatusResponse | null>(null)
+const searchStatusReady = computed(() => indexStatus.value?.provider?.index_mode === 'real_semantic_embedding')
+const searchStatusMessage = computed(() => {
+  const mode = indexStatus.value?.provider?.index_mode
+  if (mode === 'real_semantic_embedding') {
+    const provider = indexStatus.value?.provider.active_provider
+    return provider === 'ollama' ? 'Ollama semantic vector search is enabled.' : 'Real semantic vector search is enabled.'
+  }
+  if (mode === 'demo_hash_embedding') {
+    return 'Demo hash embeddings are enabled. This is deterministic fallback indexing, not production semantic search.'
+  }
+  if (mode === 'full_text_only') {
+    return 'Semantic indexing is not enabled; documents are available through full-text search.'
+  }
+  if (mode === 'vector_degraded') {
+    return 'Semantic indexing is unavailable right now; full-text search fallback is active.'
+  }
+  return ''
+})
 
 function openDocPicker() {
   docInput.value?.click()
@@ -478,6 +505,7 @@ function onPhotoSelected(event: Event) {
 async function loadDocuments() {
   loadingDocs.value = true
   try {
+    indexStatus.value = await get<IndexStatusResponse>(apiPaths.index.status)
     await store.refreshDocuments({ force: true })
     documents.value = store.state.lists.documents || []
   } catch (error: unknown) {
@@ -509,7 +537,13 @@ async function uploadDoc() {
     const response = await post<UploadDocumentResponse, FormData>(apiPaths.docs.upload, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-    toast.add({ severity: 'success', summary: 'Uploaded', detail: response.message || 'Document uploaded.', life: 3000 })
+    const degraded = response.vector_index_status === 'degraded' || response.vector_index_status === 'disabled'
+    toast.add({
+      severity: degraded ? 'warn' : 'success',
+      summary: degraded ? 'Uploaded with full-text fallback' : 'Uploaded',
+      detail: response.user_message || response.message || 'Document uploaded.',
+      life: 3500,
+    })
     selectedDoc.value = null
     if (docInput.value) {
       docInput.value.value = ''
@@ -834,6 +868,22 @@ async function deletePhoto(photo: PhotoResponse) {
 
 .inline-status-warning {
   font-weight: 600;
+}
+
+.index-banner {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #8a4b08;
+  font-size: 13px;
+}
+
+.index-banner-ok {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
 }
 
 .actions-inline {

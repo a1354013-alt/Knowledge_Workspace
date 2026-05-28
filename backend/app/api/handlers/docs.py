@@ -33,6 +33,7 @@ from app.utils import (
     validate_file_extension,
     validate_file_magic_bytes,
 )
+from app.vector_db import get_embedding_provider_descriptor
 
 
 def _safe_download_filename(value: str) -> str:
@@ -58,6 +59,50 @@ def _run_deindex_side_effect(*, label: str, item_id: str, operation):
 
 async def sync_document_index(document: dict) -> None:
     await asyncio.to_thread(_sync_document_index_impl, document)
+
+
+def _upload_indexing_payload(*, index_status: str, detail: str = "") -> dict[str, str]:
+    if index_status == "indexed":
+        descriptor = get_embedding_provider_descriptor()
+        if descriptor.semantic_search_ready:
+            vector_status = "indexed"
+            message = "Document uploaded and indexed for full-text and semantic search."
+        elif descriptor.demo_mode:
+            vector_status = "degraded"
+            message = "Document uploaded. Demo hash embeddings are enabled; semantic search is not production-grade."
+        else:
+            vector_status = "disabled"
+            message = "Document uploaded. Semantic indexing is not enabled, and full-text search is available."
+        return {
+            "upload_status": "success",
+            "full_text_index_status": "indexed",
+            "vector_index_status": vector_status,
+            "degraded_reason": "" if vector_status == "indexed" else descriptor.message,
+            "user_message": message,
+            "message": message,
+        }
+    if index_status == "unavailable":
+        message = (
+            "Document uploaded. Semantic indexing is unavailable right now"
+            f" ({detail}), so full-text search is available."
+        )
+        return {
+            "upload_status": "success",
+            "full_text_index_status": "indexed",
+            "vector_index_status": "degraded",
+            "degraded_reason": detail,
+            "user_message": message,
+            "message": message,
+        }
+    message = "Document uploaded, but text indexing failed. The file is saved and needs attention."
+    return {
+        "upload_status": "success",
+        "full_text_index_status": "failed",
+        "vector_index_status": "failed",
+        "degraded_reason": detail,
+        "user_message": message,
+        "message": message,
+    }
 
 
 async def upload_document(
@@ -106,7 +151,7 @@ async def upload_document(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to persist document.")
 
     document = db.get_document(doc_id)
-    message = "Document uploaded and indexed."
+    indexing_payload = _upload_indexing_payload(index_status="indexed")
     if document:
         try:
             await sync_document_index(document)
@@ -121,14 +166,15 @@ async def upload_document(
                 last_error=detail,
             )
             logger.warning("Document indexing failed for %s: %s", doc_id, exc)
-            message = f"Document uploaded, but indexing failed: {exc}"
+            indexing_payload = _upload_indexing_payload(index_status=index_status, detail=detail)
         else:
             db.resolve_index_repair(item_id=item_id_from_parts("document", doc_id), action="index")
+            indexing_payload = _upload_indexing_payload(index_status="indexed")
         document = db.get_document(doc_id) or document
     logger.info("Uploaded document %s by %s", doc_id, current_user["sub"])
     return UploadDocumentResponse(
         **serialize_document(document).model_dump(),
-        message=message,
+        **indexing_payload,
     )
 
 

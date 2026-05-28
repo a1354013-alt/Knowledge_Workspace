@@ -16,7 +16,7 @@ vi.mock('../src/api', () => ({
 describe('ProjectHealthDashboard', () => {
   it('adapts optional generated fields into the dashboard view model', () => {
     const adapted = adaptDashboardHealth({
-      knowledge: { total: 1, by_status: { draft: 1, broken: 'bad' } },
+      knowledge: { total: 1, by_status: { draft: 1, broken: 'bad' } as unknown as Record<string, number> },
       logbook: { total: 0, with_solution: 0, promoted_to_knowledge: 0, resolution_rate: 0 },
       autotest: { total_runs: 0, passed: 0, failed: 0, pass_rate: 0 },
       documents: { total: 0, indexed: 0, pending: 0, failed_documents: 0, archived_documents: 0 },

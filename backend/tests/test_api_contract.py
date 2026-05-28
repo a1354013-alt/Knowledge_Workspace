@@ -116,6 +116,28 @@ def test_index_status_openapi_and_generated_types_include_excluded_state(client:
     index_status_enum = schema["components"]["schemas"]["IndexStatusItemResponse"]["properties"]["status"]["enum"]
     assert "excluded" in index_status_enum
 
+
+def test_openapi_exposes_runner_and_index_modes(client: TestClient):
+    schema = client.app.openapi()
+
+    capabilities = schema["components"]["schemas"]["AutoTestCapabilitiesResponse"]["properties"]
+    assert set(capabilities["runner_mode"]["enum"]) == {"disabled", "local_trusted", "docker_sandbox"}
+    assert "safety_note" in capabilities
+
+    provider = schema["components"]["schemas"]["EmbeddingProviderStatusResponse"]["properties"]
+    assert set(provider["index_mode"]["enum"]) == {
+        "full_text_only",
+        "demo_hash_embedding",
+        "real_semantic_embedding",
+        "vector_degraded",
+    }
+
+    upload = schema["components"]["schemas"]["UploadDocumentResponse"]["properties"]
+    assert "upload_status" in upload
+    assert "full_text_index_status" in upload
+    assert "vector_index_status" in upload
+    assert "user_message" in upload
+
     index_summary = schema["components"]["schemas"]["IndexStatusSummaryItem"]["properties"]
     assert "excluded" in index_summary
 

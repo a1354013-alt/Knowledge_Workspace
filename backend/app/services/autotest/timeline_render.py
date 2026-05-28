@@ -5,6 +5,7 @@ import logging
 
 from app.models import AutoTestRunResponse, AutoTestTimelineItemResponse
 from app.repositories.repository_utils import normalize_autotest_execution_mode
+from app.services.autotest.security import current_autotest_response_runner_mode
 from app.services.autotest.timeline_events import (
     TIMELINE_KEYS,
     TIMELINE_LABELS,
@@ -266,6 +267,7 @@ def serialize_autotest_run(run_row: dict, step_rows: list[dict]) -> AutoTestRunR
         source_type=run_row.get("source_type", ""),
         source_ref=run_row.get("source_ref", ""),
         execution_mode=normalize_autotest_execution_mode(run_row.get("execution_mode")),
+        runner_mode=current_autotest_response_runner_mode(),
         project_type_detected=run_row.get("project_type_detected", "") or run_row.get("project_type", "") or "",
         working_directory=run_row.get("working_directory", "") or "",
         project_name=run_row.get("project_name", "") or run_row.get("source_ref", ""),

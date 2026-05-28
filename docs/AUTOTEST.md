@@ -49,18 +49,18 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 
 ## Modes
 
-### `simulated`
+### `disabled`
 
 - default mode
 - safest option for CI and demos
 - does not execute real project commands
-- frontend/UI should describe this as the safe demo mode
-- queued/API responses explicitly report that simulated mode is active
+- frontend/UI should describe this as disabled execution mode
+- queued/API responses explicitly report that disabled mode is active
 - still creates a real run, timeline, and derived knowledge/logbook artifacts
 
-### `real`
+### `local_trusted`
 
-- must be explicitly enabled with `AUTOTEST_MODE=real` and `KW_AUTOTEST_REAL_MODE=1`
+- must be explicitly enabled with `AUTOTEST_MODE=local_trusted` and `KW_AUTOTEST_REAL_MODE=1`
 - extracts the uploaded ZIP
 - detects a Node/Python project root
 - executes commands from the uploaded project
@@ -72,13 +72,21 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
   - sensitive environment variable scrubbing
   - zip path traversal / absolute path / drive path / UNC path / symlink rejection
 
-## Real Mode Safety Boundary
+### `docker_sandbox`
 
-Real mode is not a container sandbox. Treat it as trusted-code local execution only.
+- enabled with `AUTOTEST_MODE=docker_sandbox`
+- runs commands through Docker without `shell=True`
+- copies source into an isolated artifact workspace before container execution
+- applies command timeout, CPU and memory flags where Docker supports them
+- writes stdout/stderr logs under the configured artifact directory
+- disables network by default; set `AUTOTEST_DOCKER_NETWORK=true` only when tests require it
+
+## Local Trusted Safety Boundary
+
+Local trusted mode is not a container sandbox. Treat it as trusted-code local execution only.
 It is a local trusted-workspace execution mode, not Docker isolation.
-`DockerSandboxRunner` is still a placeholder and intentionally not production-ready isolation.
 
-Do not accept arbitrary public ZIP uploads into real mode. Guarded execution is still host execution.
+Do not accept arbitrary public ZIP uploads into local trusted mode. Guarded execution is still host execution.
 
 Sensitive env vars are stripped when their names contain:
 
@@ -90,11 +98,11 @@ Sensitive env vars are stripped when their names contain:
 
 Recommended usage:
 
-- use `simulated` in CI
-- use `simulated` on shared/dev machines
-- use `real` only on isolated local environments you control
-- use `real` only with trusted local projects
-- do not expose `real` mode for multi-user or public ZIP upload execution while container isolation is unfinished
+- use `disabled` in CI
+- use `disabled` on shared/dev machines
+- use `local_trusted` only on isolated local environments you control
+- use `local_trusted` only with trusted local projects
+- use `docker_sandbox` when Docker is available and command execution should be containerized
 - future hardening direction:
   - Docker or Podman sandbox
   - no-network execution
@@ -164,12 +172,11 @@ It should not infer success/failure from missing fields or command text alone.
 
 ## Known Limitations
 
-- no container or VM isolation
-- `DockerSandboxRunner` is still a placeholder and intentionally raises `NotImplementedError`
+- Docker sandbox availability depends on the host Docker installation and image availability
 - AutoTest jobs run in an in-process background worker, not an external durable queue
 - a restart/crash is handled by stale-run recovery, but interrupted work is not resumed
 - if the backend restarts or the in-process worker disappears, runs can become interrupted/stale and are later marked failed by startup recovery rather than resumed in place
-- real mode tasks fail if they exceed the configured backend command timeout
+- local trusted and Docker sandbox tasks fail if they exceed the configured backend command timeout
 - timeline/log updates currently use polling; SSE can be added later without changing the run contract
 - a process crash can interrupt an active worker, so a future queue should recover or requeue interrupted runs
 - GitHub analyze is URL intake plus `registered` intake-only metadata, not a queued execution job, remote clone-and-run path, or complete repository scan
@@ -177,9 +184,9 @@ It should not infer success/failure from missing fields or command text alone.
 
 ## Interview Demo Flow
 
-1. Show AutoTest in `simulated` mode and explain why it is the default.
+1. Show AutoTest in `disabled` mode and explain why it is the default.
 2. Run a passing ZIP and inspect the timeline.
 3. Run a failing ZIP and point out `failed_reason` plus logbook creation.
 4. Promote the logbook entry and show dashboard metrics update.
-5. Explain that `real` mode exists, but only behind an explicit safety boundary.
+5. Explain that `local_trusted` and `docker_sandbox` exist with different safety boundaries.
 

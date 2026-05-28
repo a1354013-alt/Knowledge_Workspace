@@ -2,11 +2,15 @@
 /* Run: npm run generate:api-types */
 
 export interface AutoTestCapabilitiesResponse {
+  docker_sandbox_available?: boolean;
   message: string;
   mode: "real" | "simulated";
+  network_enabled?: boolean;
   real_mode_available: boolean;
   real_mode_enabled: boolean;
   real_mode_requested: boolean;
+  runner_mode: "disabled" | "local_trusted" | "docker_sandbox";
+  safety_note?: string;
 }
 
 export interface AutoTestRunListItemResponse {
@@ -27,6 +31,7 @@ export interface AutoTestRunResponse {
   project_type: string;
   project_type_detected?: string;
   prompt_output: string;
+  runner_mode?: "disabled" | "local_trusted" | "docker_sandbox";
   solution_entry_id?: string;
   source_ref: string;
   source_type: string;
@@ -106,7 +111,7 @@ export interface DashboardHealthResponse {
 }
 
 export interface DashboardKnowledgeMetrics {
-  by_status: Record<string, unknown>;
+  by_status: Record<string, number>;
   total: number;
 }
 
@@ -153,6 +158,7 @@ export interface EmbeddingProviderStatusResponse {
   configured_provider: string;
   demo_mode: boolean;
   details?: string[];
+  index_mode: "full_text_only" | "demo_hash_embedding" | "real_semantic_embedding" | "vector_degraded";
   message: string;
   semantic_search_ready: boolean;
   status: "ready" | "degraded" | "disabled";
@@ -222,7 +228,7 @@ export interface IndexStatusItemResponse {
 export interface IndexStatusResponse {
   failed_items?: IndexStatusItemResponse[];
   provider: EmbeddingProviderStatusResponse;
-  summary: Record<string, unknown>;
+  summary: Record<string, IndexStatusSummaryItem>;
 }
 
 export interface IndexStatusSummaryItem {
@@ -487,8 +493,10 @@ export interface TemplatesMetaResponse {
 
 export interface UploadDocumentResponse {
   category: string;
+  degraded_reason?: string;
   file_size: number;
   filename: string;
+  full_text_index_status?: "indexed" | "failed";
   id: string;
   index_error?: string;
   index_status?: "pending" | "indexed" | "failed" | "unavailable" | "excluded";
@@ -497,8 +505,11 @@ export interface UploadDocumentResponse {
   status?: "draft" | "reviewed" | "verified" | "archived";
   tags: string;
   updated_at: string;
+  upload_status?: "success" | "failed";
   uploaded_at: string;
   uploaded_by?: string | null;
+  user_message?: string;
+  vector_index_status?: "indexed" | "degraded" | "failed" | "disabled";
 }
 
 export interface UploadPhotoResponse {

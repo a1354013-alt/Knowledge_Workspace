@@ -16,6 +16,7 @@ AUTOTEST_STEP_STATUS_VALUES = ("queued", "running", "passed", "failed", "skipped
 AutoTestRunStatus = Literal["registered", "queued", "running", "passed", "failed"]
 AutoTestStepStatus = Literal["queued", "running", "passed", "failed", "skipped", "unavailable"]
 AutoTestExecutionMode = Literal["real", "simulated"]
+AutoTestRunnerMode = Literal["disabled", "local_trusted", "docker_sandbox"]
 AutoTestExportFormat = Literal["md", "html"]
 IndexItemType = Literal["document", "knowledge", "logbook", "photo", "prompt"]
 IndexStatusValue = Literal["pending", "indexed", "failed", "unavailable", "excluded"]
@@ -94,6 +95,11 @@ class DocumentResponse(StrictModel):
 
 class UploadDocumentResponse(DocumentResponse):
     message: str
+    upload_status: Literal["success", "failed"] = "success"
+    full_text_index_status: Literal["indexed", "failed"] = "indexed"
+    vector_index_status: Literal["indexed", "degraded", "failed", "disabled"] = "indexed"
+    degraded_reason: str = ""
+    user_message: str = ""
 
 
 class DocumentUpdateRequest(StrictModel):
@@ -367,6 +373,7 @@ class AutoTestRunResponse(StrictModel):
     source_type: str
     source_ref: str
     execution_mode: AutoTestExecutionMode = "simulated"
+    runner_mode: AutoTestRunnerMode = "disabled"
     project_type_detected: str = ""
     working_directory: str = ""
     project_name: str = ""
@@ -385,9 +392,13 @@ class AutoTestRunResponse(StrictModel):
 
 class AutoTestCapabilitiesResponse(StrictModel):
     mode: AutoTestExecutionMode
+    runner_mode: AutoTestRunnerMode
     real_mode_requested: bool
     real_mode_enabled: bool
     real_mode_available: bool
+    docker_sandbox_available: bool = False
+    network_enabled: bool = False
+    safety_note: str = ""
     message: str
 
 
@@ -395,6 +406,7 @@ class EmbeddingProviderStatusResponse(StrictModel):
     configured_provider: str
     active_provider: EmbeddingProviderKind
     status: Literal["ready", "degraded", "disabled"]
+    index_mode: Literal["full_text_only", "demo_hash_embedding", "real_semantic_embedding", "vector_degraded"]
     demo_mode: bool
     semantic_search_ready: bool
     message: str

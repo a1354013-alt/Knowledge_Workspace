@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+import requests
 
 from app.core.config import get_settings
 
@@ -19,6 +20,7 @@ logger = logging.getLogger("knowledge_workspace")
 _EMBEDDING_FUNCTION = None
 _COLLECTION = None
 _KB_COLLECTION = None
+_EMBEDDING_PROVIDER_KEY: tuple[str, str, str, float, bool] | None = None
 
 
 @dataclass(frozen=True)
@@ -94,18 +96,56 @@ class DemoHashEmbeddingProvider(BaseEmbeddingProvider):
 
 
 class OllamaEmbeddingProvider(BaseEmbeddingProvider):
-    descriptor = EmbeddingProviderDescriptor(
-        name="ollama",
-        kind="ollama",
-        demo_mode=False,
-        semantic_search_ready=False,
-        available=False,
-        message="Ollama embedding provider is not implemented yet in this runtime.",
-        details=("Placeholder interface only.",),
-    )
+    def __init__(self, *, model: str, base_url: str, timeout_seconds: float) -> None:
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+        self.timeout_seconds = float(timeout_seconds)
+        self.descriptor = EmbeddingProviderDescriptor(
+            name="ollama",
+            kind="ollama",
+            demo_mode=False,
+            semantic_search_ready=True,
+            available=True,
+            message=f"Ollama semantic embeddings are active with model '{self.model}'.",
+            details=(f"base_url={self.base_url}", f"timeout_seconds={self.timeout_seconds:g}"),
+        )
 
     def embedding_function(self):
-        raise NotImplementedError("Ollama embedding provider is a placeholder.")
+        provider = self
+
+        class OllamaEmbeddingFunction:
+            def name(self) -> str:
+                return f"knowledge-workspace-ollama-{provider.model}"
+
+            def is_legacy(self) -> bool:
+                return False
+
+            def default_space(self) -> str:
+                return "cosine"
+
+            def _embed_one(self, text: str) -> list[float]:
+                response = requests.post(
+                    f"{provider.base_url}/api/embeddings",
+                    json={"model": provider.model, "prompt": text},
+                    timeout=provider.timeout_seconds,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                embedding = payload.get("embedding")
+                if not isinstance(embedding, list) or not embedding:
+                    raise RuntimeError("Ollama embedding response did not include an embedding vector.")
+                return [float(value) for value in embedding]
+
+            def __call__(self, input: list[str]) -> list[list[float]]:
+                return [self._embed_one(text) for text in input]
+
+            def embed_documents(self, input: list[str]) -> list[list[float]]:
+                return self(input)
+
+            def embed_query(self, input: str) -> list[float]:
+                return self([input])[0]
+
+        return OllamaEmbeddingFunction()
 
 
 class SentenceTransformersEmbeddingProvider(BaseEmbeddingProvider):
@@ -141,6 +181,92 @@ class OpenAICompatibleEmbeddingProvider(BaseEmbeddingProvider):
 _EMBEDDING_PROVIDER: BaseEmbeddingProvider = DemoHashEmbeddingProvider()
 
 
+def _settings_provider_key() -> tuple[str, str, str, float, bool]:
+    settings = get_settings()
+    return (
+        str(settings.EMBEDDING_PROVIDER or "demo_hash").strip().lower(),
+        str(settings.EMBEDDING_MODEL or "nomic-embed-text").strip(),
+        str(settings.EMBEDDING_BASE_URL or "http://localhost:11434").strip().rstrip("/"),
+        float(settings.EMBEDDING_TIMEOUT_SECONDS),
+        bool(settings.EMBEDDING_FALLBACK_ENABLED),
+    )
+
+
+def _fallback_descriptor(*, configured: str, reason: str) -> EmbeddingProviderDescriptor:
+    demo = DemoHashEmbeddingProvider().descriptor
+    return EmbeddingProviderDescriptor(
+        name=configured,
+        kind=demo.kind,
+        demo_mode=demo.demo_mode,
+        semantic_search_ready=False,
+        available=demo.available,
+        message=f"{reason} Falling back to deterministic demo hash embeddings.",
+        details=demo.details,
+    )
+
+
+def _probe_ollama(base_url: str, timeout_seconds: float) -> tuple[bool, str]:
+    try:
+        response = requests.get(f"{base_url.rstrip('/')}/api/tags", timeout=timeout_seconds)
+        response.raise_for_status()
+        return True, ""
+    except Exception as exc:
+        return False, f"Ollama embedding provider is unavailable: {exc}"
+
+
+def _build_embedding_provider() -> BaseEmbeddingProvider:
+    provider_type, model, base_url, timeout_seconds, fallback_enabled = _settings_provider_key()
+    normalized = provider_type.replace("-", "_")
+    if normalized in {"demo_hash", "demo", "hash", "demo_fallback"}:
+        return DemoHashEmbeddingProvider()
+    if normalized == "ollama":
+        available, reason = _probe_ollama(base_url, timeout_seconds)
+        if available:
+            return OllamaEmbeddingProvider(model=model, base_url=base_url, timeout_seconds=timeout_seconds)
+        if fallback_enabled:
+            class FallbackDemoHashEmbeddingProvider(DemoHashEmbeddingProvider):
+                descriptor = _fallback_descriptor(configured="ollama", reason=reason)
+
+            return FallbackDemoHashEmbeddingProvider()
+        class UnavailableOllamaEmbeddingProvider(OllamaEmbeddingProvider):
+            def __init__(self) -> None:
+                self.descriptor = EmbeddingProviderDescriptor(
+                    name="ollama",
+                    kind="ollama",
+                    demo_mode=False,
+                    semantic_search_ready=False,
+                    available=False,
+                    message=reason,
+                    details=(f"base_url={base_url}", f"model={model}"),
+                )
+
+            def embedding_function(self):
+                raise RuntimeError(reason)
+
+        return UnavailableOllamaEmbeddingProvider()
+    if fallback_enabled:
+        class UnknownFallbackProvider(DemoHashEmbeddingProvider):
+            descriptor = _fallback_descriptor(
+                configured=provider_type,
+                reason=f"Unknown embedding provider '{provider_type}'.",
+            )
+
+        return UnknownFallbackProvider()
+    return DemoHashEmbeddingProvider()
+
+
+def _ensure_embedding_provider() -> BaseEmbeddingProvider:
+    global _EMBEDDING_PROVIDER, _EMBEDDING_PROVIDER_KEY, _EMBEDDING_FUNCTION, _COLLECTION, _KB_COLLECTION
+    key = _settings_provider_key()
+    if key != _EMBEDDING_PROVIDER_KEY:
+        _EMBEDDING_PROVIDER = _build_embedding_provider()
+        _EMBEDDING_PROVIDER_KEY = key
+        _EMBEDDING_FUNCTION = None
+        _COLLECTION = None
+        _KB_COLLECTION = None
+    return _EMBEDDING_PROVIDER
+
+
 def vector_db_unavailable_reason() -> str:
     if chromadb is None:
         return "Vector index unavailable: chromadb is not installed."
@@ -148,8 +274,9 @@ def vector_db_unavailable_reason() -> str:
 
 
 def get_embedding_provider_descriptor() -> EmbeddingProviderDescriptor:
+    provider = _ensure_embedding_provider()
     if chromadb is None:
-        descriptor = _EMBEDDING_PROVIDER.descriptor
+        descriptor = provider.descriptor
         return EmbeddingProviderDescriptor(
             name=descriptor.name,
             kind=descriptor.kind,
@@ -159,14 +286,14 @@ def get_embedding_provider_descriptor() -> EmbeddingProviderDescriptor:
             message="Vector index unavailable: chromadb is not installed. Demo/fallback provider metadata is still available.",
             details=descriptor.details,
         )
-    return _EMBEDDING_PROVIDER.descriptor
+    return provider.descriptor
 
 
 def get_embedding_function():
     global _EMBEDDING_FUNCTION
     if _EMBEDDING_FUNCTION is not None:
         return _EMBEDDING_FUNCTION
-    _EMBEDDING_FUNCTION = _EMBEDDING_PROVIDER.embedding_function()
+    _EMBEDDING_FUNCTION = _ensure_embedding_provider().embedding_function()
     return _EMBEDDING_FUNCTION
 
 

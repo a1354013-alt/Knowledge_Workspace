@@ -4,6 +4,11 @@
       "AutoTestCapabilitiesResponse": {
         "additionalProperties": false,
         "properties": {
+          "docker_sandbox_available": {
+            "default": false,
+            "title": "Docker Sandbox Available",
+            "type": "boolean"
+          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -16,6 +21,11 @@
             "title": "Mode",
             "type": "string"
           },
+          "network_enabled": {
+            "default": false,
+            "title": "Network Enabled",
+            "type": "boolean"
+          },
           "real_mode_available": {
             "title": "Real Mode Available",
             "type": "boolean"
@@ -27,10 +37,25 @@
           "real_mode_requested": {
             "title": "Real Mode Requested",
             "type": "boolean"
+          },
+          "runner_mode": {
+            "enum": [
+              "disabled",
+              "local_trusted",
+              "docker_sandbox"
+            ],
+            "title": "Runner Mode",
+            "type": "string"
+          },
+          "safety_note": {
+            "default": "",
+            "title": "Safety Note",
+            "type": "string"
           }
         },
         "required": [
           "mode",
+          "runner_mode",
           "real_mode_requested",
           "real_mode_enabled",
           "real_mode_available",
@@ -126,6 +151,16 @@
           },
           "prompt_output": {
             "title": "Prompt Output",
+            "type": "string"
+          },
+          "runner_mode": {
+            "default": "disabled",
+            "enum": [
+              "disabled",
+              "local_trusted",
+              "docker_sandbox"
+            ],
+            "title": "Runner Mode",
             "type": "string"
           },
           "solution_entry_id": {
@@ -777,6 +812,16 @@
             "title": "Details",
             "type": "array"
           },
+          "index_mode": {
+            "enum": [
+              "full_text_only",
+              "demo_hash_embedding",
+              "real_semantic_embedding",
+              "vector_degraded"
+            ],
+            "title": "Index Mode",
+            "type": "string"
+          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -799,6 +844,7 @@
           "configured_provider",
           "active_provider",
           "status",
+          "index_mode",
           "demo_mode",
           "semantic_search_ready",
           "message"
@@ -2541,12 +2587,26 @@
             "title": "Category",
             "type": "string"
           },
+          "degraded_reason": {
+            "default": "",
+            "title": "Degraded Reason",
+            "type": "string"
+          },
           "file_size": {
             "title": "File Size",
             "type": "integer"
           },
           "filename": {
             "title": "Filename",
+            "type": "string"
+          },
+          "full_text_index_status": {
+            "default": "indexed",
+            "enum": [
+              "indexed",
+              "failed"
+            ],
+            "title": "Full Text Index Status",
             "type": "string"
           },
           "id": {
@@ -2598,6 +2658,15 @@
             "title": "Updated At",
             "type": "string"
           },
+          "upload_status": {
+            "default": "success",
+            "enum": [
+              "success",
+              "failed"
+            ],
+            "title": "Upload Status",
+            "type": "string"
+          },
           "uploaded_at": {
             "title": "Uploaded At",
             "type": "string"
@@ -2612,6 +2681,22 @@
               }
             ],
             "title": "Uploaded By"
+          },
+          "user_message": {
+            "default": "",
+            "title": "User Message",
+            "type": "string"
+          },
+          "vector_index_status": {
+            "default": "indexed",
+            "enum": [
+              "indexed",
+              "degraded",
+              "failed",
+              "disabled"
+            ],
+            "title": "Vector Index Status",
+            "type": "string"
           }
         },
         "required": [

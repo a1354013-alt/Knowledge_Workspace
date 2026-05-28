@@ -30,6 +30,7 @@ from app.services.autotest.reports import _safe_autotest_index_entry, _safe_down
 from app.services.autotest.runner import _run_command
 from app.services.autotest.security import (
     current_autotest_execution_mode,
+    current_autotest_response_runner_mode,
     is_real_autotest_enabled,
     is_real_autotest_requested,
 )
@@ -93,10 +94,9 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                "AutoTest real mode is disabled. Set AUTOTEST_MODE=real and KW_AUTOTEST_REAL_MODE=1 "
+                "AutoTest local trusted mode is disabled. Set AUTOTEST_MODE=local_trusted and KW_AUTOTEST_REAL_MODE=1 "
                 "only for local trusted projects. Do not execute untrusted ZIP uploads. "
-                "Production use requires a Docker sandbox or equivalent isolation; the current "
-                "DockerSandboxRunner is only a placeholder."
+                "Use AUTOTEST_MODE=docker_sandbox for container execution."
             ),
         )
     if not file.filename:
@@ -118,12 +118,14 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
     source_ref = file.filename
     timeline = initial_autotest_timeline(source_ref=source_ref, created_at=created_at)
     execution_mode = current_autotest_execution_mode()
+    runner_mode = current_autotest_response_runner_mode()
     project_name = Path(file.filename).stem or "uploaded-project"
-    summary = (
-        "AutoTest queued in simulated mode. No uploaded project commands will run."
-        if execution_mode == "simulated"
-        else "AutoTest queued in real mode. Commands will run only inside the trusted local workspace policy."
-    )
+    if runner_mode == "docker_sandbox":
+        summary = "AutoTest queued in Docker sandbox mode. Commands will run in a constrained container."
+    elif runner_mode == "local_trusted":
+        summary = "AutoTest queued in local trusted mode. Commands run on this host; use only trusted projects."
+    else:
+        summary = "AutoTest queued in simulated mode (runner disabled). No uploaded project commands will run."
 
     created = autotest_repository.create_run(
         run_id=run_id,

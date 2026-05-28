@@ -5,13 +5,16 @@
         Run acceptance (install / build / test / lint)
       </template>
       <template #subtitle>
-        `simulated` mode is the safe demo path. `real` mode is trusted local execution only and is not a formal sandbox for untrusted ZIPs.
+        Disabled mode is the safe default. Local trusted mode is for your own projects; Docker sandbox mode uses container execution.
       </template>
       <template #content>
         <div class="stack-md">
           <div class="warning-banner">
-            <strong>AutoTest mode: {{ capabilities?.mode || 'simulated' }}</strong>
+            <strong>AutoTest runner: {{ runnerModeLabel }}</strong>
             <p>{{ capabilitiesMessage }}</p>
+            <p v-if="capabilities?.safety_note">
+              {{ capabilities.safety_note }}
+            </p>
           </div>
           <div class="row">
             <input
@@ -37,7 +40,7 @@
               label="Run"
               icon="pi pi-play"
               :loading="running"
-              :disabled="capabilities?.real_mode_requested && !capabilities.real_mode_available"
+              :disabled="capabilities?.runner_mode === 'disabled' && capabilities?.real_mode_requested"
               @click="runAutoTest"
             />
             <Button
@@ -108,10 +111,16 @@
               Mode: {{ selectedRunMode }}
             </p>
             <p
-              v-if="selectedRunMode === 'real'"
+              v-if="selectedRunRunnerMode === 'local_trusted'"
               class="warning-text"
             >
-              Real mode executes commands from uploaded projects. Use only with trusted local projects.
+              Local trusted mode executes commands from uploaded projects on this host. Use only with trusted local projects.
+            </p>
+            <p
+              v-if="selectedRunRunnerMode === 'docker_sandbox'"
+              class="muted"
+            >
+              Docker sandbox mode uses container limits and network is disabled unless configured.
             </p>
             <p
               v-if="selectedRunIsGitHubIntakeOnly"
@@ -283,6 +292,17 @@ const canExportSelectedRun = computed(() => {
   return status === 'passed' || status === 'failed'
 })
 const selectedRunMode = computed(() => selectedRun.value?.execution_mode || 'simulated')
+const selectedRunRunnerMode = computed(() => selectedRun.value?.runner_mode || (selectedRunMode.value === 'real' ? 'local_trusted' : 'disabled'))
+const runnerModeLabel = computed(() => {
+  const mode = capabilities.value?.runner_mode || 'disabled'
+  if (mode === 'local_trusted') {
+    return 'Local trusted'
+  }
+  if (mode === 'docker_sandbox') {
+    return 'Docker sandbox'
+  }
+  return 'Disabled'
+})
 const selectedRunIsGitHubIntakeOnly = computed(() => {
   const run = selectedRun.value
   return run?.source_type === 'github_repo' && run?.status === 'registered'
@@ -313,10 +333,13 @@ const reportActionHint = computed(() => {
 const runsLoadMessage = computed(() => store.state.error.autotestRuns || '')
 const showRunsReloadWarning = computed(() => store.state.status.autotestRuns === 'error' && runs.value.length > 0)
 const capabilitiesMessage = computed(() => {
-  if (capabilities.value?.mode === 'real') {
-    return 'Real mode is trusted local execution on this host. Do not run untrusted ZIP files here.'
+  if (capabilities.value?.runner_mode === 'local_trusted') {
+    return 'Local trusted mode runs commands on this host. Do not run untrusted ZIP files here.'
   }
-  return capabilities.value?.message || 'Simulated mode is the safe demo path and does not execute uploaded project commands.'
+  if (capabilities.value?.runner_mode === 'docker_sandbox') {
+    return capabilities.value.message || 'Docker sandbox mode is active.'
+  }
+  return capabilities.value?.message || 'Disabled mode does not execute uploaded project commands.'
 })
 
 function openZipPicker() {

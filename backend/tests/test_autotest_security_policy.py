@@ -31,7 +31,7 @@ def test_real_autotest_is_rejected_without_explicit_enable(
     client: TestClient,
     auth_headers: dict[str, str],
 ):
-    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
+    app_module.autotest_service.settings.AUTOTEST_MODE = "local_trusted"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = False
 
     response = client.post(
@@ -42,6 +42,7 @@ def test_real_autotest_is_rejected_without_explicit_enable(
 
     assert response.status_code == 403
     assert "KW_AUTOTEST_REAL_MODE=1" in response.text
+    assert "local trusted" in response.text.lower()
 
 
 def test_autotest_capabilities_exposes_real_mode_availability(
@@ -49,7 +50,7 @@ def test_autotest_capabilities_exposes_real_mode_availability(
     client: TestClient,
     auth_headers: dict[str, str],
 ):
-    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
+    app_module.autotest_service.settings.AUTOTEST_MODE = "local_trusted"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = False
 
     response = client.get("/api/autotest/capabilities", headers=auth_headers)
@@ -57,9 +58,10 @@ def test_autotest_capabilities_exposes_real_mode_availability(
     assert response.status_code == 200
     payload = response.json()
     assert payload["mode"] == "simulated"
+    assert payload["runner_mode"] == "disabled"
     assert payload["real_mode_requested"] is True
     assert payload["real_mode_available"] is False
-    assert "simulated mode is active" in payload["message"].lower()
+    assert "disabled" in payload["message"].lower()
 
 
 def test_command_builder_uses_ignore_scripts_and_disables_python_install(app_module, tmp_path: Path):
@@ -103,7 +105,7 @@ def test_run_command_uses_shell_false_timeout_and_clamps_output(app_module, monk
 
 
 def test_run_command_scrubs_sensitive_env_in_real_mode(app_module, monkeypatch, tmp_path: Path):
-    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
+    app_module.autotest_service.settings.AUTOTEST_MODE = "local_trusted"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = True
     monkeypatch.setenv("API_TOKEN", "secret")
     monkeypatch.setenv("deploy_key", "secret")
@@ -132,31 +134,46 @@ def test_service_source_does_not_use_shell_true(app_module):
 
 
 def test_real_autotest_defaults_to_simulated_mode(app_module):
-    app_module.autotest_service.settings.AUTOTEST_MODE = "simulated"
+    app_module.autotest_service.settings.AUTOTEST_MODE = "disabled"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = False
 
     capabilities = app_module.autotest_service.get_autotest_capabilities()
 
     assert capabilities.mode == "simulated"
+    assert capabilities.runner_mode == "disabled"
     assert capabilities.real_mode_requested is False
     assert capabilities.real_mode_available is False
     assert "No uploaded project commands will run" in capabilities.message
 
 
-def test_docker_sandbox_runner_is_explicit_placeholder():
+def test_docker_sandbox_runner_builds_constrained_command(app_module, tmp_path: Path):
     from app.services.autotest.runners import DockerSandboxRunner, RunnerCommand
 
+    app_module.autotest_service.settings.AUTOTEST_DOCKER_IMAGE = "python:3.11-slim"
+    app_module.autotest_service.settings.AUTOTEST_DOCKER_NETWORK = False
+    app_module.autotest_service.settings.AUTOTEST_DOCKER_MEMORY = "512m"
+    app_module.autotest_service.settings.AUTOTEST_DOCKER_CPUS = "1"
+    workspace = tmp_path / "workspace"
+    artifacts = tmp_path / "artifacts"
+    workspace.mkdir()
     runner = DockerSandboxRunner()
-    assert runner.name == "docker-sandbox"
+    assert runner.name == "docker_sandbox"
     assert runner.trusted is False
     assert runner.sandboxed is True
 
-    try:
-        runner.run(RunnerCommand(argv=["python", "--version"], cwd=Path("."), timeout_seconds=5))
-    except NotImplementedError as exc:
-        assert "placeholder" in str(exc).lower()
-    else:
-        raise AssertionError("Expected DockerSandboxRunner placeholder to reject execution.")
+    command = runner.build_docker_command(
+        RunnerCommand(argv=["python", "--version"], cwd=workspace, timeout_seconds=5),
+        workspace_dir=workspace,
+        artifact_dir=artifacts,
+    )
+
+    assert command[:4] == ["docker", "run", "--rm", "--network"]
+    assert "none" in command
+    assert "--cpus" in command
+    assert "1" in command
+    assert "--memory" in command
+    assert "512m" in command
+    assert command[-3:] == ["python:3.11-slim", "python", "--version"]
 
 
 def test_report_paths_are_sanitized(app_module, tmp_path: Path):

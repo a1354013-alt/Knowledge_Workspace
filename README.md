@@ -51,8 +51,9 @@ graph TD
 ### AutoTest
 
 - upload `.zip` projects or register GitHub repos for intake-only analysis registration
-- simulated mode by default for demos, CI, and safe reproducibility
-- real mode is opt-in behind `AUTOTEST_MODE=real` plus `KW_AUTOTEST_REAL_MODE=1`, and uses fixed timeouts, `shell=False`, output limits, path sanitization, symlink/path-escape checks, and sensitive env scrubbing
+- disabled command execution by default for demos, CI, and safe reproducibility
+- local trusted mode is opt-in behind `AUTOTEST_MODE=local_trusted` plus `KW_AUTOTEST_REAL_MODE=1`
+- Docker sandbox mode is available with `AUTOTEST_MODE=docker_sandbox` and uses fixed timeouts, `shell=False`, output limits, path sanitization, artifact logs, network-off-by-default, and Docker CPU/memory flags
 - backend is now split into:
   - `api/routes/autotest.py`: thin HTTP layer
   - `services/autotest_service.py`: compatibility shim for older imports
@@ -137,10 +138,12 @@ Responsibility split:
 
 AutoTest is intentionally constrained, but it is not a sandbox.
 
-- default mode is `AUTOTEST_MODE=simulated`
-- real mode must be explicitly enabled with both `AUTOTEST_MODE=real` and `KW_AUTOTEST_REAL_MODE=1`
-- if `AUTOTEST_MODE=real` is set without that enable flag, the API rejects the run
-- real mode executes commands from uploaded projects on the local trusted workspace host
+- default mode is `AUTOTEST_MODE=disabled`
+- local trusted mode must be explicitly enabled with both `AUTOTEST_MODE=local_trusted` and `KW_AUTOTEST_REAL_MODE=1`
+- if `AUTOTEST_MODE=local_trusted` is set without that enable flag, the API rejects the run
+- local trusted mode executes commands from uploaded projects on the local trusted workspace host
+- Docker sandbox mode is enabled with `AUTOTEST_MODE=docker_sandbox`
+- Docker sandbox mode uses Docker command execution with timeout, CPU/memory limits, artifact logs, and network disabled by default
 - Node installs use `npm ci --ignore-scripts --no-audit --no-fund`
 - Python dependency installation for uploaded projects is disabled until a stronger trusted sandbox policy is added
 - subprocess execution uses `shell=False`
@@ -157,11 +160,11 @@ AutoTest is intentionally constrained, but it is not a sandbox.
 
 Recommended usage:
 
-- use `simulated` mode in CI, demos, and shared machines
-- use `real` mode only on a local or isolated environment you control
-- use `real` mode only with trusted local projects
-- `real` mode is local trusted-workspace execution, not Docker/Podman isolation
-- do not expose `real` mode as a public multi-user upload feature while `DockerSandboxRunner` remains a placeholder
+- use `disabled` mode in CI, demos, and shared machines
+- use `local_trusted` mode only on a local or isolated environment you control
+- use `local_trusted` mode only with trusted local projects
+- use `docker_sandbox` when Docker is available and you want containerized execution
+- enable Docker network only with `AUTOTEST_DOCKER_NETWORK=true` when tests require it
 - recommended future hardening direction:
   - Docker or Podman sandboxing
   - disposable workspace per run
@@ -211,20 +214,44 @@ Bootstrap writes safe local defaults only when files are missing:
 AutoTest real mode stays off in both files:
 
 ```env
-AUTOTEST_MODE=simulated
+AUTOTEST_MODE=disabled
 KW_AUTOTEST_REAL_MODE=0
 ```
 
-### AutoTest Real Mode
+### AutoTest Runner Modes
 
-AutoTest real mode is disabled by default because it executes commands from uploaded projects on the local host. Use it only for trusted local projects; do not run untrusted ZIP uploads. Production use requires Docker sandboxing or equivalent isolation. `DockerSandboxRunner` is currently a placeholder, not completed production isolation.
+AutoTest local trusted mode is disabled by default because it executes commands from uploaded projects on the local host. Use it only for trusted local projects; do not run untrusted ZIP uploads.
 
-To enable local trusted real mode:
+To enable local trusted mode:
 
 ```env
-AUTOTEST_MODE=real
+AUTOTEST_MODE=local_trusted
 KW_AUTOTEST_REAL_MODE=1
 ```
+
+To enable Docker sandbox mode:
+
+```env
+AUTOTEST_MODE=docker_sandbox
+AUTOTEST_DOCKER_IMAGE=python:3.11-slim
+AUTOTEST_DOCKER_NETWORK=false
+AUTOTEST_DOCKER_MEMORY=2g
+AUTOTEST_DOCKER_CPUS=2
+```
+
+## Embedding And Search Modes
+
+Document upload writes full-text search content before vector indexing. If ChromaDB or an embedding provider is unavailable, upload can still succeed and the API reports a degraded semantic index instead of a fatal upload failure.
+
+```env
+EMBEDDING_PROVIDER=demo_hash
+EMBEDDING_MODEL=nomic-embed-text
+EMBEDDING_BASE_URL=http://localhost:11434
+EMBEDDING_TIMEOUT_SECONDS=5
+EMBEDDING_FALLBACK_ENABLED=true
+```
+
+Set `EMBEDDING_PROVIDER=ollama` to use Ollama embeddings. If Ollama is not running and fallback is enabled, the backend falls back to deterministic demo hash embeddings. `GET /api/index/status` reports `full_text_only`, `demo_hash_embedding`, `real_semantic_embedding`, or `vector_degraded`.
 
 ## Test And Verification
 

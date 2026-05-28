@@ -40,6 +40,9 @@ def schema_to_ts(name: str, schema: dict) -> str:
 def object_to_ts(schema: dict) -> str:
     props = schema.get("properties", {})
     if not props:
+        additional = schema.get("additionalProperties")
+        if isinstance(additional, dict):
+            return f"Record<string, {type_to_ts(additional)}>"
         return "Record<string, unknown>"
     required = set(schema.get("required", []))
     entries: list[str] = []

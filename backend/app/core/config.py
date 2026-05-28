@@ -35,6 +35,11 @@ class Settings(BaseModel):
 
     # Vector DB
     CHROMA_DB_PATH: Path = Field(default=Path("chroma_db"))
+    EMBEDDING_PROVIDER: str = "demo_hash"
+    EMBEDDING_MODEL: str = "nomic-embed-text"
+    EMBEDDING_BASE_URL: str = "http://localhost:11434"
+    EMBEDDING_TIMEOUT_SECONDS: float = 5.0
+    EMBEDDING_FALLBACK_ENABLED: bool = True
 
     # AutoTest working area
     AUTOTEST_DIR: Path = Field(default=Path("autotest_uploads"))
@@ -52,6 +57,11 @@ class Settings(BaseModel):
     AUTOTEST_RLIMIT_AS_MB: int = 2048
     AUTOTEST_RLIMIT_FSIZE_MB: int = 200
     AUTOTEST_STALE_RUN_MINUTES: int = 30
+    AUTOTEST_DOCKER_IMAGE: str = "python:3.11-slim"
+    AUTOTEST_DOCKER_NETWORK: bool = False
+    AUTOTEST_DOCKER_MEMORY: str = "2g"
+    AUTOTEST_DOCKER_CPUS: str = "2"
+    AUTOTEST_ARTIFACT_DIR: Path = Field(default=Path("autotest_artifacts"))
 
     # OCR Settings
     OCR_ENABLED: bool = True
@@ -113,6 +123,24 @@ class Settings(BaseModel):
             PHOTO_DIR=resolve_path(os.getenv("PHOTO_DIR", ""), default=Path("photos")),
             IMAGE_MAX_PIXELS=int(os.getenv("IMAGE_MAX_PIXELS", "40000000")),
             CHROMA_DB_PATH=resolve_path(os.getenv("CHROMA_DB_PATH", ""), default=Path("chroma_db")),
+            EMBEDDING_PROVIDER=(
+                os.getenv("EMBEDDING_PROVIDER")
+                or os.getenv("KW_EMBEDDING_PROVIDER")
+                or "demo_hash"
+            ).strip().lower(),
+            EMBEDDING_MODEL=(
+                os.getenv("EMBEDDING_MODEL")
+                or os.getenv("OLLAMA_EMBEDDING_MODEL")
+                or "nomic-embed-text"
+            ).strip(),
+            EMBEDDING_BASE_URL=(
+                os.getenv("EMBEDDING_BASE_URL")
+                or os.getenv("OLLAMA_EMBEDDING_BASE_URL")
+                or os.getenv("OLLAMA_BASE_URL")
+                or "http://localhost:11434"
+            ).strip().rstrip("/"),
+            EMBEDDING_TIMEOUT_SECONDS=float(os.getenv("EMBEDDING_TIMEOUT_SECONDS", "5")),
+            EMBEDDING_FALLBACK_ENABLED=parse_bool(os.getenv("EMBEDDING_FALLBACK_ENABLED", "true"), default=True),
             AUTOTEST_DIR=resolve_path(os.getenv("AUTOTEST_DIR", ""), default=Path("autotest_uploads")),
             AUTOTEST_MODE=os.getenv("AUTOTEST_MODE", "simulated").strip().lower() or "simulated",
             KW_AUTOTEST_REAL_MODE=parse_bool(
@@ -129,6 +157,11 @@ class Settings(BaseModel):
             AUTOTEST_RLIMIT_AS_MB=int(os.getenv("AUTOTEST_RLIMIT_AS_MB", "2048")),
             AUTOTEST_RLIMIT_FSIZE_MB=int(os.getenv("AUTOTEST_RLIMIT_FSIZE_MB", "200")),
             AUTOTEST_STALE_RUN_MINUTES=int(os.getenv("AUTOTEST_STALE_RUN_MINUTES", "30")),
+            AUTOTEST_DOCKER_IMAGE=os.getenv("AUTOTEST_DOCKER_IMAGE", "python:3.11-slim").strip() or "python:3.11-slim",
+            AUTOTEST_DOCKER_NETWORK=parse_bool(os.getenv("AUTOTEST_DOCKER_NETWORK", "false"), default=False),
+            AUTOTEST_DOCKER_MEMORY=os.getenv("AUTOTEST_DOCKER_MEMORY", "2g").strip() or "2g",
+            AUTOTEST_DOCKER_CPUS=os.getenv("AUTOTEST_DOCKER_CPUS", "2").strip() or "2",
+            AUTOTEST_ARTIFACT_DIR=resolve_path(os.getenv("AUTOTEST_ARTIFACT_DIR", ""), default=Path("autotest_artifacts")),
             OCR_ENABLED=parse_bool(os.getenv("OCR_ENABLED", "true"), default=True),
             LLM_PROVIDER=(os.getenv("LLM_PROVIDER", "ollama") or "ollama").strip().lower(),
             OLLAMA_BASE_URL=(

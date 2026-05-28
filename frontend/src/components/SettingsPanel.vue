@@ -276,6 +276,7 @@ const indexStatus = ref<IndexStatusResponse>({
     configured_provider: '',
     active_provider: 'none',
     status: 'disabled',
+    index_mode: 'vector_degraded',
     demo_mode: true,
     semantic_search_ready: false,
     message: '',

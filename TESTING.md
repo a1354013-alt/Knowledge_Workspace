@@ -33,7 +33,32 @@ Full local CI-equivalent verification from the repo root:
 python scripts/verify_all.py
 ```
 
-Backend tests use isolated temporary SQLite databases and upload directories. AutoTest defaults to simulated mode in tests; real-mode tests patch the subprocess runner and explicitly enable the real-mode gate. See `backend/.env.example` and `docs/LOCAL_TESTING.md` for the local environment contract.
+Backend tests use isolated temporary SQLite databases and upload directories. AutoTest defaults to disabled mode in tests; local-trusted tests patch the subprocess runner and explicitly enable the safety gate. Docker sandbox tests mock command construction unless `KNOWLEDGE_WORKSPACE_DOCKER_INTEGRATION=1` is set for an environment that has Docker. See `backend/.env.example` and `docs/LOCAL_TESTING.md` for the local environment contract.
+
+For a fresh Python 3.11 backend environment:
+
+Windows PowerShell:
+
+```powershell
+.\scripts\bootstrap_backend.ps1
+.\.venv\Scripts\Activate.ps1
+python scripts\run_backend_checks.py
+python scripts\export_openapi.py
+cd frontend
+npm run generate:api-types
+```
+
+Linux/macOS:
+
+```bash
+./scripts/bootstrap_backend.sh
+source .venv/bin/activate
+python scripts/run_backend_checks.py
+python scripts/export_openapi.py
+cd frontend && npm run generate:api-types
+```
+
+If OpenAPI export says the Python runtime is unsupported, you are probably using Python 3.12/3.13. Create a Python 3.11 venv with the bootstrap scripts or run `uv python install 3.11 && uv venv --python 3.11`.
 
 AutoTest is still a local-first in-process worker in tests and runtime:
 

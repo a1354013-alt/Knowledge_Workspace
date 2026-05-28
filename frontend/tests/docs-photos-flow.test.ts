@@ -123,4 +123,39 @@ describe('DocsPhotosPanel flows', () => {
       }),
     )
   })
+
+  it('shows degraded upload as a warning instead of an error', async () => {
+    toastAdd.mockReset()
+    mocks.get.mockResolvedValue([])
+    mocks.post.mockResolvedValueOnce({
+      id: 'd1',
+      filename: 'note.txt',
+      category: '',
+      tags: '',
+      status: 'reviewed',
+      uploaded_at: 'now',
+      updated_at: 'now',
+      file_size: 10,
+      index_status: 'unavailable',
+      index_error: 'Vector index unavailable',
+      message: 'Document uploaded. Semantic indexing is unavailable right now, so full-text search is available.',
+      user_message: 'Document uploaded. Semantic indexing is unavailable right now, so full-text search is available.',
+      upload_status: 'success',
+      full_text_index_status: 'indexed',
+      vector_index_status: 'degraded',
+      degraded_reason: 'Vector index unavailable',
+    })
+
+    const wrapper = mount(DocsPhotosPanel, { global: { stubs: PrimeStubs } })
+    const vm = wrapper.vm as any
+    vm.selectedDoc = new File(['hello'], 'note.txt', { type: 'text/plain' })
+    await vm.uploadDoc()
+
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: 'warn',
+        summary: 'Uploaded with full-text fallback',
+      }),
+    )
+  })
 })

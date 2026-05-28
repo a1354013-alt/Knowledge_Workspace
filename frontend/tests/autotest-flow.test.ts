@@ -51,7 +51,7 @@ describe('AutoTestPanel flows', () => {
     autotestMocks.startAutoTest.mockResolvedValueOnce({
       id: 'r1',
       status: 'passed',
-      summary: 'AutoTest queued in simulated mode. No uploaded project commands will run.',
+      summary: 'AutoTest queued in simulated mode (runner disabled). No uploaded project commands will run.',
       steps: [],
     })
 
@@ -69,7 +69,7 @@ describe('AutoTestPanel flows', () => {
     autotestMocks.startAutoTest.mockResolvedValueOnce({
       id: 'r-queued',
       status: 'queued',
-      summary: 'AutoTest queued in simulated mode. No uploaded project commands will run.',
+      summary: 'AutoTest queued in simulated mode (runner disabled). No uploaded project commands will run.',
       steps: [],
     })
     autotestMocks.getAutoTestRun.mockResolvedValueOnce({ id: 'r-queued', status: 'passed', steps: [] })
@@ -84,7 +84,7 @@ describe('AutoTestPanel flows', () => {
     expect(toastAdd).toHaveBeenCalledWith(
       expect.objectContaining({
         summary: 'Run queued',
-        detail: expect.stringContaining('simulated mode'),
+        detail: expect.stringContaining('runner disabled'),
       })
     )
     expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ summary: 'Run completed', detail: 'passed' }))
@@ -183,7 +183,7 @@ describe('AutoTestPanel flows', () => {
     expect(autotestMocks.downloadAutoTestReport).toHaveBeenNthCalledWith(1, 'run-failed', 'md')
     expect(autotestMocks.downloadAutoTestReport).toHaveBeenNthCalledWith(2, 'run-failed', 'html')
     expect(clipboardWrite).toHaveBeenCalledWith('Fix the failing test\n\nRe-run pytest after the fix')
-    expect(wrapper.text()).toContain('Real mode executes commands from uploaded projects. Use only with trusted local projects.')
+    expect(wrapper.text()).toContain('Local trusted mode executes commands from uploaded projects on this host.')
   })
 
   it('renders registered GitHub intake-only runs without implying queued execution', async () => {

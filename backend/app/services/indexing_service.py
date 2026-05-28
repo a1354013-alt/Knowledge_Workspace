@@ -38,10 +38,19 @@ def get_provider_status() -> EmbeddingProviderStatusResponse:
     status = "ready" if descriptor.available and descriptor.semantic_search_ready else "degraded"
     if not descriptor.available:
         status = "disabled"
+    if not descriptor.available:
+        index_mode = "vector_degraded"
+    elif descriptor.semantic_search_ready:
+        index_mode = "real_semantic_embedding"
+    elif descriptor.demo_mode:
+        index_mode = "demo_hash_embedding"
+    else:
+        index_mode = "full_text_only"
     return EmbeddingProviderStatusResponse(
         configured_provider=descriptor.name,
         active_provider=descriptor.kind,
         status=status,
+        index_mode=index_mode,
         demo_mode=descriptor.demo_mode,
         semantic_search_ready=descriptor.semantic_search_ready,
         message=descriptor.message,
