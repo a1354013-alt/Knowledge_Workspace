@@ -2,9 +2,20 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-venv_python="$repo_root/.venv311/bin/python"
 
-if [[ ! -x "$venv_python" ]]; then
+resolve_venv_python() {
+  if [[ -x "$repo_root/.venv311/bin/python" ]]; then
+    printf '%s\n' "$repo_root/.venv311/bin/python"
+    return 0
+  fi
+  if [[ -x "$repo_root/.venv311/Scripts/python.exe" ]]; then
+    printf '%s\n' "$repo_root/.venv311/Scripts/python.exe"
+    return 0
+  fi
+  return 1
+}
+
+if ! venv_python="$(resolve_venv_python)"; then
   echo "Missing .venv311. Run bash scripts/bootstrap-dev.sh first." >&2
   exit 1
 fi

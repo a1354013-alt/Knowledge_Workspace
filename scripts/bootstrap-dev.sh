@@ -3,7 +3,6 @@ set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 venv_path="$repo_root/.venv311"
-venv_python="$venv_path/bin/python"
 frontend_dir="$repo_root/frontend"
 root_env="$repo_root/.env"
 backend_env="$repo_root/backend/.env"
@@ -28,6 +27,18 @@ new_secret() {
 import secrets
 print(secrets.token_urlsafe(48))
 PY
+}
+
+resolve_venv_python() {
+  if [[ -x "$venv_path/bin/python" ]]; then
+    printf '%s\n' "$venv_path/bin/python"
+    return 0
+  fi
+  if [[ -x "$venv_path/Scripts/python.exe" ]]; then
+    printf '%s\n' "$venv_path/Scripts/python.exe"
+    return 0
+  fi
+  return 1
 }
 
 write_root_env_if_missing() {
@@ -93,14 +104,19 @@ EOF
   echo "Created backend/.env with safe local defaults."
 }
 
+clean_packaging_artifacts() {
+  find "$repo_root/backend" -maxdepth 1 \( -name "*.egg-info" -o -name "*.dist-info" \) -exec rm -rf {} +
+}
+
 echo "Bootstrapping Knowledge Workspace with Python 3.11..."
 python_cmd="$(find_python311)" || fail "Python 3.11 was not found. Install Python 3.11.x and retry."
 
 "$python_cmd" -m venv "$venv_path" || fail "virtual environment creation failed"
-[[ -x "$venv_python" ]] || fail "virtual environment was not created at $venv_path"
+venv_python="$(resolve_venv_python)" || fail "virtual environment was not created at $venv_path"
 
 "$venv_python" -m pip install --upgrade pip || fail "pip upgrade failed"
 "$venv_python" -m pip install -e "$repo_root[dev]" || fail "backend dev dependency installation failed"
+clean_packaging_artifacts
 
 command -v npm >/dev/null 2>&1 || fail "npm was not found. Install Node.js 20 LTS or newer and retry."
 (cd "$frontend_dir" && npm ci) || fail "frontend dependency installation failed"

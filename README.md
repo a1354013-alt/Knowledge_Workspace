@@ -96,6 +96,14 @@ graph TD
 - production-grade semantic retrieval would require a real embedding provider such as Ollama embeddings, `sentence-transformers`, or an OpenAI-compatible embedding API
 - that provider integration is a roadmap item in the current codebase, not a completed runtime switch
 
+## Ollama, OpenAI, And OpenAPI
+
+Ollama is optional. If Ollama is not running, the application still starts and the core workspace, knowledge, logbook, docs, and photos features remain available. LLM generation and QA degrade to retrieval-only, unavailable, or no-op fallback behavior depending on the endpoint path.
+
+OpenAI-compatible providers are not enabled as production runtime providers in this release, and no OpenAI API key is required to start or use the project. OpenAPI is the local API contract in `docs/openapi.json`; it is used for tests and frontend type generation, not as an external AI service.
+
+Ollama 為選用服務。未啟動 Ollama 時，系統仍可正常啟動與使用主要 knowledge workspace、logbook、docs/photos 功能，但 AI 生成回答會降級為 retrieval-only / unavailable / no-op fallback。OpenAI-compatible provider 在本版本尚未作為正式 runtime provider 啟用，也不需要 OpenAI API Key 才能啟動專案。OpenAPI 是本專案的 API 契約與前端型別產生依據，不是外部 AI 服務。
+
 ## Entry Points And Architecture
 
 Primary runtime entrypoints:
@@ -272,9 +280,9 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 3. `python scripts/safe_compile.py -q .`
 4. `python -m ruff check backend scripts`
 5. `python scripts/run_backend_tests.py`
-6. `python scripts/export_openapi.py`
+6. `python scripts/export_openapi.py --check`
 7. `python scripts/generate_api_types.py --check`
-8. `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
+8. Git checkouts also run `git diff --exit-code -- docs/openapi.json frontend/src/api/generated/api-types.ts`; source zip environments skip this Git-only check
 9. `python scripts/check_version_consistency.py`
 10. `python scripts/check_index_consistency.py`
 11. frontend `npm ci`

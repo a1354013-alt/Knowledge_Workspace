@@ -33,13 +33,39 @@ function New-EnvSecret {
     return (([guid]::NewGuid().ToString("N")) + ([guid]::NewGuid().ToString("N")))
 }
 
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [string]$Content
+    )
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Content, $encoding)
+}
+
+function Remove-Utf8BomIfPresent {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) {
+        return
+    }
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+        if ($bytes.Length -eq 3) {
+            [System.IO.File]::WriteAllBytes($Path, [byte[]]@())
+        } else {
+            [System.IO.File]::WriteAllBytes($Path, $bytes[3..($bytes.Length - 1)])
+        }
+        Write-Host "$Path had a UTF-8 BOM; normalized encoding without changing values."
+    }
+}
+
 function Write-RootEnvIfMissing {
     if (Test-Path $RootEnvPath) {
+        Remove-Utf8BomIfPresent $RootEnvPath
         Write-Host ".env already exists; leaving it unchanged."
         return
     }
     $secret = New-EnvSecret
-    @"
+    $content = @"
 # Backend runtime
 JWT_SECRET=$secret
 DEFAULT_OWNER_PASSWORD=ChangeMe123!
@@ -57,17 +83,19 @@ AUTOTEST_STALE_RUN_MINUTES=30
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1
-"@ | Set-Content -Path $RootEnvPath -Encoding UTF8
+"@
+    Write-Utf8NoBomFile -Path $RootEnvPath -Content $content
     Write-Host "Created .env with safe local defaults."
 }
 
 function Write-BackendEnvIfMissing {
     if (Test-Path $BackendEnvPath) {
+        Remove-Utf8BomIfPresent $BackendEnvPath
         Write-Host "backend\.env already exists; leaving it unchanged."
         return
     }
     $secret = New-EnvSecret
-    @"
+    $content = @"
 JWT_SECRET=$secret
 DEFAULT_OWNER_PASSWORD=ChangeMe123!
 ALLOWED_ORIGINS=http://localhost:5173
@@ -90,8 +118,15 @@ OCR_ENABLED=true
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1
-"@ | Set-Content -Path $BackendEnvPath -Encoding UTF8
+"@
+    Write-Utf8NoBomFile -Path $BackendEnvPath -Content $content
     Write-Host "Created backend\.env with safe local defaults."
+}
+
+function Remove-PackagingArtifacts {
+    Get-ChildItem -Path (Join-Path $RepoRoot "backend") -Force -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "*.egg-info" -or $_.Name -like "*.dist-info" } |
+        Remove-Item -Recurse -Force
 }
 
 Write-Host "Bootstrapping Knowledge Workspace with Python 3.11..."
@@ -116,6 +151,7 @@ if ($LASTEXITCODE -ne 0) { Fail "pip upgrade failed" }
 
 & $VenvPython -m pip install -e "${RepoRoot}[dev]"
 if ($LASTEXITCODE -ne 0) { Fail "backend dev dependency installation failed" }
+Remove-PackagingArtifacts
 
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     Fail "npm was not found. Install Node.js 20 LTS or newer and retry."

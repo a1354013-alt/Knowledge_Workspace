@@ -36,6 +36,19 @@ Write-Host "Press Ctrl+C to stop both services."
 
 $backend = $null
 $frontend = $null
+function Stop-ProcessTree {
+    param([System.Diagnostics.Process]$Process)
+    if ($null -eq $Process -or $Process.HasExited) {
+        return
+    }
+    try {
+        Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
+    } catch {
+        # taskkill handles child processes such as uvicorn reload workers and Vite.
+    }
+    taskkill /F /T /PID $Process.Id *> $null
+}
+
 try {
     $backend = Start-Process -FilePath $VenvPython -ArgumentList @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload") -WorkingDirectory $BackendDir -NoNewWindow -PassThru
     $frontend = Start-Process -FilePath $NpmCommand -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", "5173") -WorkingDirectory $FrontendDir -NoNewWindow -PassThru
@@ -51,8 +64,6 @@ try {
     }
 } finally {
     foreach ($process in @($backend, $frontend)) {
-        if ($null -ne $process -and -not $process.HasExited) {
-            taskkill /F /T /PID $process.Id *> $null
-        }
+        Stop-ProcessTree $process
     }
 }

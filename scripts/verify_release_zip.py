@@ -6,6 +6,11 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+try:
+    from artifact_checks import check_zip
+except ModuleNotFoundError:  # pragma: no cover - used when imported as scripts.*
+    from scripts.artifact_checks import check_zip
+
 
 FORBIDDEN_PARTS = {
     ".git",
@@ -73,6 +78,7 @@ def _default_release_zip(root_dir: Path) -> Path:
 def verify(zip_path: Path) -> None:
     if not zip_path.exists():
         raise FileNotFoundError(f"Release zip not found: {zip_path}")
+    check_zip(zip_path)
     with zipfile.ZipFile(zip_path) as archive:
         names = set(archive.namelist())
 

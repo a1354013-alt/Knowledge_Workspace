@@ -67,6 +67,7 @@ def main() -> int:
     command = [sys.executable, "-m", "pytest", "-q", "--basetemp", str(pytest_basetemp)]
     print(f"+ {' '.join(command)}")
     env = os.environ.copy()
+    env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
     if pytest_basetemp.exists():
         shutil.rmtree(pytest_basetemp, ignore_errors=True)
     pytest_basetemp.parent.mkdir(parents=True, exist_ok=True)

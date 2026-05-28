@@ -22,11 +22,46 @@ def run(
     command: list[str], *, cwd: Path = ROOT, env: dict[str, str] | None = None
 ) -> None:
     print(f"+ {' '.join(command)}")
-    subprocess.run(command, cwd=cwd, env=env, check=True)
+    run_env = os.environ.copy()
+    run_env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+    if env is not None:
+        run_env.update(env)
+    subprocess.run(command, cwd=cwd, env=run_env, check=True)
 
 
 def npm_command() -> str:
     return "npm.cmd" if os.name == "nt" else "npm"
+
+
+def clean_python_cache_artifacts() -> None:
+    for base in (BACKEND_DIR, ROOT / "scripts", ROOT / "docs"):
+        if not base.exists():
+            continue
+        for dirname in ("__pycache__", ".pytest_cache", ".ruff_cache"):
+            for candidate in base.rglob(dirname):
+                shutil.rmtree(candidate, ignore_errors=True)
+
+
+def is_git_checkout() -> bool:
+    return (ROOT / ".git").exists()
+
+
+def run_contract_checks() -> None:
+    run([sys.executable, "scripts/export_openapi.py", "--check"])
+    run([sys.executable, "scripts/generate_api_types.py", "--check"])
+    if not is_git_checkout():
+        print("Skipping git diff check because this is not a Git checkout.")
+        return
+    run(
+        [
+            "git",
+            "diff",
+            "--exit-code",
+            "--",
+            "docs/openapi.json",
+            "frontend/src/api/generated/api-types.ts",
+        ]
+    )
 
 
 def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
@@ -82,6 +117,7 @@ def run_smoke_check() -> None:
     env = os.environ.copy()
     env.update(
         {
+            "PYTHONDONTWRITEBYTECODE": "1",
             "JWT_SECRET": "ci-secret-ci-secret-ci-secret-ci-secret-1234",
             "DEFAULT_OWNER_PASSWORD": "OwnerPass123!",
             "DATABASE_PATH": str(ROOT / "ci_documents.db"),
@@ -133,21 +169,14 @@ def run_smoke_check() -> None:
 
 
 def main() -> int:
+    os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+    clean_python_cache_artifacts()
     run([sys.executable, "scripts/check_python_version.py"])
+    run([sys.executable, "scripts/artifact_checks.py"])
     run([sys.executable, "scripts/safe_compile.py", "-q", "."])
     run([sys.executable, "-m", "ruff", "check", "backend", "scripts"])
     run([sys.executable, "scripts/run_backend_tests.py"])
-    run([sys.executable, "scripts/export_openapi.py"])
-    run([sys.executable, "scripts/generate_api_types.py", "--check"])
-    run(
-        [
-            "git",
-            "diff",
-            "--exit-code",
-            "docs/openapi.json",
-            "frontend/src/api/generated/api-types.ts",
-        ]
-    )
+    run_contract_checks()
     run([sys.executable, "scripts/check_version_consistency.py"])
     run([sys.executable, "scripts/check_index_consistency.py"])
 
@@ -162,6 +191,7 @@ def main() -> int:
     run([sys.executable, "scripts/package_release.py", str(DEFAULT_RELEASE_ZIP)])
     run([sys.executable, "scripts/verify_release.py", str(DEFAULT_RELEASE_ZIP)])
     run_smoke_check()
+    clean_python_cache_artifacts()
     return 0
 
 
