@@ -26,9 +26,13 @@ SQLite stores documents, knowledge entries, logbook entries, prompts, item links
 
 ## AutoTest Flow
 
-ZIP upload -> guarded extraction -> stack detection -> fixed command plan -> simulated or gated real execution -> timeline/report -> optional knowledge/logbook draft.
+ZIP upload -> guarded extraction -> stack detection -> fixed command plan -> simulated or gated execution -> timeline/report -> optional knowledge/logbook draft.
 
-Real mode requires `AUTOTEST_MODE=real` and `KW_AUTOTEST_REAL_MODE=1`.
+AutoTest supports three runner modes:
+
+- `AUTOTEST_MODE=disabled` (default): no command execution, safe for demos and CI
+- `AUTOTEST_MODE=local_trusted`: trusted local execution; requires `KW_AUTOTEST_REAL_MODE=1`
+- `AUTOTEST_MODE=docker_sandbox`: containerized execution with basic local isolation
 
 The current worker model is intentionally local-first and in-process:
 
@@ -48,7 +52,7 @@ Real mode is guarded execution, not a true sandbox. For production-style isolati
 
 ## Search Flow
 
-Global search returns typed item summaries. The built-in index uses a deterministic lightweight hash embedding so the project stays reproducible in CI and dependency-light local environments. It is useful for demos and stable tests, but it is not a full semantic understanding model. When vector indexing is unavailable, the app falls back further to deterministic keyword-style matching. A real embedding-provider integration would be the path to production-grade semantic search.
+Global search returns typed item summaries. Ollama embedding provider is available as an optional real semantic embedding provider via `EMBEDDING_PROVIDER=ollama`. If Ollama is unavailable and fallback is enabled, the system falls back to demo hash embeddings or full-text search. The fallback built-in index uses a deterministic lightweight hash embedding so the project stays reproducible in CI and dependency-light local environments. When vector indexing is unavailable, the app falls back further to deterministic keyword-style matching.
 
 Handlers share the same index side-effect helper in `backend/app/api/common.py`. That helper treats successful indexing, raised exceptions, and degraded `False`/falsy results consistently so `index_status`, `index_error`, and the repair queue do not diverge by handler.
 

@@ -71,25 +71,45 @@ class DockerSandboxRunner:
             raise ValueError("Docker sandbox workspace does not exist.")
         artifact_dir.mkdir(parents=True, exist_ok=True)
         network = "bridge" if bool(settings.AUTOTEST_DOCKER_NETWORK) else "none"
-        return [
+        
+        # Build base docker command with security hardening
+        cmd = [
             "docker",
             "run",
             "--rm",
+            # Network isolation
             "--network",
             network,
+            # Resource limits
             "--cpus",
             str(settings.AUTOTEST_DOCKER_CPUS),
             "--memory",
             str(settings.AUTOTEST_DOCKER_MEMORY),
+            "--pids-limit",
+            "256",
+            # Security hardening
+            "--read-only",
+            "--cap-drop=ALL",
+            "--security-opt",
+            "no-new-privileges",
+            # Volume mounts (workspace and artifacts as the only writable paths)
             "-v",
             f"{workspace_dir}:/workspace:rw",
             "-v",
             f"{artifact_dir}:/artifacts:rw",
             "-w",
             "/workspace",
-            str(settings.AUTOTEST_DOCKER_IMAGE),
-            *command.argv,
         ]
+        
+        # Optional non-root user if configured
+        if bool(settings.AUTOTEST_DOCKER_USER):
+            cmd.extend(["--user", settings.AUTOTEST_DOCKER_USER])
+        
+        # Image and command
+        cmd.append(str(settings.AUTOTEST_DOCKER_IMAGE))
+        cmd.extend(command.argv)
+        
+        return cmd
 
     def run(self, command: RunnerCommand) -> RunnerResult:
         source_dir = command.cwd.resolve()

@@ -100,8 +100,8 @@ Minimum required:
 Optional (common):
 - `ALLOWED_ORIGINS` (comma-separated)
 - `MAX_FILE_SIZE` (bytes; default: 52428800 = 50MB)
-- `AUTOTEST_MODE` (`simulated` by default; `real` only for trusted local projects)
-- `KW_AUTOTEST_REAL_MODE` (`1` required before `AUTOTEST_MODE=real` can execute)
+- `AUTOTEST_MODE` (`disabled` by default; `local_trusted` or `docker_sandbox` for execution)
+- `KW_AUTOTEST_REAL_MODE` (`1` required before `AUTOTEST_MODE=local_trusted` can execute)
 - `AUTOTEST_TIMEOUT_SECONDS`
 - `AUTOTEST_MAX_FILES`
 - `AUTOTEST_MAX_UNZIPPED_BYTES`

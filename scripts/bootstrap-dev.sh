@@ -57,8 +57,8 @@ UPLOAD_DIR=backend/uploads
 PHOTO_DIR=backend/photos
 CHROMA_DB_PATH=backend/chroma_db
 
-# AutoTest is simulated by default. Real command execution requires both flags.
-AUTOTEST_MODE=simulated
+# AutoTest is disabled by default for safety. local_trusted or docker_sandbox mode requires explicit configuration.
+AUTOTEST_MODE=disabled
 KW_AUTOTEST_REAL_MODE=0
 AUTOTEST_STALE_RUN_MINUTES=30
 

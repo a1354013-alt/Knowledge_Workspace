@@ -20,15 +20,16 @@ Required environment variables:
 JWT_SECRET=<minimum 32 chars>
 DEFAULT_OWNER_PASSWORD=<local owner password>
 ALLOWED_ORIGINS=http://localhost:5173
-AUTOTEST_MODE=simulated
-# Real mode additionally requires KW_AUTOTEST_REAL_MODE=1
+AUTOTEST_MODE=disabled
+# local_trusted mode additionally requires KW_AUTOTEST_REAL_MODE=1
 ```
 
 Notes:
 
-- keep `AUTOTEST_MODE=simulated` unless you intentionally want trusted local command execution
-- `AUTOTEST_MODE=real` is rejected unless `KW_AUTOTEST_REAL_MODE=1`
-- real mode is trusted local execution, not a hardened sandbox; do not run untrusted ZIPs there
+- keep `AUTOTEST_MODE=disabled` by default for safety
+- `AUTOTEST_MODE=local_trusted` requires `KW_AUTOTEST_REAL_MODE=1` to enable trusted local command execution
+- local_trusted mode is guarded local execution, not a hardened sandbox; do not run untrusted ZIPs there
+- `AUTOTEST_MODE=docker_sandbox` uses Docker for containerized execution with basic local isolation
 
 ## 2. Start backend
 

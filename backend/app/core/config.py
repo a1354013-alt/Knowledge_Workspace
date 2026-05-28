@@ -61,6 +61,7 @@ class Settings(BaseModel):
     AUTOTEST_DOCKER_NETWORK: bool = False
     AUTOTEST_DOCKER_MEMORY: str = "2g"
     AUTOTEST_DOCKER_CPUS: str = "2"
+    AUTOTEST_DOCKER_USER: str = ""
     AUTOTEST_ARTIFACT_DIR: Path = Field(default=Path("autotest_artifacts"))
 
     # OCR Settings
@@ -161,6 +162,7 @@ class Settings(BaseModel):
             AUTOTEST_DOCKER_NETWORK=parse_bool(os.getenv("AUTOTEST_DOCKER_NETWORK", "false"), default=False),
             AUTOTEST_DOCKER_MEMORY=os.getenv("AUTOTEST_DOCKER_MEMORY", "2g").strip() or "2g",
             AUTOTEST_DOCKER_CPUS=os.getenv("AUTOTEST_DOCKER_CPUS", "2").strip() or "2",
+            AUTOTEST_DOCKER_USER=(os.getenv("AUTOTEST_DOCKER_USER", "") or "").strip(),
             AUTOTEST_ARTIFACT_DIR=resolve_path(os.getenv("AUTOTEST_ARTIFACT_DIR", ""), default=Path("autotest_artifacts")),
             OCR_ENABLED=parse_bool(os.getenv("OCR_ENABLED", "true"), default=True),
             LLM_PROVIDER=(os.getenv("LLM_PROVIDER", "ollama") or "ollama").strip().lower(),

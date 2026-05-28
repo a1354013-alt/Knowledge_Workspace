@@ -153,6 +153,7 @@ def test_docker_sandbox_runner_builds_constrained_command(app_module, tmp_path: 
     app_module.autotest_service.settings.AUTOTEST_DOCKER_NETWORK = False
     app_module.autotest_service.settings.AUTOTEST_DOCKER_MEMORY = "512m"
     app_module.autotest_service.settings.AUTOTEST_DOCKER_CPUS = "1"
+    app_module.autotest_service.settings.AUTOTEST_DOCKER_USER = ""
     workspace = tmp_path / "workspace"
     artifacts = tmp_path / "artifacts"
     workspace.mkdir()
@@ -167,13 +168,30 @@ def test_docker_sandbox_runner_builds_constrained_command(app_module, tmp_path: 
         artifact_dir=artifacts,
     )
 
-    assert command[:4] == ["docker", "run", "--rm", "--network"]
+    # Verify base structure
+    assert command[0] == "docker"
+    assert command[1] == "run"
+    assert command[2] == "--rm"
+    # Verify network isolation
+    assert "--network" in command
     assert "none" in command
+    # Verify resource limits
     assert "--cpus" in command
     assert "1" in command
     assert "--memory" in command
     assert "512m" in command
-    assert command[-3:] == ["python:3.11-slim", "python", "--version"]
+    assert "--pids-limit" in command
+    assert "256" in command
+    # Verify security hardening
+    assert "--read-only" in command
+    assert "--cap-drop=ALL" in command
+    assert "--security-opt" in command
+    assert "no-new-privileges" in command
+    # Verify volumes and image
+    assert str(workspace) in " ".join(command)
+    assert "python:3.11-slim" in command
+    assert "python" in command
+    assert "--version" in command
 
 
 def test_report_paths_are_sanitized(app_module, tmp_path: Path):

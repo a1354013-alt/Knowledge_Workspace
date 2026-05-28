@@ -78,13 +78,15 @@ If you want the exact generated filename without hard-coding the version, inspec
 
 ## AutoTest Safety Reminder
 
-`AUTOTEST_MODE=simulated` is the safe default.
+`AUTOTEST_MODE=disabled` is the safe default.
 
-AutoTest real mode is only for a trusted local workspace that you control:
+AutoTest local_trusted mode is only for a trusted local workspace that you control:
 
-- requires `AUTOTEST_MODE=real`
+- requires `AUTOTEST_MODE=local_trusted`
 - requires `KW_AUTOTEST_REAL_MODE=1`
 - is not a public sandbox
 - is not container isolation
 - must not be exposed as arbitrary public code execution
+
+`AUTOTEST_MODE=docker_sandbox` uses Docker for containerized execution with basic local isolation but is not a production-grade multi-tenant sandbox.
 

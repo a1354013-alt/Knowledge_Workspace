@@ -138,9 +138,9 @@ Fix:
 ## Future Work
 
 - continue moving remaining document/photo/logbook orchestration out of `legacy_main.py`
-- add containerized real-mode execution
+- harden Docker sandbox execution with stricter container policies and broader integration coverage
 - add background queue support for larger indexing or AutoTest jobs
-- add a real embedding-provider integration for production semantic retrieval
+- add additional embedding providers beyond Ollama, such as sentence-transformers or OpenAI-compatible providers
 - add richer dashboard drill-down views by metric source
 
 ## Interview Demo Script
