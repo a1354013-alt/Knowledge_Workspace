@@ -35,7 +35,16 @@ echo "API Docs:    http://127.0.0.1:8000/docs"
 echo "Frontend:    http://127.0.0.1:5173"
 echo "Press Ctrl+C to stop both services."
 
-(cd "$backend_dir" && "$venv_python" -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload) &
+(
+  cd "$backend_dir"
+  if [[ -f .env ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    . ./.env
+    set +a
+  fi
+  "$venv_python" -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+) &
 backend_pid=$!
 
 (cd "$frontend_dir" && npm run dev -- --host 127.0.0.1 --port 5173) &

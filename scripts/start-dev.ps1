@@ -4,6 +4,7 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 $BackendDir = Join-Path $RepoRoot "backend"
 $FrontendDir = Join-Path $RepoRoot "frontend"
 $VenvPython = Join-Path $RepoRoot ".venv311\Scripts\python.exe"
+$BackendEnv = Join-Path $BackendDir ".env"
 
 if (-not (Test-Path $VenvPython)) {
     throw "Missing .venv311. Run .\scripts\bootstrap-dev.ps1 first."
@@ -15,6 +16,16 @@ $NpmCommand = if (Get-Command npm.cmd -ErrorAction SilentlyContinue) {
     (Get-Command npm.cmd).Source
 } else {
     (Get-Command npm).Source
+}
+
+if (Test-Path $BackendEnv) {
+    Get-Content $BackendEnv | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -and -not $line.StartsWith("#") -and $line.Contains("=")) {
+            $parts = $line.Split("=", 2)
+            [Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1].Trim(), "Process")
+        }
+    }
 }
 
 Write-Host "Starting Knowledge Workspace development servers..."
