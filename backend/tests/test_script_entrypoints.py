@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 import subprocess
@@ -106,3 +106,4 @@ def test_verify_release_zip_defaults_to_versioned_dist_zip(tmp_path: Path):
         assert "verified" in result.stdout.lower()
     finally:
         zip_path.unlink(missing_ok=True)
+

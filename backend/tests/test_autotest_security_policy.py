@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import inspect
 import io
@@ -32,7 +32,7 @@ def test_real_autotest_is_rejected_without_explicit_enable(
     auth_headers: dict[str, str],
 ):
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
-    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = False
+    app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = False
 
     response = client.post(
         "/api/autotest/run",
@@ -41,7 +41,7 @@ def test_real_autotest_is_rejected_without_explicit_enable(
     )
 
     assert response.status_code == 403
-    assert "KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1" in response.text
+    assert "KW_AUTOTEST_REAL_MODE=1" in response.text
 
 
 def test_autotest_capabilities_exposes_real_mode_availability(
@@ -50,7 +50,7 @@ def test_autotest_capabilities_exposes_real_mode_availability(
     auth_headers: dict[str, str],
 ):
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
-    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = False
+    app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = False
 
     response = client.get("/api/autotest/capabilities", headers=auth_headers)
 
@@ -104,7 +104,7 @@ def test_run_command_uses_shell_false_timeout_and_clamps_output(app_module, monk
 
 def test_run_command_scrubs_sensitive_env_in_real_mode(app_module, monkeypatch, tmp_path: Path):
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
-    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
+    app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = True
     monkeypatch.setenv("API_TOKEN", "secret")
     monkeypatch.setenv("deploy_key", "secret")
     monkeypatch.setenv("DB_PASSWORD", "secret")
@@ -133,7 +133,7 @@ def test_service_source_does_not_use_shell_true(app_module):
 
 def test_real_autotest_defaults_to_simulated_mode(app_module):
     app_module.autotest_service.settings.AUTOTEST_MODE = "simulated"
-    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = False
+    app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = False
 
     capabilities = app_module.autotest_service.get_autotest_capabilities()
 
@@ -246,3 +246,4 @@ def test_safe_extract_zip_rejects_oversized_archive(app_module, tmp_path: Path):
         assert "allowed size" in str(exc).lower()
     else:
         raise AssertionError("Expected oversized archive to be rejected.")
+

@@ -1,4 +1,4 @@
-# Security Model
+﻿# Security Model
 
 Knowledge Workspace is a local-first portfolio tool. It is designed for a developer machine, CI, or an isolated demo environment, not for a public upload service.
 
@@ -17,14 +17,16 @@ Real mode requires both settings:
 
 ```env
 AUTOTEST_MODE=real
-KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1
+KW_AUTOTEST_REAL_MODE=1
 ```
 
 If `AUTOTEST_MODE=real` is set without the explicit enable flag, the API rejects the run with `403`.
 
-AutoTest real mode is constrained command execution, not a hardened sandbox. Real mode should be run only inside an isolated local environment. It uses `shell=False`, fixed command timeouts, output truncation, sanitized report paths, and environment scrubbing, but those controls are not a full sandbox. `DockerSandboxRunner` is still a placeholder, so production-style container isolation is not finished yet.
+AutoTest real mode is constrained command execution, not a hardened sandbox. Real mode should be run only inside an isolated local environment. It uses `shell=False`, fixed command timeouts, output truncation, sanitized report paths, and environment scrubbing, but those controls are not a full sandbox. `DockerSandboxRunner` is still a placeholder, so production-style container isolation is not finished yet. Treat real mode as trusted local execution only.
 
 Do not treat guarded execution as safe for arbitrary public ZIP uploads. Real mode is appropriate for controlled/local inputs that you trust, not for exposing uploaded code execution to unknown internet users or multi-user public services.
+
+The current AutoTest worker is also in-process rather than a durable queue. If the backend process is interrupted, an active run can become stale/interrupted and is later marked failed during startup recovery instead of being resumed mid-flight.
 
 If you need production-style execution, add all of the following:
 
@@ -60,3 +62,4 @@ CI enforces the frontend production dependency audit gate with `npm audit --omit
 ## Release Hygiene
 
 Release zip verification rejects runtime databases, journal files, secrets, caches, uploads, build outputs, and test artifacts before a package is accepted.
+

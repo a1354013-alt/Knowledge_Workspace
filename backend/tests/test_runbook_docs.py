@@ -31,9 +31,9 @@ def test_runbook_lists_main_verification_and_release_commands():
         "npm run build",
         "python scripts/export_openapi.py",
         "python scripts/generate_api_types.py",
-        "python scripts/check_api_types.py",
+        "python scripts/generate_api_types.py --check",
         "python scripts/package_release.py",
-        "python scripts/verify_release_zip.py",
+        "python scripts/verify_release.py",
     ):
         assert command in content
 

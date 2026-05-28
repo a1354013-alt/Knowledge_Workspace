@@ -237,7 +237,14 @@ import Card from 'primevue/card'
 import { get } from '../api'
 import { post } from '../api'
 import { apiPaths } from '../api/endpoints'
-import type { IndexStatusResponse, SettingsLLMResponse, SettingsOCRResponse, TemplateMetaItem, TemplatesMetaResponse } from '../types'
+import type {
+  IndexRebuildResponse,
+  IndexStatusResponse,
+  SettingsLLMResponse,
+  SettingsOCRResponse,
+  TemplateMetaItem,
+  TemplatesMetaResponse,
+} from '../types'
 
 defineProps({
   currentUser: {
@@ -361,8 +368,16 @@ async function loadIndexStatus() {
 async function rebuildAllIndexes() {
   rebuildingIndex.value = true
   try {
-    const response = await post<{ message: string }>(apiPaths.index.rebuildAll)
-    toast.add({ severity: 'success', summary: 'Index rebuild started', detail: response.message || 'Index rebuild finished.', life: 3500 })
+    const response = await post<IndexRebuildResponse>(apiPaths.index.rebuildAll)
+    const failed = response.failed ?? 0
+    const rebuilt = response.rebuilt ?? 0
+    const detail = response.message || (failed > 0 ? 'Index rebuild completed with failures.' : 'Index rebuild finished.')
+    toast.add({
+      severity: failed > 0 ? 'warn' : 'success',
+      summary: failed > 0 ? 'Index rebuild needs attention' : 'Index rebuild finished',
+      detail: `${detail} Provider: ${response.provider.active_provider}. Rebuilt: ${rebuilt}, failed: ${failed}.`,
+      life: 4000,
+    })
     await loadIndexStatus()
   } catch (error: unknown) {
     const apiError = error as { message?: string }

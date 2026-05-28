@@ -9,7 +9,7 @@ def is_real_autotest_requested() -> bool:
 
 
 def is_real_autotest_enabled() -> bool:
-    return bool(settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST)
+    return bool(settings.KW_AUTOTEST_REAL_MODE)
 
 
 def current_autotest_execution_mode() -> str:
@@ -25,7 +25,9 @@ def get_autotest_capabilities() -> AutoTestCapabilitiesResponse:
         "Run only trusted projects inside your own isolated environment."
         if available
         else "Safe simulated mode is active. No uploaded project commands will run. "
-        "Real command execution requires AUTOTEST_MODE=real and KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1."
+        "Real command execution requires AUTOTEST_MODE=real and KW_AUTOTEST_REAL_MODE=1. "
+        "Use real mode only for trusted local projects; do not run untrusted ZIP uploads. "
+        "Production use requires Docker sandboxing or equivalent isolation."
     )
     return AutoTestCapabilitiesResponse(
         mode="real" if available else "simulated",

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import importlib
 import os
@@ -86,3 +86,4 @@ def auth_headers(client: TestClient) -> dict[str, str]:
     response = client.post("/api/login", json={"user_id": "owner", "password": "OwnerPass123!"})
     assert response.status_code == 200, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
+

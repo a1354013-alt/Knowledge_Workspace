@@ -128,6 +128,38 @@ def test_document_delete_keeps_success_when_deindex_fails(
     assert any(row["item_id"] == "document:doc-delete-side-effect" and row["action"] == "deindex" for row in repairs)
 
 
+def test_document_delete_reports_file_cleanup_warning(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    uploads_dir = Path(app_module.legacy_main.UPLOAD_DIR)
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    file_path = uploads_dir / "doc-delete-warning.txt"
+    file_path.write_text("delete me", encoding="utf-8")
+
+    assert app_module.db.add_document(
+        doc_id="doc-delete-warning",
+        filename="doc-delete-warning.txt",
+        saved_filename="doc-delete-warning.txt",
+        file_size=9,
+        uploaded_by="owner",
+        status="reviewed",
+    )
+
+    monkeypatch.setattr(
+        _handler_module("docs"),
+        "safe_unlink_with_warning",
+        lambda **kwargs: "Document file cleanup failed: file is locked",
+    )
+
+    response = client.delete("/api/docs/doc-delete-warning", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    assert "file cleanup failed" in response.json()["message"].lower()
+    assert app_module.db.get_document("doc-delete-warning") is None
+
+
 def test_knowledge_create_keeps_success_when_indexing_fails(
     app_module,
     client: TestClient,

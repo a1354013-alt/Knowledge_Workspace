@@ -1,8 +1,9 @@
-# Known Limitations
+﻿# Known Limitations
 
-- AutoTest real mode is constrained local trusted-workspace command execution, not a hardened sandbox. It requires `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1` and should not be used for untrusted projects.
+- AutoTest real mode is constrained local trusted-workspace command execution, not a hardened sandbox. It requires `KW_AUTOTEST_REAL_MODE=1` and should not be used for untrusted projects.
 - `DockerSandboxRunner` is still a placeholder, so real mode must not be described as container-isolated or exposed as a public upload execution service.
 - `/api/autotest/run` uses an async in-process job runner. Jobs are durable in SQLite and visible through `GET /api/autotest/runs/{run_id}`, but a process crash can still interrupt an active in-memory worker; a future queue should recover or requeue interrupted runs.
+- interrupted or stale runs are marked failed during startup recovery; they are not resumed from the middle of execution because the worker is in-process rather than a durable queue.
 - GitHub analyze is intake-only registration metadata. It creates a `registered` AutoTest run for visibility, but it is not queued for clone/test execution and no background worker will pick it up.
 - Python dependency installation for uploaded projects is disabled in AutoTest real mode until a trusted sandbox policy is added.
 - The Vite build still emits a large-chunk warning for the PrimeVue core bundle. Manual vendor chunking is already in place; the next improvement step is route/component lazy loading instead of hiding the warning with a larger limit.
@@ -15,3 +16,4 @@
 - CI enforces frontend production dependency audit with `npm audit --omit=dev --audit-level=high`.
 - Release zip verification rejects runtime databases, journal files, secrets, caches, uploads, build outputs, and test artifacts.
 - Production-grade AutoTest needs Docker or Podman isolation, no network, a non-root user, a read-only root filesystem, CPU / memory / file-size limits, a durable job queue, and persistent logs / timeline storage.
+

@@ -1,3 +1,4 @@
+import sqlite3
 import uuid
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from app.api.common import (
     item_id_from_parts,
     safe_download_filename,
     safe_unlink,
+    safe_unlink_with_warning,
     serialize_document,
     side_effect_warning,
 )
@@ -82,19 +84,24 @@ async def upload_document(
     file_size = await stream_write_file(file, file_path)
 
     doc_id = str(uuid.uuid4())
-    if not db.add_document(
-        doc_id=doc_id,
-        filename=file.filename,
-        saved_filename=safe_filename,
-        file_size=file_size,
-        uploaded_by=current_user["sub"],
-        category=str(category or ""),
-        tags=str(tags or ""),
-        status="reviewed",
-        index_status="pending",
-        index_error="",
-        indexed_at="",
-    ):
+    try:
+        created = db.add_document(
+            doc_id=doc_id,
+            filename=file.filename,
+            saved_filename=safe_filename,
+            file_size=file_size,
+            uploaded_by=current_user["sub"],
+            category=str(category or ""),
+            tags=str(tags or ""),
+            status="reviewed",
+            index_status="pending",
+            index_error="",
+            indexed_at="",
+        )
+    except Exception:
+        safe_unlink(file_path)
+        raise
+    if not created:
         safe_unlink(file_path)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to persist document.")
 
@@ -220,9 +227,17 @@ async def delete_own_document(doc_id: str, current_user: dict = Depends(get_curr
         )
     else:
         db.resolve_index_repair(item_id=item_id_from_parts("document", doc_id), action="deindex")
-    db.delete_search_content(item_id_from_parts("document", doc_id))
-    safe_unlink(UPLOAD_DIR / document["saved_filename"])
-    db.delete_links(from_item_id=item_id_from_parts("document", doc_id))
-    db.delete_links(to_item_id=item_id_from_parts("document", doc_id))
-    db.delete_document(doc_id)
-    return MessageResponse(message=_side_effect_warning("Document deleted.", warning))
+    item_id = item_id_from_parts("document", doc_id)
+    with db.transaction() as conn:
+        try:
+            conn.execute("DELETE FROM search_content WHERE item_id = ?", (item_id,))
+        except sqlite3.OperationalError:
+            pass
+        conn.execute("DELETE FROM item_links WHERE from_item_id = ? OR to_item_id = ?", (item_id, item_id))
+        deleted = conn.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+        if int(deleted.rowcount or 0) == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
+    file_warning = safe_unlink_with_warning(path=UPLOAD_DIR / document["saved_filename"], label="Document")
+    warning_parts = [part for part in (warning, file_warning) if part]
+    return MessageResponse(message=_side_effect_warning("Document deleted.", " ".join(warning_parts)))

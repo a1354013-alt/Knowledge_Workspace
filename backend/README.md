@@ -1,4 +1,4 @@
-# Backend API
+﻿# Backend API
 
 Prereqs: Python 3.11.x (matches `requires-python = ">=3.11,<3.12"` and CI).
 
@@ -78,7 +78,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ```powershell
 python scripts/check_python_version.py
-python scripts/safe_compileall.py -q .
+python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 ```
@@ -99,7 +99,7 @@ Optional (common):
 - `ALLOWED_ORIGINS` (comma-separated)
 - `MAX_FILE_SIZE` (bytes; default: 52428800 = 50MB)
 - `AUTOTEST_MODE` (`simulated` by default; `real` only for trusted local projects)
-- `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST` (`1` required before `AUTOTEST_MODE=real` can execute)
+- `KW_AUTOTEST_REAL_MODE` (`1` required before `AUTOTEST_MODE=real` can execute)
 - `AUTOTEST_TIMEOUT_SECONDS`
 - `AUTOTEST_MAX_FILES`
 - `AUTOTEST_MAX_UNZIPPED_BYTES`
@@ -113,7 +113,7 @@ Optional (common):
 
 AutoTest real mode note:
 
-- `AUTOTEST_MODE=real` without `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1` is rejected
+- `AUTOTEST_MODE=real` without `KW_AUTOTEST_REAL_MODE=1` is rejected
 - real mode is not a hardened sandbox
 - it executes commands from uploaded projects
 - `DockerSandboxRunner` is still a placeholder, so there is no finished container isolation yet
@@ -124,3 +124,4 @@ Text uploads:
 
 OCR notes:
 - `available=true` requires the Python deps **and** a runnable system Tesseract binary.
+

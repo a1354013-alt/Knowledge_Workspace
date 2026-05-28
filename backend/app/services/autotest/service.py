@@ -93,8 +93,10 @@ async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunRespo
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                "AutoTest real mode is disabled. Set KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1 "
-                "and run inside an isolated sandbox/container before executing uploaded projects."
+                "AutoTest real mode is disabled. Set AUTOTEST_MODE=real and KW_AUTOTEST_REAL_MODE=1 "
+                "only for local trusted projects. Do not execute untrusted ZIP uploads. "
+                "Production use requires a Docker sandbox or equivalent isolation; the current "
+                "DockerSandboxRunner is only a placeholder."
             ),
         )
     if not file.filename:

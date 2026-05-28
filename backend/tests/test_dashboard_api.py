@@ -69,11 +69,43 @@ def test_dashboard_promote_counts_canonical_logbook_to_knowledge_link(
         and link["to_item_id"] == f"logbook:{entry_id}"
         and link["link_type"] == "derived_from"
     ]
-    assert len(derived_from) == 1
+    assert derived_from == []
 
-    dashboard_after_reverse = client.get("/api/dashboard/health", headers=auth_headers)
-    assert dashboard_after_reverse.status_code == 200, dashboard_after_reverse.text
-    assert dashboard_after_reverse.json()["logbook"]["promoted_to_knowledge"] == 1
+
+def test_item_links_keeps_legacy_reverse_promote_link_readable(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+):
+    assert app_module.db.add_logbook_entry(
+        entry_id="log-legacy",
+        title="Legacy logbook",
+        status="reviewed",
+        run_id="",
+        problem="Problem",
+        root_cause="",
+        solution="Solution",
+        tags="legacy",
+        source_type="manual",
+        source_ref="",
+        created_by="owner",
+    )
+    assert app_module.db.add_knowledge_entry(
+        entry_id="kb-legacy",
+        title="Legacy knowledge",
+        status="verified",
+        problem="Problem",
+        root_cause="",
+        solution="Solution",
+        tags="legacy",
+        notes="",
+        created_by="owner",
+    )
+    assert app_module.db.add_link("knowledge:kb-legacy", "logbook:log-legacy", "derived_from")
+
+    response = client.get("/api/item-links", headers=auth_headers, params={"item_id": "logbook:log-legacy"})
+    assert response.status_code == 200, response.text
+    assert any(link["other_item"]["item_id"] == "knowledge:kb-legacy" for link in response.json()["links"])
 
 
 def test_dashboard_document_index_metrics_are_based_on_index_status(

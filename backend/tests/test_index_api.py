@@ -49,11 +49,45 @@ def test_rebuild_single_document_index_updates_status(app_module, client, auth_h
     response = client.post("/api/index/rebuild/document/doc-rebuild", headers=auth_headers)
     assert response.status_code == 200, response.text
     payload = response.json()
+    assert payload["message"] == "Rebuilt document:doc-rebuild."
     assert payload["rebuilt"] == 1
+    assert payload["failed"] == 0
     updated = app_module.db.get_document("doc-rebuild")
     assert updated["index_status"] == "indexed"
     assert updated["index_error"] == ""
     assert not app_module.db.list_index_repairs(owner_user_id="owner")
+
+
+def test_rebuild_single_document_index_reports_failure_message(app_module, client, auth_headers, monkeypatch):
+    from app.services import indexing_service
+
+    uploads_dir = Path(app_module.legacy_main.UPLOAD_DIR)
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    (uploads_dir / "doc-fail.txt").write_text("hello world", encoding="utf-8")
+    assert app_module.db.add_document(
+        doc_id="doc-rebuild-fail",
+        filename="doc-fail.txt",
+        saved_filename="doc-fail.txt",
+        file_size=11,
+        uploaded_by="owner",
+        status="reviewed",
+        index_status="failed",
+        index_error="previous failure",
+    )
+
+    monkeypatch.setattr(
+        indexing_service,
+        "process_file",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("vector provider missing")),
+    )
+
+    response = client.post("/api/index/rebuild/document/doc-rebuild-fail", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["message"] == "Failed to rebuild document:doc-rebuild-fail."
+    assert payload["rebuilt"] == 0
+    assert payload["failed"] == 1
+    assert payload["items"][0]["status"] == "failed"
 
 
 def test_rebuild_all_indexes_marks_failures(app_module, client, auth_headers, monkeypatch):
@@ -78,6 +112,7 @@ def test_rebuild_all_indexes_marks_failures(app_module, client, auth_headers, mo
     response = client.post("/api/index/rebuild", headers=auth_headers)
     assert response.status_code == 200, response.text
     payload = response.json()
+    assert "completed with failures" in payload["message"].lower()
     assert payload["failed"] >= 1
     prompt = app_module.db.get_saved_prompt("prompt-rebuild")
     assert prompt is not None

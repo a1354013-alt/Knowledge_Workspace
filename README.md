@@ -1,4 +1,4 @@
-# Knowledge Workspace
+﻿# Knowledge Workspace
 
 Knowledge Workspace is a local-first engineering workspace that combines three product surfaces in one project:
 
@@ -46,13 +46,13 @@ graph TD
 - knowledge lifecycle: `draft -> reviewed -> verified -> archived`
 - logbook troubleshooting capture with source refs and related item links
 - promote flow now writes the canonical `logbook:{id} -> knowledge:{id}` `produced` link
-- compatibility migration keeps old reverse links readable while dashboard metrics use one fixed direction
+- legacy reverse `knowledge -> logbook` `derived_from` links stay readable in the query/UI compatibility layer, but new promote writes only the canonical direction
 
 ### AutoTest
 
 - upload `.zip` projects or register GitHub repos for intake-only analysis registration
 - simulated mode by default for demos, CI, and safe reproducibility
-- real mode is opt-in behind `AUTOTEST_MODE=real` plus `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`, and uses fixed timeouts, `shell=False`, output limits, path sanitization, symlink/path-escape checks, and sensitive env scrubbing
+- real mode is opt-in behind `AUTOTEST_MODE=real` plus `KW_AUTOTEST_REAL_MODE=1`, and uses fixed timeouts, `shell=False`, output limits, path sanitization, symlink/path-escape checks, and sensitive env scrubbing
 - backend is now split into:
   - `api/routes/autotest.py`: thin HTTP layer
   - `services/autotest_service.py`: compatibility shim for older imports
@@ -130,7 +130,7 @@ Responsibility split:
 AutoTest is intentionally constrained, but it is not a sandbox.
 
 - default mode is `AUTOTEST_MODE=simulated`
-- real mode must be explicitly enabled with both `AUTOTEST_MODE=real` and `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- real mode must be explicitly enabled with both `AUTOTEST_MODE=real` and `KW_AUTOTEST_REAL_MODE=1`
 - if `AUTOTEST_MODE=real` is set without that enable flag, the API rejects the run
 - real mode executes commands from uploaded projects on the local trusted workspace host
 - Node installs use `npm ci --ignore-scripts --no-audit --no-fund`
@@ -164,95 +164,100 @@ Recommended usage:
   - durable job queue
   - persistent logs / timeline
 
-## Local Startup
+## First Startup
 
 ### Prerequisites
 
-- Python `3.11.x`
-- Node.js `20` LTS
+- Python `3.11.x` is required; Python `3.12` / `3.13` are not supported until dependency constraints are updated.
+- Node.js `20` LTS with npm `10` or newer is the supported frontend runtime and matches CI.
+- The bootstrap scripts create `.venv311`, install backend dev dependencies, run `npm ci` in `frontend/`, and create `.env` / `backend/.env` if missing.
+- Existing `.env` files are never overwritten.
 
-### Backend
-
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -U pip
-pip install -e ".[dev]"
-```
-
-Windows bootstrap shortcut:
+### Windows
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_windows.ps1
+.\scripts\bootstrap-dev.ps1
+.\scripts\start-dev.ps1
 ```
 
-`backend/requirements.txt` and `backend/requirements-dev.txt` remain committed for pinned/runtime visibility, while the supported local verification flow uses `pip install -e ".[dev]"` from the repo root.
-
-Set environment variables:
-
-```env
-JWT_SECRET=<32+ chars>
-DEFAULT_OWNER_PASSWORD=<local password>
-ALLOWED_ORIGINS=http://localhost:5173
-AUTOTEST_MODE=simulated
-# optional real mode, sandbox/container only:
-# AUTOTEST_MODE=real
-# KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1
-# optional: AUTOTEST_TIMEOUT_SECONDS=300
-# optional: AUTOTEST_MAX_UNZIPPED_BYTES=262144000
-```
-
-Run:
-
-```powershell
-cd backend
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-### Frontend
+### macOS/Linux
 
 ```bash
-cd frontend
-npm ci
-npm run dev -- --host 127.0.0.1 --port 5173
+bash scripts/bootstrap-dev.sh
+bash scripts/start-dev.sh
+```
+
+Default development URLs:
+
+- Backend API: `http://127.0.0.1:8000`
+- API Docs: `http://127.0.0.1:8000/docs`
+- Frontend: `http://127.0.0.1:5173`
+
+### Environment Files
+
+Bootstrap writes safe local defaults only when files are missing:
+
+- `.env` for repo-root defaults and documentation
+- `backend/.env` for the backend server started from `backend/`
+
+AutoTest real mode stays off in both files:
+
+```env
+AUTOTEST_MODE=simulated
+KW_AUTOTEST_REAL_MODE=0
+```
+
+### AutoTest Real Mode
+
+AutoTest real mode is disabled by default because it executes commands from uploaded projects on the local host. Use it only for trusted local projects; do not run untrusted ZIP uploads. Production use requires Docker sandboxing or equivalent isolation. `DockerSandboxRunner` is currently a placeholder, not completed production isolation.
+
+To enable local trusted real mode:
+
+```env
+AUTOTEST_MODE=real
+KW_AUTOTEST_REAL_MODE=1
 ```
 
 ## Test And Verification
 
-### Backend
+Windows:
 
 ```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -U pip
-pip install -e ".[dev]"
-python scripts/check_python_version.py
-python scripts/safe_compile.py -q .
-python -m ruff check backend scripts
-python scripts/run_backend_tests.py
-python scripts/check_index_consistency.py
-python scripts/export_openapi.py
-python scripts/check_api_types.py
-python scripts/check_versions.py
+.\scripts\verify-all.ps1
+```
+
+macOS/Linux:
+
+```bash
+bash scripts/verify-all.sh
+```
+
+The verification scripts reuse the existing CI-equivalent Python gate (`scripts/verify_all.py`) and stop on the first failing stage.
+
+### Backend Checks
+
+```powershell
+.\.venv311\Scripts\python.exe scripts\check_python_version.py
+.\.venv311\Scripts\python.exe scripts\safe_compile.py -q .
+.\.venv311\Scripts\python.exe -m ruff check backend scripts
+.\.venv311\Scripts\python.exe scripts\run_backend_tests.py
+.\.venv311\Scripts\python.exe scripts\check_index_consistency.py
+.\.venv311\Scripts\python.exe scripts\export_openapi.py
+.\.venv311\Scripts\python.exe scripts\generate_api_types.py --check
+.\.venv311\Scripts\python.exe scripts\check_version_consistency.py
 ```
 
 Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md) and `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
 
-Single-command backend + frontend + release + smoke verification:
-
-```powershell
-python scripts/verify_all.py
-```
-
-### Frontend
+### Frontend Checks
 
 ```bash
 cd frontend
 npm ci
 npm audit --omit=dev --audit-level=high
-npm run test:run
 npm run lint
 npm run typecheck
+npm run test:run
 npm run build
 ```
 
@@ -268,9 +273,9 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 4. `python -m ruff check backend scripts`
 5. `python scripts/run_backend_tests.py`
 6. `python scripts/export_openapi.py`
-7. `python scripts/check_api_types.py`
+7. `python scripts/generate_api_types.py --check`
 8. `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`
-9. `python scripts/check_versions.py`
+9. `python scripts/check_version_consistency.py`
 10. `python scripts/check_index_consistency.py`
 11. frontend `npm ci`
 12. frontend `npm audit --omit=dev --audit-level=high`
@@ -279,16 +284,72 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 15. frontend `npm run test:run`
 16. frontend `npm run build`
 17. `python scripts/package_release.py`
-18. `python scripts/verify_release_package.py dist/knowledge-workspace-*.zip`
+18. `python scripts/verify_release.py dist/knowledge-workspace-*.zip`
 19. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
 
 `python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, `python scripts/check_index_consistency.py`, release zip verification, and smoke.
 
 The release zip is a clean source package. `scripts/package_release.py` writes `dist/knowledge-workspace-<version>.zip` by default, does not build frontend assets unless `--build-frontend` is passed, and still does not ship `frontend/dist` in the final archive even when that staging build flag is used. The archive deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
 
+### Release Zip Quickstart
+
+The release zip is a source package, not a prebuilt app bundle. It does not include `frontend/dist`.
+
+After extracting the zip:
+
+Windows PowerShell:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+pip install -e ".[dev]"
+cd frontend
+npm ci
+cd ..
+copy .env.example .env
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Separate PowerShell frontend terminal:
+
+```powershell
+cd frontend
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+bash:
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+pip install -e ".[dev]"
+cd frontend
+npm ci
+cd ..
+cp .env.example .env
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Separate bash frontend terminal:
+
+```bash
+cd frontend
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Smoke check after both servers are running:
+
+```powershell
+python scripts/smoke_check.py --password "OwnerPass123!"
+```
+
 ## Knowledge Restore And Index Repair
 
-- restoring a knowledge revision updates the SQLite row, refreshes `source_ref` / `derived_from` links, and immediately re-runs indexing
+- restoring a knowledge revision updates the SQLite row, refreshes `source_ref`-driven links, and immediately re-runs indexing
 - restore is not allowed to pretend success if re-indexing raises or returns a degraded `False`/falsy result
 - restore indexing failure persists `index_status`, stores `index_error`, and queues repair work so UI state and search state cannot silently drift apart
 - `python scripts/check_index_consistency.py --repair` replays queued index/deindex work after the underlying issue is fixed
@@ -327,7 +388,7 @@ Metric sources:
 
 - extracts the ZIP
 - detects Node/Python project roots
-- requires `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- requires `KW_AUTOTEST_REAL_MODE=1`
 - runs a fixed command plan from the uploaded project with constrained subprocess settings
 - does not run Python dependency installation for uploaded projects
 - should only be used on trusted code in an isolated environment
@@ -397,3 +458,5 @@ See [docs/PORTFOLIO_CASE_STUDY.md](docs/PORTFOLIO_CASE_STUDY.md) for:
 - major bug fixes
 - dashboard contract design
 - interview demo script
+
+

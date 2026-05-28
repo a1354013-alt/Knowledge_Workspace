@@ -100,6 +100,16 @@ class DocumentDatabase(
             if self.db_path != ":memory:":
                 conn.close()
 
+    @contextmanager
+    def transaction(self) -> sqlite3.Connection:
+        with self._connection() as conn:
+            try:
+                yield conn
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+
     def init_db(self) -> None:
         with self._connection() as conn:
             cursor = conn.cursor()

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import sys
 from importlib import import_module, util
@@ -49,3 +49,4 @@ def test_runtime_provider_and_app_imports_succeed(monkeypatch, tmp_path):
 
 def test_httpx_is_importable_in_runtime_environment():
     assert util.find_spec("httpx") is not None
+

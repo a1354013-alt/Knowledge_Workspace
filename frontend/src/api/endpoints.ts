@@ -15,16 +15,21 @@ export const apiPaths = {
     upload: '/api/docs/upload',
     detail: (docId: string) => `/api/docs/${docId}`,
     download: (docId: string) => `/api/docs/${docId}/download`,
+    references: (docId: string) => `/api/docs/${docId}/references`,
   },
   photos: {
     list: '/api/photos',
     upload: '/api/photos/upload',
     detail: (photoId: string) => `/api/photos/${photoId}`,
     download: (photoId: string) => `/api/photos/${photoId}/download`,
+    references: (photoId: string) => `/api/photos/${photoId}/references`,
   },
   knowledge: {
     list: '/api/knowledge/entries',
     detail: (entryId: string) => `/api/knowledge/entries/${entryId}`,
+    revisions: (entryId: string) => `/api/knowledge/${entryId}/revisions`,
+    revisionDiff: (entryId: string, revisionId: string) => `/api/knowledge/${entryId}/revisions/${revisionId}/diff`,
+    restoreRevision: (entryId: string, revisionId: string) => `/api/knowledge/${entryId}/revisions/${revisionId}/restore`,
   },
   logbook: {
     list: '/api/logbook/entries',

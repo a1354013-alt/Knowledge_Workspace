@@ -15,8 +15,8 @@ python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 python scripts/export_openapi.py
-python scripts/check_api_types.py
-python scripts/check_versions.py
+python scripts/generate_api_types.py --check
+python scripts/check_version_consistency.py
 python scripts/check_index_consistency.py
 ```
 

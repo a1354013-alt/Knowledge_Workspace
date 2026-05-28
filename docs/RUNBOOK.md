@@ -1,4 +1,4 @@
-# Development Runbook
+﻿# Development Runbook
 
 ## Supported Toolchain
 
@@ -62,7 +62,7 @@ Refresh the backend OpenAPI schema and frontend generated API types from the rep
 ```powershell
 python scripts/export_openapi.py
 python scripts/generate_api_types.py
-python scripts/check_api_types.py
+python scripts/generate_api_types.py --check
 ```
 
 ## Release Packaging
@@ -71,10 +71,10 @@ Build and verify the release zip from the repo root:
 
 ```powershell
 python scripts/package_release.py
-python scripts/verify_release_zip.py dist/knowledge-workspace-5.0.0.zip
+python scripts/verify_release.py dist/knowledge-workspace-5.0.0.zip
 ```
 
-If you want the exact generated filename without hard-coding the version, inspect `dist/` after packaging and pass that path to `verify_release_zip.py`.
+If you want the exact generated filename without hard-coding the version, inspect `dist/` after packaging and pass that path to `verify_release.py`.
 
 ## AutoTest Safety Reminder
 
@@ -83,7 +83,8 @@ If you want the exact generated filename without hard-coding the version, inspec
 AutoTest real mode is only for a trusted local workspace that you control:
 
 - requires `AUTOTEST_MODE=real`
-- requires `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- requires `KW_AUTOTEST_REAL_MODE=1`
 - is not a public sandbox
 - is not container isolation
 - must not be exposed as arbitrary public code execution
+

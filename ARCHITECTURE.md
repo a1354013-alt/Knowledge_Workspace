@@ -1,4 +1,4 @@
-# Architecture
+﻿# Architecture
 
 Knowledge Workspace is a local-first FastAPI + Vue + SQLite application.
 
@@ -28,7 +28,7 @@ SQLite stores documents, knowledge entries, logbook entries, prompts, item links
 
 ZIP upload -> guarded extraction -> stack detection -> fixed command plan -> simulated or gated real execution -> timeline/report -> optional knowledge/logbook draft.
 
-Real mode requires `AUTOTEST_MODE=real` and `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`.
+Real mode requires `AUTOTEST_MODE=real` and `KW_AUTOTEST_REAL_MODE=1`.
 
 The current worker model is intentionally local-first and in-process:
 
@@ -68,3 +68,4 @@ Release packaging copies backend, frontend, scripts, and docs into a temporary t
 ## Deprecation Status
 
 `backend/app/api/legacy_main.py` and `backend/app/db/legacy_database.py` are compatibility bridges, not the preferred architecture entrypoints. See `docs/DEPRECATION.md` for the current role and removal conditions.
+

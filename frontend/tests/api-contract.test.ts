@@ -33,7 +33,7 @@ function collectApiRoutes(tree: ApiTree): string[] {
 
 describe('frontend API contract', () => {
   it('maps every frontend API helper route to an OpenAPI path', () => {
-    const routes = collectApiRoutes(apiPaths as unknown as ApiTree)
+    const routes = collectApiRoutes(apiPaths as ApiTree)
     for (const route of routes) {
       expect(openapiMatchers.some((entry) => entry.pattern.test(route)), `missing OpenAPI route for ${route}`).toBe(true)
     }

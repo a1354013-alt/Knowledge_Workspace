@@ -1,4 +1,4 @@
-# Quick Start
+﻿# Quick Start
 
 Recommended toolchain:
 
@@ -21,14 +21,14 @@ JWT_SECRET=<minimum 32 chars>
 DEFAULT_OWNER_PASSWORD=<local owner password>
 ALLOWED_ORIGINS=http://localhost:5173
 AUTOTEST_MODE=simulated
-# Real mode additionally requires KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1
+# Real mode additionally requires KW_AUTOTEST_REAL_MODE=1
 ```
 
 Notes:
 
 - keep `AUTOTEST_MODE=simulated` unless you intentionally want trusted local command execution
-- `AUTOTEST_MODE=real` is rejected unless `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
-- real mode is not a hardened sandbox; use a container/sandbox
+- `AUTOTEST_MODE=real` is rejected unless `KW_AUTOTEST_REAL_MODE=1`
+- real mode is trusted local execution, not a hardened sandbox; do not run untrusted ZIPs there
 
 ## 2. Start backend
 
@@ -68,7 +68,7 @@ Backend:
 
 ```powershell
 python scripts/check_python_version.py
-python scripts/safe_compileall.py -q .
+python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
 python scripts/export_openapi.py
@@ -92,10 +92,11 @@ Repo-wide:
 
 ```powershell
 python scripts/package_release.py dist/knowledge_workspace_release.zip
-python scripts/verify_release_zip.py dist/knowledge_workspace_release.zip
+python scripts/verify_release.py dist/knowledge_workspace_release.zip
 ```
 
 Runtime-only fallback:
 
 - `backend/requirements.txt` is kept for runtime-only installs such as `cd backend && python -m pip install -r requirements.txt`
 - if you need tests, lint, or CI-equivalent verification, use the repo-root `pip install -e ".[dev]"` flow above
+

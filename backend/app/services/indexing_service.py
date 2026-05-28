@@ -474,8 +474,11 @@ def rebuild_all_indexes(current_user: dict[str, Any]) -> IndexRebuildResponse:
         rebuilt += response.rebuilt
         failed += response.failed
         items.extend(response.items)
+    message = f"Rebuilt {rebuilt} item(s); {failed} failed."
+    if failed > 0:
+        message = f"Index rebuild completed with failures: rebuilt {rebuilt} item(s); {failed} failed."
     return IndexRebuildResponse(
-        message=f"Rebuilt {rebuilt} item(s); {failed} failed.",
+        message=message,
         provider=get_provider_status(),
         rebuilt=rebuilt,
         failed=failed,
@@ -507,8 +510,11 @@ def rebuild_single_item_type(current_user: dict[str, Any], item_type: IndexItemT
         except Exception:
             failed += 1
         result_items.append(_serialize_target(item_type, row))
+    message = f"Rebuilt {rebuilt} {item_type} item(s); {failed} failed."
+    if failed > 0:
+        message = f"Failed to rebuild some {item_type} item(s): rebuilt {rebuilt}; {failed} failed."
     return IndexRebuildResponse(
-        message=f"Rebuilt {rebuilt} {item_type} item(s); {failed} failed.",
+        message=message,
         provider=get_provider_status(),
         rebuilt=rebuilt,
         failed=failed,
@@ -547,8 +553,11 @@ def rebuild_single_item(current_user: dict[str, Any], item_type: IndexItemType, 
         rebuilt = 1
     except Exception:
         failed = 1
+    message = f"Rebuilt {item_type}:{item_id}."
+    if failed > 0:
+        message = f"Failed to rebuild {item_type}:{item_id}."
     return IndexRebuildResponse(
-        message=f"Rebuilt {item_type}:{item_id}.",
+        message=message,
         provider=get_provider_status(),
         rebuilt=rebuilt,
         failed=failed,

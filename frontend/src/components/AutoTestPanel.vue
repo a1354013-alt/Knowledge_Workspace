@@ -5,13 +5,13 @@
         Run acceptance (install / build / test / lint)
       </template>
       <template #subtitle>
-        Guarded runner for supported project zips (smoke/build/test only). Not a fully isolated sandbox; use trusted inputs and a constrained stack.
+        `simulated` mode is the safe demo path. `real` mode is trusted local execution only and is not a formal sandbox for untrusted ZIPs.
       </template>
       <template #content>
         <div class="stack-md">
           <div class="warning-banner">
             <strong>AutoTest mode: {{ capabilities?.mode || 'simulated' }}</strong>
-            <p>{{ capabilities?.message || 'Safe simulated mode is active until the backend reports otherwise.' }}</p>
+            <p>{{ capabilitiesMessage }}</p>
           </div>
           <div class="row">
             <input
@@ -312,6 +312,12 @@ const reportActionHint = computed(() => {
 })
 const runsLoadMessage = computed(() => store.state.error.autotestRuns || '')
 const showRunsReloadWarning = computed(() => store.state.status.autotestRuns === 'error' && runs.value.length > 0)
+const capabilitiesMessage = computed(() => {
+  if (capabilities.value?.mode === 'real') {
+    return 'Real mode is trusted local execution on this host. Do not run untrusted ZIP files here.'
+  }
+  return capabilities.value?.message || 'Simulated mode is the safe demo path and does not execute uploaded project commands.'
+})
 
 function openZipPicker() {
   zipInput.value?.click()

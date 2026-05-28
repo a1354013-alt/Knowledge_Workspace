@@ -104,6 +104,18 @@ def safe_unlink(path: Path) -> None:
         logger.warning("Could not delete file %s because it is locked by the OS.", path)
 
 
+def safe_unlink_with_warning(*, path: Path, label: str) -> str | None:
+    try:
+        path.unlink(missing_ok=True)
+    except PermissionError as exc:
+        logger.warning("Could not delete %s file %s because it is locked by the OS.", label, path)
+        return f"{label} file cleanup failed: {exc}"
+    except OSError as exc:
+        logger.warning("Could not delete %s file %s: %s", label, path, exc)
+        return f"{label} file cleanup failed: {exc}"
+    return None
+
+
 def item_id_from_parts(prefix: str, raw_id: str) -> str:
     value = str(raw_id or "").strip()
     if not value:

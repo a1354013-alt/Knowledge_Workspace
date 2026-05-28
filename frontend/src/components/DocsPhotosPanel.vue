@@ -395,6 +395,7 @@ import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import type {
   DocumentUpdateRequest,
   DocumentResponse,
+  IndexRebuildResponse,
   MessageResponse,
   PhotoResponse,
   PhotoUpdateRequest,
@@ -694,8 +695,20 @@ async function rebuildDocumentIndex(doc: DocumentResponse) {
     return
   }
   try {
-    const response = await post<{ message: string }>(apiPaths.index.rebuildItem('document', doc.id))
-    toast.add({ severity: 'success', summary: 'Index rebuilt', detail: response.message || 'Document index rebuilt.', life: 3000 })
+    const response = await post<IndexRebuildResponse>(apiPaths.index.rebuildItem('document', doc.id))
+    const failed = response.failed ?? 0
+    const rebuilt = response.rebuilt ?? 0
+    const item = response.items?.[0]
+    const detail = response.message || (failed > 0 ? 'Document index rebuild failed.' : 'Document index rebuilt.')
+    toast.add({
+      severity: failed > 0 ? 'warn' : 'success',
+      summary: failed > 0 ? 'Index rebuild needs attention' : 'Index rebuilt',
+      detail:
+        item?.error && failed > 0
+          ? `${detail} ${item.error}`
+          : `${detail} Provider: ${response.provider.active_provider}. Rebuilt: ${rebuilt}, failed: ${failed}.`,
+      life: 4000,
+    })
     await loadDocuments()
   } catch (error: unknown) {
     const apiError = error as { message?: string }

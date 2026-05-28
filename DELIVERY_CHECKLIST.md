@@ -1,4 +1,4 @@
-# Delivery Checklist
+﻿# Delivery Checklist
 
 ## Pre-delivery cleanup
 
@@ -29,7 +29,7 @@
   - Markdown report download
   - HTML report download
   - AI fix prompt copy when available
-- AutoTest real mode availability is visible in UI and docs, and the API rejects real mode unless `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- AutoTest real mode availability is visible in UI and docs, and the API rejects real mode unless `KW_AUTOTEST_REAL_MODE=1`
 - GitHub repo analyze language says register/queue, not clone-and-run
 
 ## Verification commands
@@ -66,3 +66,4 @@ Deliver only:
 - root documentation and startup scripts
 - `docs/`
 - `scripts/`
+

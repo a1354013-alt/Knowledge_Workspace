@@ -12,6 +12,7 @@ from app.api.common import (
     run_index_side_effect,
     side_effect_warning,
     sync_source_ref_link,
+    utc_now_iso,
     validate_related_item_ids_for_user,
     validate_source_ref_for_user,
 )
@@ -180,28 +181,71 @@ async def promote_logbook_to_knowledge(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot promote this logbook entry.")
 
     knowledge_id = str(uuid.uuid4())
-    ok = db.add_knowledge_entry(
-        entry_id=knowledge_id,
-        title=str(logbook.get("title") or "").strip() or "Troubleshooting: verified fix",
-        status="verified",
-        problem=str(logbook.get("problem") or ""),
-        root_cause=str(logbook.get("root_cause") or ""),
-        solution=str(logbook.get("solution") or ""),
-        tags=str(logbook.get("tags") or ""),
-        notes=f"promoted_from=logbook:{entry_id}",
-        created_by=user_id,
-        source_type=str(logbook.get("source_type") or "manual"),
-        source_ref=str(logbook.get("source_ref") or ""),
-    )
-    if not ok:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to promote to knowledge.")
-
-    db.add_link(f"logbook:{entry_id}", f"knowledge:{knowledge_id}", link_type="produced")
-    db.add_link(f"knowledge:{knowledge_id}", f"logbook:{entry_id}", link_type="derived_from")
-    for related in list_visible_related_item_ids_for_user(item_id=f"logbook:{entry_id}", user_id=user_id):
-        db.add_link(f"knowledge:{knowledge_id}", related, link_type="references")
-
-    db.update_logbook_entry(entry_id, status="archived")
+    related_item_ids = list_visible_related_item_ids_for_user(item_id=f"logbook:{entry_id}", user_id=user_id)
+    with db.transaction() as conn:
+        now = utc_now_iso()
+        conn.execute(
+            """
+            INSERT INTO knowledge_entries
+            (entry_id, title, status, problem, root_cause, solution, tags, notes, source_type, source_ref, created_by, is_active, index_status, index_error, indexed_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                knowledge_id,
+                str(logbook.get("title") or "").strip() or "Troubleshooting: verified fix",
+                "verified",
+                str(logbook.get("problem") or ""),
+                str(logbook.get("root_cause") or ""),
+                str(logbook.get("solution") or ""),
+                str(logbook.get("tags") or ""),
+                f"promoted_from=logbook:{entry_id}",
+                str(logbook.get("source_type") or "manual"),
+                str(logbook.get("source_ref") or ""),
+                user_id,
+                1,
+                "pending",
+                "",
+                "",
+                now,
+                now,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO item_links (link_id, from_item_id, to_item_id, link_type, created_at)
+            VALUES (lower(hex(randomblob(16))), ?, ?, 'produced', ?)
+            """,
+            (f"logbook:{entry_id}", f"knowledge:{knowledge_id}", now),
+        )
+        for related in related_item_ids:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO item_links (link_id, from_item_id, to_item_id, link_type, created_at)
+                VALUES (lower(hex(randomblob(16))), ?, ?, 'references', ?)
+                """,
+                (f"knowledge:{knowledge_id}", related, now),
+            )
+        archived = conn.execute(
+            """
+            UPDATE logbook_entries
+            SET status = 'archived',
+                is_active = 0,
+                index_status = 'excluded',
+                index_error = '',
+                indexed_at = '',
+                updated_at = ?
+            WHERE entry_id = ? AND created_by = ?
+            """,
+            (now, entry_id, user_id),
+        )
+        if int(archived.rowcount or 0) == 0:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to promote to knowledge.")
+        run_id = str(logbook.get("run_id") or "").strip()
+        if run_id:
+            conn.execute(
+                "UPDATE autotest_runs SET solution_entry_id = ?, updated_at = ? WHERE run_id = ? AND created_by = ?",
+                (knowledge_id, now, run_id, user_id),
+            )
 
     warnings: list[str] = []
     logbook_warning = run_deindex_side_effect(
@@ -263,10 +307,6 @@ async def promote_logbook_to_knowledge(
         )
     else:
         db.resolve_index_repair(item_id=f"logbook:{entry_id}", action="index")
-
-    run_id = str(logbook.get("run_id") or "").strip()
-    if run_id:
-        db.update_autotest_run(run_id, solution_entry_id=knowledge_id)
 
     return PromoteToKnowledgeResponse(
         message=side_effect_warning("Promoted to verified knowledge entry.", " ".join(warnings)),

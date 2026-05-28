@@ -1,3 +1,4 @@
+import sqlite3
 import uuid
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from app.api.common import (
     run_index_side_effect,
     safe_download_filename,
     safe_unlink,
+    safe_unlink_with_warning,
     side_effect_warning,
 )
 from app.api.runtime import PHOTO_DIR, db
@@ -93,20 +95,29 @@ async def upload_photo(
     _validate_image_file(file_path)
 
     # Extract text from image using OCR
-    ocr_text = extract_text_from_image(file_path)
+    try:
+        ocr_text = extract_text_from_image(file_path)
+    except Exception:
+        safe_unlink(file_path)
+        raise
 
     photo_id = str(uuid.uuid4())
-    if not db.add_photo(
-        photo_id=photo_id,
-        filename=file.filename,
-        saved_filename=safe_filename,
-        tags=str(tags or ""),
-        description=str(description or ""),
-        ocr_text=ocr_text,
-        file_size=file_size,
-        uploaded_by=user_id,
-        status="reviewed",
-    ):
+    try:
+        created = db.add_photo(
+            photo_id=photo_id,
+            filename=file.filename,
+            saved_filename=safe_filename,
+            tags=str(tags or ""),
+            description=str(description or ""),
+            ocr_text=ocr_text,
+            file_size=file_size,
+            uploaded_by=user_id,
+            status="reviewed",
+        )
+    except Exception:
+        safe_unlink(file_path)
+        raise
+    if not created:
         safe_unlink(file_path)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to persist photo.")
 
@@ -246,12 +257,20 @@ async def delete_photo(photo_id: str, current_user: dict = Depends(get_current_u
         )
     else:
         db.resolve_index_repair(item_id=item_id_from_parts("photo", photo_id), action="deindex")
-    db.delete_search_content(item_id_from_parts("photo", photo_id))
-    safe_unlink(PHOTO_DIR / photo["saved_filename"])
-    db.delete_links(from_item_id=item_id_from_parts("photo", photo_id))
-    db.delete_links(to_item_id=item_id_from_parts("photo", photo_id))
-    db.delete_photo(photo_id)
-    return MessageResponse(message=_side_effect_warning("Photo deleted.", warning))
+    item_id = item_id_from_parts("photo", photo_id)
+    with db.transaction() as conn:
+        try:
+            conn.execute("DELETE FROM search_content WHERE item_id = ?", (item_id,))
+        except sqlite3.OperationalError:
+            pass
+        conn.execute("DELETE FROM item_links WHERE from_item_id = ? OR to_item_id = ?", (item_id, item_id))
+        deleted = conn.execute("DELETE FROM photos WHERE photo_id = ?", (photo_id,))
+        if int(deleted.rowcount or 0) == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found.")
+
+    file_warning = safe_unlink_with_warning(path=PHOTO_DIR / photo["saved_filename"], label="Photo")
+    warning_parts = [part for part in (warning, file_warning) if part]
+    return MessageResponse(message=_side_effect_warning("Photo deleted.", " ".join(warning_parts)))
 
 
 async def list_photo_references(photo_id: str, current_user: dict = Depends(get_current_user)) -> ItemLinksResponse:

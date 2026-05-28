@@ -39,7 +39,7 @@ class Settings(BaseModel):
     # AutoTest working area
     AUTOTEST_DIR: Path = Field(default=Path("autotest_uploads"))
     AUTOTEST_MODE: str = "simulated"
-    KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST: bool = False
+    KW_AUTOTEST_REAL_MODE: bool = False
 
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
@@ -115,8 +115,8 @@ class Settings(BaseModel):
             CHROMA_DB_PATH=resolve_path(os.getenv("CHROMA_DB_PATH", ""), default=Path("chroma_db")),
             AUTOTEST_DIR=resolve_path(os.getenv("AUTOTEST_DIR", ""), default=Path("autotest_uploads")),
             AUTOTEST_MODE=os.getenv("AUTOTEST_MODE", "simulated").strip().lower() or "simulated",
-            KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=parse_bool(
-                os.getenv("KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST", "0"),
+            KW_AUTOTEST_REAL_MODE=parse_bool(
+                os.getenv("KW_AUTOTEST_REAL_MODE", "0"),
                 default=False,
             ),
             ALLOWED_ORIGINS=allowed_origins,

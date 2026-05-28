@@ -48,7 +48,7 @@ npm run build
 
 ```powershell
 python scripts/export_openapi.py
-python scripts/check_api_types.py
+python scripts/generate_api_types.py --check
 git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts
 python scripts/check_index_consistency.py
 ```
@@ -58,12 +58,44 @@ When the API contract intentionally changes, run `python scripts/generate_api_ty
 ## Release And Smoke
 
 ```powershell
-python scripts/check_versions.py
+python scripts/check_version_consistency.py
 python scripts/package_release.py
-python scripts/verify_release_package.py dist/knowledge-workspace-*.zip
+python scripts/verify_release.py dist/knowledge-workspace-*.zip
 python scripts/smoke_check.py --password "OwnerPass123!"
 ```
 
 The smoke check expects a local backend already running on `127.0.0.1:8000`, matching the CI startup step.
 The release zip is a clean source package. `scripts/package_release.py` does not build or include `frontend/dist`, and the archive excludes `node_modules`, runtime DB/journal files, caches, uploads, and temporary Chroma/AutoTest data; run the frontend build after extraction.
 `python scripts/verify_all.py` automates the same startup/wait/smoke sequence locally with simulated AutoTest settings.
+
+## Release Zip Quickstart
+
+Windows PowerShell:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+pip install -e ".[dev]"
+cd frontend
+npm ci
+cd ..
+copy .env.example .env
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+bash:
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+pip install -e ".[dev]"
+cd frontend
+npm ci
+cd ..
+cp .env.example .env
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```

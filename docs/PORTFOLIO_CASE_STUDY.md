@@ -73,7 +73,7 @@ The project originally had reverse promote links in some paths. Dashboard analyt
 Fix:
 
 - promotion now always writes canonical `logbook:{id} -> knowledge:{id}` `produced`
-- reverse `derived_from` remains for traceability
+- legacy reverse `derived_from` links remain readable in query/UI compatibility paths, but new promote no longer writes them
 - compatibility migration keeps old reverse-only data readable
 - dashboard counts canonical promotion links without double-counting reverse links
 

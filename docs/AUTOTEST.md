@@ -1,4 +1,4 @@
-# AutoTest
+﻿# AutoTest
 
 ## Purpose
 
@@ -54,15 +54,17 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 - default mode
 - safest option for CI and demos
 - does not execute real project commands
+- frontend/UI should describe this as the safe demo mode
 - queued/API responses explicitly report that simulated mode is active
 - still creates a real run, timeline, and derived knowledge/logbook artifacts
 
 ### `real`
 
-- must be explicitly enabled with `AUTOTEST_MODE=real` and `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- must be explicitly enabled with `AUTOTEST_MODE=real` and `KW_AUTOTEST_REAL_MODE=1`
 - extracts the uploaded ZIP
 - detects a Node/Python project root
 - executes commands from the uploaded project
+- frontend/UI should describe this as trusted local execution, not a safe sandbox
 - executes commands with:
   - `shell=False`
   - fixed timeout
@@ -74,6 +76,7 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 
 Real mode is not a container sandbox. Treat it as trusted-code local execution only.
 It is a local trusted-workspace execution mode, not Docker isolation.
+`DockerSandboxRunner` is still a placeholder and intentionally not production-ready isolation.
 
 Do not accept arbitrary public ZIP uploads into real mode. Guarded execution is still host execution.
 
@@ -165,6 +168,7 @@ It should not infer success/failure from missing fields or command text alone.
 - `DockerSandboxRunner` is still a placeholder and intentionally raises `NotImplementedError`
 - AutoTest jobs run in an in-process background worker, not an external durable queue
 - a restart/crash is handled by stale-run recovery, but interrupted work is not resumed
+- if the backend restarts or the in-process worker disappears, runs can become interrupted/stale and are later marked failed by startup recovery rather than resumed in place
 - real mode tasks fail if they exceed the configured backend command timeout
 - timeline/log updates currently use polling; SSE can be added later without changing the run contract
 - a process crash can interrupt an active worker, so a future queue should recover or requeue interrupted runs
@@ -178,3 +182,4 @@ It should not infer success/failure from missing fields or command text alone.
 3. Run a failing ZIP and point out `failed_reason` plus logbook creation.
 4. Promote the logbook entry and show dashboard metrics update.
 5. Explain that `real` mode exists, but only behind an explicit safety boundary.
+
