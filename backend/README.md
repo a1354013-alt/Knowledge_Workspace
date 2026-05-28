@@ -69,10 +69,12 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ## Search reality
 
-- the current built-in vector path uses Chroma plus a deterministic lightweight hash embedding
-- that keeps demos, tests, and clean environments reproducible without external model dependencies
-- it is not a production-grade semantic model
-- adding Ollama embeddings, `sentence-transformers`, or an OpenAI-compatible embedding provider would be the next step for real semantic retrieval
+- Ollama embedding provider is now available as an optional real semantic embedding provider via `EMBEDDING_PROVIDER=ollama`
+- If Ollama is unavailable and fallback is enabled, the system falls back to demo hash embeddings or full-text search
+- the fallback vector path uses Chroma plus a deterministic lightweight hash embedding
+- demo hash embeddings keep demos, tests, and clean environments reproducible without external model dependencies
+- demo hash embeddings are not a production-grade semantic model
+- `/api/index/status` reports the current embedding mode
 
 ## Tests
 
@@ -111,13 +113,15 @@ Optional (common):
 - `LLM_PROVIDER` (`ollama`, `mock`, `fallback`)
 - `OLLAMA_BASE_URL`, `OLLAMA_MODEL`
 
-AutoTest real mode note:
+AutoTest mode notes:
 
-- `AUTOTEST_MODE=real` without `KW_AUTOTEST_REAL_MODE=1` is rejected
-- real mode is not a hardened sandbox
-- it executes commands from uploaded projects
-- `DockerSandboxRunner` is still a placeholder, so there is no finished container isolation yet
-- use it only with trusted local code inside a sandbox/container
+- `AUTOTEST_MODE=local_trusted` without `KW_AUTOTEST_REAL_MODE=1` is rejected
+- local_trusted mode is not a hardened sandbox
+- it executes commands from uploaded projects on the trusted local workspace host
+- Docker sandbox mode (`AUTOTEST_MODE=docker_sandbox`) is implemented as an optional containerized AutoTest runner
+- Docker sandbox provides basic local container isolation with timeout/resource/network controls, but should not be described as a production-grade multi-tenant sandbox
+- use local_trusted mode only with trusted local code
+- use docker_sandbox mode only on systems with Docker or Podman available
 
 Text uploads:
 - `.txt` / `.md` are decoded with `utf-8`, `utf-8-sig`, or `cp950` (upload validation and indexing use the same rules).

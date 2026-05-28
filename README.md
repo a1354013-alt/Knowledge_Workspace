@@ -90,12 +90,13 @@ graph TD
 
 ## Search Reality Check
 
-- the built-in search/indexing path uses Chroma with the deterministic lightweight hash embedding in `backend/app/vector_db.py`
-- the active default embedding path is explicitly labeled as a `demo/fallback` provider
-- this is intentionally optimized for local demos, tests, and no-external-dependency environments
-- it is not a production-grade semantic understanding model and should not be described as full AI semantic search
-- production-grade semantic retrieval would require a real embedding provider such as Ollama embeddings, `sentence-transformers`, or an OpenAI-compatible embedding API
-- that provider integration is a roadmap item in the current codebase, not a completed runtime switch
+- Ollama embedding provider is now available as an optional real semantic embedding provider via `EMBEDDING_PROVIDER=ollama`
+- If Ollama is unavailable and fallback is enabled, the system falls back to demo hash embeddings or full-text search
+- the built-in fallback search/indexing path uses Chroma with the deterministic lightweight hash embedding in `backend/app/vector_db.py`
+- the fallback embedding path is explicitly labeled as a `demo/fallback` provider
+- `/api/index/status` reports the current embedding mode: `full_text_only`, `demo_hash_embedding`, `real_semantic_embedding`, or `vector_degraded`
+- demo hash embeddings are intentionally optimized for local demos, tests, and no-external-dependency environments
+- demo hash embeddings are not a production-grade semantic understanding model and should not be described as full AI semantic search
 
 ## Ollama, OpenAI, And OpenAPI
 
