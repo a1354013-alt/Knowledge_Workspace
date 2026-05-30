@@ -399,6 +399,8 @@ class AutoTestCapabilitiesResponse(StrictModel):
     docker_sandbox_available: bool = False
     network_enabled: bool = False
     safety_note: str = ""
+    sandbox_backend: str
+    sandbox_backend_ready: bool
     message: str
 
 

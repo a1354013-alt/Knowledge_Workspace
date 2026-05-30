@@ -69,7 +69,11 @@ async def create_saved_prompt(
                 last_error=warning,
             )
         else:
-            db.resolve_index_repair(item_id=item_id_from_parts("prompt", prompt_id), action="index")
+            db.resolve_index_repair(
+                item_id=item_id_from_parts("prompt", prompt_id),
+                action="index",
+                owner_user_id=str(user_id),
+            )
     else:
         warning = None
     prompt = db.get_saved_prompt(prompt_id) or prompt
@@ -106,7 +110,11 @@ async def delete_saved_prompt(prompt_id: str, current_user: dict = Depends(get_c
             last_error=warning,
         )
     else:
-        db.resolve_index_repair(item_id=item_id_from_parts("prompt", prompt_id), action="deindex")
+        db.resolve_index_repair(
+            item_id=item_id_from_parts("prompt", prompt_id),
+            action="deindex",
+            owner_user_id=str(user_id),
+        )
     db.delete_search_content(item_id_from_parts("prompt", prompt_id))
     db.delete_links(from_item_id=item_id_from_parts("prompt", prompt_id))
     db.delete_links(to_item_id=item_id_from_parts("prompt", prompt_id))

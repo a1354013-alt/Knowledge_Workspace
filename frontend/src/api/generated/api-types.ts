@@ -11,6 +11,8 @@ export interface AutoTestCapabilitiesResponse {
   real_mode_requested: boolean;
   runner_mode: "disabled" | "local_trusted" | "docker_sandbox";
   safety_note?: string;
+  sandbox_backend: string;
+  sandbox_backend_ready: boolean;
 }
 
 export interface AutoTestRunListItemResponse {
@@ -527,6 +529,8 @@ export interface UploadPhotoResponse {
 }
 
 export interface ValidationError {
+  ctx?: Record<string, unknown>;
+  input?: unknown;
   loc: string | number[];
   msg: string;
   type: string;

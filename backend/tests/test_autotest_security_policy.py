@@ -31,8 +31,10 @@ def test_real_autotest_is_rejected_without_explicit_enable(
     client: TestClient,
     auth_headers: dict[str, str],
 ):
-    app_module.autotest_service.settings.AUTOTEST_MODE = "local_trusted"
+    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = False
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = False
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "disabled"
 
     response = client.post(
         "/api/autotest/run",
@@ -50,8 +52,10 @@ def test_autotest_capabilities_exposes_real_mode_availability(
     client: TestClient,
     auth_headers: dict[str, str],
 ):
-    app_module.autotest_service.settings.AUTOTEST_MODE = "local_trusted"
+    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = False
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = False
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "disabled"
 
     response = client.get("/api/autotest/capabilities", headers=auth_headers)
 
@@ -61,7 +65,29 @@ def test_autotest_capabilities_exposes_real_mode_availability(
     assert payload["runner_mode"] == "disabled"
     assert payload["real_mode_requested"] is True
     assert payload["real_mode_available"] is False
+    assert payload["sandbox_backend"] == "disabled"
+    assert payload["sandbox_backend_ready"] is False
+    assert "simulated mode is active" in payload["message"].lower()
     assert "disabled" in payload["message"].lower()
+
+
+def test_real_autotest_is_blocked_without_supported_sandbox_backend(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+):
+    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "disabled"
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_node_zip(), "application/zip")},
+    )
+
+    assert response.status_code == 409
+    assert "AUTOTEST_SANDBOX_BACKEND=local_trusted" in response.text
 
 
 def test_command_builder_uses_ignore_scripts_and_disables_python_install(app_module, tmp_path: Path):
@@ -105,8 +131,10 @@ def test_run_command_uses_shell_false_timeout_and_clamps_output(app_module, monk
 
 
 def test_run_command_scrubs_sensitive_env_in_real_mode(app_module, monkeypatch, tmp_path: Path):
-    app_module.autotest_service.settings.AUTOTEST_MODE = "local_trusted"
+    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = True
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "local_trusted"
     monkeypatch.setenv("API_TOKEN", "secret")
     monkeypatch.setenv("deploy_key", "secret")
     monkeypatch.setenv("DB_PASSWORD", "secret")
@@ -127,6 +155,29 @@ def test_run_command_scrubs_sensitive_env_in_real_mode(app_module, monkeypatch, 
     assert captured_env["NORMAL_FLAG"] == "keep-me"
 
 
+def test_run_command_refuses_host_execution_when_backend_not_ready(app_module, monkeypatch, tmp_path: Path):
+    app_module.autotest_service.settings.AUTOTEST_MODE = "real"
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "docker"
+    called = False
+
+    def fake_run(*args, **kwargs):
+        nonlocal called
+        called = True
+        return subprocess.CompletedProcess(args=args[0], returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(app_module.autotest_service.subprocess, "run", fake_run)
+
+    try:
+        app_module.autotest_service._run_command(argv=["python", "--version"], cwd=tmp_path, timeout_seconds=7)
+    except PermissionError as exc:
+        assert "blocked" in str(exc).lower() or "not implemented" in str(exc).lower()
+    else:
+        raise AssertionError("Expected host execution to stay blocked without a supported backend.")
+
+    assert called is False
+
+
 def test_service_source_does_not_use_shell_true(app_module):
     source = inspect.getsource(app_module.autotest_service._run_command)
     assert "shell=False" in source
@@ -136,6 +187,8 @@ def test_service_source_does_not_use_shell_true(app_module):
 def test_real_autotest_defaults_to_simulated_mode(app_module):
     app_module.autotest_service.settings.AUTOTEST_MODE = "disabled"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = False
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = False
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "disabled"
 
     capabilities = app_module.autotest_service.get_autotest_capabilities()
 
@@ -281,4 +334,3 @@ def test_safe_extract_zip_rejects_oversized_archive(app_module, tmp_path: Path):
         assert "allowed size" in str(exc).lower()
     else:
         raise AssertionError("Expected oversized archive to be rejected.")
-

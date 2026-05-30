@@ -247,6 +247,8 @@ def test_autotest_zip_extract_failure_sets_failed(
     )
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = True
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "local_trusted"
 
     response = client.post(
         "/api/autotest/run",
@@ -269,6 +271,8 @@ def test_autotest_stack_detection_failure_sets_failed(
     )
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = True
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "local_trusted"
 
     response = client.post(
         "/api/autotest/run",
@@ -367,6 +371,8 @@ def test_autotest_real_mode_executes_commands_when_enabled(
 ):
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = True
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "local_trusted"
     calls: list[list[str]] = []
 
     def fake_run_command(*, argv, cwd, timeout_seconds):
@@ -396,6 +402,8 @@ def test_autotest_real_mode_timeout_is_terminal_failed(
 ):
     app_module.autotest_service.settings.AUTOTEST_MODE = "real"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = True
+    app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = True
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "local_trusted"
 
     def fake_run_command(*, argv, cwd, timeout_seconds):
         raise subprocess.TimeoutExpired(cmd=argv, timeout=timeout_seconds)
@@ -843,4 +851,3 @@ def test_autotest_migration_normalizes_invalid_execution_mode_and_schema_default
             row for row in check_conn.execute("PRAGMA table_info(autotest_runs)").fetchall() if row[1] == "execution_mode"
         )
         assert str(execution_mode_info[4]).strip("'\"") == "simulated"
-

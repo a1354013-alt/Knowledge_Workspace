@@ -19,7 +19,7 @@ class IndexRepairRepositoryMixin:
                 INSERT INTO index_repair_queue
                 (item_id, item_type, action, owner_user_id, last_error, attempts, updated_at)
                 VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
-                ON CONFLICT(item_id, action) DO UPDATE SET
+                ON CONFLICT(owner_user_id, item_id, action) DO UPDATE SET
                   item_type = excluded.item_type,
                   owner_user_id = excluded.owner_user_id,
                   last_error = excluded.last_error,
@@ -35,26 +35,54 @@ class IndexRepairRepositoryMixin:
             )
             conn.commit()
 
-    def resolve_index_repair(self, *, item_id: str, action: str | None = None) -> None:
+    def resolve_index_repair(
+        self, *, item_id: str, action: str | None = None, owner_user_id: str | None = None
+    ) -> None:
         with self._connection() as conn:
             if action:
-                conn.execute("DELETE FROM index_repair_queue WHERE item_id = ? AND action = ?", (item_id, action))
+                if owner_user_id is None:
+                    conn.execute("DELETE FROM index_repair_queue WHERE item_id = ? AND action = ?", (item_id, action))
+                else:
+                    conn.execute(
+                        "DELETE FROM index_repair_queue WHERE owner_user_id = ? AND item_id = ? AND action = ?",
+                        (owner_user_id, item_id, action),
+                    )
             else:
-                conn.execute("DELETE FROM index_repair_queue WHERE item_id = ?", (item_id,))
+                if owner_user_id is None:
+                    conn.execute("DELETE FROM index_repair_queue WHERE item_id = ?", (item_id,))
+                else:
+                    conn.execute(
+                        "DELETE FROM index_repair_queue WHERE owner_user_id = ? AND item_id = ?",
+                        (owner_user_id, item_id),
+                    )
             conn.commit()
 
-    def record_index_repair_attempt(self, *, item_id: str, action: str, last_error: str) -> None:
+    def record_index_repair_attempt(
+        self, *, item_id: str, action: str, last_error: str, owner_user_id: str | None = None
+    ) -> None:
         with self._connection() as conn:
-            conn.execute(
-                """
-                UPDATE index_repair_queue
-                SET attempts = attempts + 1,
-                    last_error = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE item_id = ? AND action = ?
-                """,
-                (str(last_error or ""), item_id, action),
-            )
+            if owner_user_id is None:
+                conn.execute(
+                    """
+                    UPDATE index_repair_queue
+                    SET attempts = attempts + 1,
+                        last_error = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE item_id = ? AND action = ?
+                    """,
+                    (str(last_error or ""), item_id, action),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE index_repair_queue
+                    SET attempts = attempts + 1,
+                        last_error = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE owner_user_id = ? AND item_id = ? AND action = ?
+                    """,
+                    (str(last_error or ""), owner_user_id, item_id, action),
+                )
             conn.commit()
 
     def list_index_repairs(self, *, owner_user_id: str | None = None) -> list[dict[str, Any]]:

@@ -6,11 +6,15 @@ import os
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-BACKEND_DIR = ROOT / "backend"
+def _detect_root() -> Path:
+    cwd = Path.cwd()
+    if (cwd / "scripts").exists() and (cwd / "backend").exists():
+        return cwd
+    return Path(__file__).resolve().parents[1]
 
-if str(BACKEND_DIR) not in sys.path:
-    sys.path.insert(0, str(BACKEND_DIR))
+
+ROOT = _detect_root()
+BACKEND = ROOT / "backend"
 
 
 def main() -> int:
@@ -21,6 +25,8 @@ def main() -> int:
 
     os.environ.setdefault("JWT_SECRET", "local-index-consistency-secret-123456")
     os.environ.setdefault("DEFAULT_OWNER_PASSWORD", "OwnerPass123!")
+    if str(BACKEND) not in sys.path:
+        sys.path.insert(0, str(BACKEND))
 
     from app.services import indexing_service
 

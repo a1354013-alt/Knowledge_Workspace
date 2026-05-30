@@ -113,8 +113,8 @@ def _sync_prompt_status(prompt_id: str, *, status: str, error: str = "", indexed
     db.update_saved_prompt_index(prompt_id, index_status=status, index_error=error, indexed_at=indexed_at)
 
 
-def _clear_repair(item_id: str, *, action: str | None = None) -> None:
-    db.resolve_index_repair(item_id=item_id, action=action)
+def _clear_repair(item_id: str, *, action: str | None = None, owner_user_id: str | None = None) -> None:
+    db.resolve_index_repair(item_id=item_id, action=action, owner_user_id=owner_user_id)
 
 
 def _queue_repair(item_id: str, *, item_type: str, action: str, owner_user_id: str, last_error: str) -> None:
@@ -125,6 +125,15 @@ def _queue_repair(item_id: str, *, item_type: str, action: str, owner_user_id: s
         owner_user_id=owner_user_id,
         last_error=last_error,
     )
+
+
+def _classify_repair_queue_status(*, last_error: str, attempts: int) -> str:
+    detail = str(last_error or "").strip().lower()
+    if "vector index unavailable" in detail:
+        return "index_unavailable"
+    if int(attempts or 0) <= 0:
+        return "deferred"
+    return "failed"
 
 
 def _sync_document_search_content(document: dict[str, Any]) -> None:
@@ -186,7 +195,7 @@ def sync_document_index(document: dict[str, Any]) -> None:
     if _is_excluded_row(document):
         db.delete_search_content(document_item_id)
         _sync_document_status(doc_id, status="excluded", error="", indexed_at="")
-        _clear_repair(document_item_id)
+        _clear_repair(document_item_id, owner_user_id=str(document.get("uploaded_by") or ""))
         return
 
     file_path = UPLOAD_DIR / str(document["saved_filename"])
@@ -236,7 +245,7 @@ def sync_document_index(document: dict[str, Any]) -> None:
             error="",
             indexed_at=document.get("updated_at", "") or document.get("uploaded_at", "") or "",
         )
-        _clear_repair(document_item_id)
+        _clear_repair(document_item_id, owner_user_id=str(document.get("uploaded_by") or ""))
 
 
 def sync_knowledge_entry_index(entry: dict[str, Any]) -> None:
@@ -245,7 +254,7 @@ def sync_knowledge_entry_index(entry: dict[str, Any]) -> None:
     if _is_excluded_row(entry):
         db.delete_search_content(item_id)
         _sync_knowledge_status(str(entry["entry_id"]), status="excluded", error="", indexed_at="")
-        _clear_repair(item_id)
+        _clear_repair(item_id, owner_user_id=str(entry.get("created_by") or ""))
         return
     try:
         _sync_kb_search_content(
@@ -281,7 +290,7 @@ def sync_knowledge_entry_index(entry: dict[str, Any]) -> None:
             error="",
             indexed_at=str(entry.get("updated_at", "") or entry.get("created_at", "") or ""),
         )
-        _clear_repair(item_id)
+        _clear_repair(item_id, owner_user_id=str(entry.get("created_by") or ""))
 
 
 def sync_logbook_entry_index(entry: dict[str, Any]) -> None:
@@ -290,7 +299,7 @@ def sync_logbook_entry_index(entry: dict[str, Any]) -> None:
     if _is_excluded_row(entry):
         db.delete_search_content(item_id)
         _sync_logbook_status(str(entry["entry_id"]), status="excluded", error="", indexed_at="")
-        _clear_repair(item_id)
+        _clear_repair(item_id, owner_user_id=str(entry.get("created_by") or ""))
         return
     try:
         _sync_kb_search_content(
@@ -326,7 +335,7 @@ def sync_logbook_entry_index(entry: dict[str, Any]) -> None:
             error="",
             indexed_at=str(entry.get("updated_at", "") or entry.get("created_at", "") or ""),
         )
-        _clear_repair(item_id)
+        _clear_repair(item_id, owner_user_id=str(entry.get("created_by") or ""))
 
 
 def sync_photo_index(entry: dict[str, Any]) -> None:
@@ -335,7 +344,7 @@ def sync_photo_index(entry: dict[str, Any]) -> None:
     if _is_excluded_row(entry):
         db.delete_search_content(item_id)
         _sync_photo_status(str(entry["photo_id"]), status="excluded", error="", indexed_at="")
-        _clear_repair(item_id)
+        _clear_repair(item_id, owner_user_id=str(entry.get("uploaded_by") or ""))
         return
     try:
         _sync_kb_search_content(
@@ -371,7 +380,7 @@ def sync_photo_index(entry: dict[str, Any]) -> None:
             error="",
             indexed_at=str(entry.get("updated_at", "") or entry.get("created_at", "") or ""),
         )
-        _clear_repair(item_id)
+        _clear_repair(item_id, owner_user_id=str(entry.get("uploaded_by") or ""))
 
 
 def sync_prompt_index(entry: dict[str, Any]) -> None:
@@ -380,7 +389,7 @@ def sync_prompt_index(entry: dict[str, Any]) -> None:
     if _is_excluded_row(entry):
         db.delete_search_content(item_id)
         _sync_prompt_status(str(entry["prompt_id"]), status="excluded", error="", indexed_at="")
-        _clear_repair(item_id)
+        _clear_repair(item_id, owner_user_id=str(entry.get("created_by") or ""))
         return
     try:
         _sync_kb_search_content(
@@ -416,7 +425,7 @@ def sync_prompt_index(entry: dict[str, Any]) -> None:
             error="",
             indexed_at=str(entry.get("updated_at", "") or entry.get("created_at", "") or ""),
         )
-        _clear_repair(item_id)
+        _clear_repair(item_id, owner_user_id=str(entry.get("created_by") or ""))
 
 
 def get_index_status(current_user: dict[str, Any]) -> IndexStatusResponse:
@@ -638,7 +647,14 @@ def get_index_consistency_report(*, owner_user_id: str | None = None) -> list[di
         {
             "item_id": row["item_id"],
             "item_type": row["item_type"],
-            "issue": f"repair_queue:{row['action']}",
+            "issue": (
+                f"repair_queue:{row['action']}:"
+                f"{_classify_repair_queue_status(last_error=str(row.get('last_error', '') or ''), attempts=int(row.get('attempts', 0) or 0))}"
+            ),
+            "repair_status": _classify_repair_queue_status(
+                last_error=str(row.get("last_error", "") or ""),
+                attempts=int(row.get("attempts", 0) or 0),
+            ),
             "last_index_error": str(row.get("last_error", "") or ""),
         }
         for row in db.list_index_repairs(owner_user_id=owner_user_id)
@@ -652,18 +668,34 @@ def repair_index_consistency(*, owner_user_id: str | None = None) -> list[dict[s
         item_id = str(row["item_id"])
         item_type = str(row["item_type"])
         action = str(row["action"])
+        owner_value = str(row.get("owner_user_id", "") or "")
         try:
             if action == "deindex":
                 if item_type == "document":
                     delete_from_vector_db(item_id.split(":", 1)[1])
                 else:
                     delete_from_kb_vector_db(item_id)
-                _clear_repair(item_id, action="deindex")
+                db.resolve_index_repair(item_id=item_id, action="deindex", owner_user_id=owner_value)
             else:
                 _repair_index_item(item_type, item_id)
         except Exception as exc:
-            db.record_index_repair_attempt(item_id=item_id, action=action, last_error=str(exc))
-            repaired.append({"item_id": item_id, "item_type": item_type, "status": "failed", "error": str(exc)})
+            detail = str(exc)
+            status_value = "index_unavailable" if "vector index unavailable" in detail.lower() else "failed"
+            db.record_index_repair_attempt(
+                item_id=item_id,
+                action=action,
+                last_error=detail,
+                owner_user_id=owner_value,
+            )
+            repaired.append(
+                {
+                    "item_id": item_id,
+                    "item_type": item_type,
+                    "status": status_value,
+                    "action": action,
+                    "error": detail,
+                }
+            )
         else:
             repaired.append({"item_id": item_id, "item_type": item_type, "status": "repaired", "action": action})
     return repaired

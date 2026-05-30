@@ -105,7 +105,11 @@ async def create_logbook_entry(
                 last_error=warning,
             )
         else:
-            db.resolve_index_repair(item_id=item_id_from_parts("logbook", entry_id), action="index")
+            db.resolve_index_repair(
+                item_id=item_id_from_parts("logbook", entry_id),
+                action="index",
+                owner_user_id=str(user_id),
+            )
     else:
         warning = None
     return MessageResponse(message=side_effect_warning("Logbook entry created.", warning))
@@ -166,7 +170,11 @@ async def update_logbook_entry(
             last_error=warning,
         )
     else:
-        db.resolve_index_repair(item_id=item_id_from_parts("logbook", entry_id), action="index")
+        db.resolve_index_repair(
+            item_id=item_id_from_parts("logbook", entry_id),
+            action="index",
+            owner_user_id=str(user_id),
+        )
     return MessageResponse(message=side_effect_warning("Logbook entry updated.", warning))
 
 
@@ -263,7 +271,7 @@ async def promote_logbook_to_knowledge(
         )
         warnings.append(logbook_warning)
     else:
-        db.resolve_index_repair(item_id=f"logbook:{entry_id}", action="deindex")
+        db.resolve_index_repair(item_id=f"logbook:{entry_id}", action="deindex", owner_user_id=str(user_id))
 
     promoted = db.get_knowledge_entry(knowledge_id)
     if promoted:
@@ -285,7 +293,7 @@ async def promote_logbook_to_knowledge(
                 last_error=knowledge_warning,
             )
         else:
-            db.resolve_index_repair(item_id=f"knowledge:{knowledge_id}", action="index")
+            db.resolve_index_repair(item_id=f"knowledge:{knowledge_id}", action="index", owner_user_id=str(user_id))
 
     archived_logbook = db.get_logbook_entry(entry_id) or logbook
     archived_warning = run_index_side_effect(
@@ -306,7 +314,7 @@ async def promote_logbook_to_knowledge(
             last_error=archived_warning,
         )
     else:
-        db.resolve_index_repair(item_id=f"logbook:{entry_id}", action="index")
+        db.resolve_index_repair(item_id=f"logbook:{entry_id}", action="index", owner_user_id=str(user_id))
 
     return PromoteToKnowledgeResponse(
         message=side_effect_warning("Promoted to verified knowledge entry.", " ".join(warnings)),
@@ -336,7 +344,7 @@ async def delete_logbook_entry(entry_id: str, current_user: dict = Depends(get_c
             last_error=warning,
         )
     else:
-        db.resolve_index_repair(item_id=item_id, action="deindex")
+        db.resolve_index_repair(item_id=item_id, action="deindex", owner_user_id=str(user_id))
     db.delete_search_content(item_id)
     db.delete_links(from_item_id=item_id)
     db.delete_links(to_item_id=item_id)

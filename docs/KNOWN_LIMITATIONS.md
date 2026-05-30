@@ -1,6 +1,6 @@
 ﻿# Known Limitations
 
-- AutoTest local_trusted mode is constrained local trusted-workspace command execution, not a hardened sandbox. It requires `KW_AUTOTEST_REAL_MODE=1` and should not be used for untrusted projects.
+- AutoTest trusted host execution (`AUTOTEST_MODE=real` or legacy `AUTOTEST_MODE=local_trusted`) is constrained local trusted-workspace command execution, not a hardened sandbox. It requires `AUTOTEST_SANDBOX_BACKEND=local_trusted` plus an explicit enable flag and should not be used for untrusted projects.
 - Docker sandbox mode (`AUTOTEST_MODE=docker_sandbox`) is implemented as an optional containerized AutoTest runner with basic local isolation, but should not be exposed as a public multi-tenant execution service.
 - `/api/autotest/run` uses an async in-process job runner. Jobs are durable in SQLite and visible through `GET /api/autotest/runs/{run_id}`, but a process crash can still interrupt an active in-memory worker; a future queue should recover or requeue interrupted runs.
 - interrupted or stale runs are marked failed during startup recovery; they are not resumed from the middle of execution because the worker is in-process rather than a durable queue.
@@ -10,6 +10,7 @@
 - Ollama embedding provider is now available as an optional real semantic embedding provider via `EMBEDDING_PROVIDER=ollama`.
 - If Ollama is unavailable and fallback is enabled, the system falls back to demo hash embeddings or full-text search.
 - Demo hash embeddings are a deterministic lightweight embedding for local demos, tests, and no-external-dependency environments. They should not be described as true semantic understanding or production-grade AI search.
+- If Chroma is unavailable, repair-queue reporting uses `index_unavailable` and search falls back to deterministic matching; this is degraded mode, not a data-repair failure.
 - When vector indexing is unavailable, search falls back further to deterministic keyword-style matching.
 - JWT and browser storage are suitable for a local-first demo, not a public multi-tenant deployment.
 - `legacy_main.py` and `legacy_database.py` are now compatibility/facade modules, but some handler modules still use shared support imports while deeper service extraction continues.
@@ -17,4 +18,3 @@
 - CI enforces frontend production dependency audit with `npm audit --omit=dev --audit-level=high`.
 - Release zip verification rejects runtime databases, journal files, secrets, caches, uploads, build outputs, and test artifacts.
 - Production-grade AutoTest needs Docker or Podman isolation, no network, a non-root user, a read-only root filesystem, CPU / memory / file-size limits, a durable job queue, and persistent logs / timeline storage.
-

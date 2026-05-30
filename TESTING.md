@@ -2,7 +2,7 @@
 
 ## Backend
 
-Use Python 3.11.x. The backend is intentionally pinned to `>=3.11,<3.12`; Python 3.12/3.13 passing locally is not release evidence unless dependency constraints are updated.
+Use Python `3.11.9` from `.python-version`. The backend is intentionally pinned to `>=3.11,<3.12`; Python 3.12/3.13 passing locally is not release evidence unless dependency constraints are updated.
 
 ```powershell
 py -3.11 -m venv .venv
@@ -33,7 +33,7 @@ Full local CI-equivalent verification from the repo root:
 python scripts/verify_all.py
 ```
 
-Backend tests use isolated temporary SQLite databases and upload directories. AutoTest defaults to disabled mode in tests; local-trusted tests patch the subprocess runner and explicitly enable the safety gate. Docker sandbox tests mock command construction unless `KNOWLEDGE_WORKSPACE_DOCKER_INTEGRATION=1` is set for an environment that has Docker. See `backend/.env.example` and `docs/LOCAL_TESTING.md` for the local environment contract.
+Backend tests use isolated temporary SQLite databases and upload directories. AutoTest defaults to simulated mode in tests; trusted-host tests patch the subprocess runner and explicitly enable the full gate, while Docker sandbox tests mock command construction unless `KNOWLEDGE_WORKSPACE_DOCKER_INTEGRATION=1` is set for an environment that has Docker. See `backend/.env.example` and `docs/LOCAL_TESTING.md` for the local environment contract.
 
 For a fresh Python 3.11 backend environment:
 
@@ -59,6 +59,13 @@ cd frontend && npm run generate:api-types
 ```
 
 If OpenAPI export says the Python runtime is unsupported, you are probably using Python 3.12/3.13. Create a Python 3.11 venv with the bootstrap scripts or run `uv python install 3.11 && uv venv --python 3.11`.
+
+Optional reviewer shortcuts:
+
+```powershell
+python scripts/verify_repo_hygiene.py
+make verify
+```
 
 AutoTest is still a local-first in-process worker in tests and runtime:
 
@@ -89,7 +96,7 @@ npm run test:run
 npm run build
 ```
 
-Use Node 20.19+ LTS to match CI and the Vite/Vitest toolchain engine range.
+Use Node `20.19.0` from `.nvmrc` to match CI and the Vite/Vitest toolchain engine range.
 
 ## Release
 
@@ -102,6 +109,12 @@ python scripts/check_index_consistency.py
 python scripts/package_release.py
 python scripts/verify_release_package.py dist/knowledge-workspace-*.zip
 ```
+
+Chroma / vector index note:
+
+- `pip install -e ".[dev]"` installs the pinned `chromadb` runtime used by this repo.
+- If Chroma is missing or cannot initialize, the app stays in degraded mode: indexing responses use `unavailable`, repair-queue reporting uses `index_unavailable`, and search falls back to deterministic non-semantic matching.
+- The built-in embedding provider is still the deterministic local demo/fallback provider documented in `backend/app/vector_db.py`; placeholder production providers are not enabled in this release.
 
 Recommended full verification flow before release:
 
@@ -135,6 +148,8 @@ Frontend API usage rules:
 Release verification rejects runtime databases, journals, secrets, caches, uploads, build outputs, and test artifacts.
 It also rejects packaging artifacts such as `*.egg-info` and `*.dist-info`.
 `python scripts/verify_release_package.py` resolves the versioned `dist/knowledge-workspace-*.zip`, extracts it to a temporary directory, and re-checks the extracted tree so archive contents and unzip results stay aligned.
+Release verification also rejects WAL/SHM files, `ci_chroma/`, `.chroma/`, `chroma/`, `runtime/`, and `data/index/`.
+`python scripts/verify_release_zip.py` extracts the archive to a temporary directory and re-checks the extracted tree so archive contents and unzip results stay aligned.
 The release zip is a clean source package. `scripts/package_release.py` intentionally does not build or include `frontend/dist`; build frontend assets after extracting the package.
 
 ## Smoke

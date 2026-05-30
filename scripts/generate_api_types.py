@@ -7,7 +7,14 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+def _detect_root() -> Path:
+    cwd = Path.cwd()
+    if (cwd / "scripts").exists() and (cwd / "frontend").exists() and (cwd / "docs").exists():
+        return cwd
+    return Path(__file__).resolve().parents[1]
+
+
+ROOT = _detect_root()
 OPENAPI_PATH = ROOT / "docs" / "openapi.json"
 OUT_PATH = ROOT / "frontend" / "src" / "api" / "generated" / "api-types.ts"
 

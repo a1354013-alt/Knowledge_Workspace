@@ -51,8 +51,8 @@ graph TD
 ### AutoTest
 
 - upload `.zip` projects or register GitHub repos for intake-only analysis registration
-- disabled command execution by default for demos, CI, and safe reproducibility
-- local trusted mode is opt-in behind `AUTOTEST_MODE=local_trusted` plus `KW_AUTOTEST_REAL_MODE=1`
+- simulated mode is the safe default for demos, CI, and reproducibility
+- trusted host execution is opt-in behind `AUTOTEST_MODE=real` (or legacy `AUTOTEST_MODE=local_trusted`) plus an explicit enable flag and `AUTOTEST_SANDBOX_BACKEND=local_trusted`
 - Docker sandbox mode is available with `AUTOTEST_MODE=docker_sandbox` and uses fixed timeouts, `shell=False`, output limits, path sanitization, artifact logs, network-off-by-default, and Docker CPU/memory flags
 - backend is now split into:
   - `api/routes/autotest.py`: thin HTTP layer
@@ -139,10 +139,10 @@ Responsibility split:
 
 AutoTest is intentionally constrained, but it is not a sandbox.
 
-- default mode is `AUTOTEST_MODE=disabled`
-- local trusted mode must be explicitly enabled with both `AUTOTEST_MODE=local_trusted` and `KW_AUTOTEST_REAL_MODE=1`
-- if `AUTOTEST_MODE=local_trusted` is set without that enable flag, the API rejects the run
-- local trusted mode executes commands from uploaded projects on the local trusted workspace host
+- default mode is `AUTOTEST_MODE=simulated`
+- trusted host execution must be explicitly enabled with `AUTOTEST_MODE=real` (or legacy `AUTOTEST_MODE=local_trusted`), `AUTOTEST_SANDBOX_BACKEND=local_trusted`, and either `KW_AUTOTEST_REAL_MODE=1` or `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- if trusted host execution is requested without that gate, the API rejects the run before any uploaded command can execute on the host
+- trusted host execution runs commands from uploaded projects on the local workspace host
 - Docker sandbox mode is enabled with `AUTOTEST_MODE=docker_sandbox`
 - Docker sandbox mode uses Docker command execution with timeout, CPU/memory limits, artifact logs, and network disabled by default
 - Node installs use `npm ci --ignore-scripts --no-audit --no-fund`
@@ -194,6 +194,39 @@ Recommended usage:
 
 ### macOS/Linux
 
+Windows bootstrap shortcut:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_windows.ps1
+```
+
+`backend/requirements.txt` and `backend/requirements-dev.txt` remain committed for pinned/runtime visibility, while the supported local verification flow uses `pip install -e ".[dev]"` from the repo root.
+
+Set environment variables:
+
+```env
+JWT_SECRET=<32+ chars>
+DEFAULT_OWNER_PASSWORD=<local password>
+ALLOWED_ORIGINS=http://localhost:5173
+AUTOTEST_MODE=simulated
+# optional real mode, sandbox/container only:
+# AUTOTEST_MODE=real
+# KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1
+# AUTOTEST_SANDBOX_BACKEND=local_trusted
+# optional: AUTOTEST_TIMEOUT_SECONDS=300
+# optional: AUTOTEST_MAX_UNZIPPED_BYTES=262144000
+```
+
+Run:
+
+```powershell
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+### Frontend
+### macOS/Linux
+
 ```bash
 bash scripts/bootstrap-dev.sh
 bash scripts/start-dev.sh
@@ -215,8 +248,10 @@ Bootstrap writes safe local defaults only when files are missing:
 AutoTest real mode stays off in both files:
 
 ```env
-AUTOTEST_MODE=disabled
+AUTOTEST_MODE=simulated
 KW_AUTOTEST_REAL_MODE=0
+KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=0
+AUTOTEST_SANDBOX_BACKEND=disabled
 ```
 
 ### AutoTest Runner Modes
@@ -226,8 +261,9 @@ AutoTest local trusted mode is disabled by default because it executes commands 
 To enable local trusted mode:
 
 ```env
-AUTOTEST_MODE=local_trusted
+AUTOTEST_MODE=real
 KW_AUTOTEST_REAL_MODE=1
+AUTOTEST_SANDBOX_BACKEND=local_trusted
 ```
 
 To enable Docker sandbox mode:
@@ -285,7 +321,18 @@ The verification scripts reuse the existing CI-equivalent Python gate (`scripts/
 
 Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md) and `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
 
-### Frontend Checks
+Single-command backend + frontend + release + smoke verification:
+
+```powershell
+python scripts/verify_all.py
+```
+
+Also available:
+
+- `python scripts/verify_repo_hygiene.py`: fail if runtime artifacts such as `ci_chroma/`, `data/index/`, `*.sqlite-wal`, `*.sqlite-shm`, caches, or generated release zips are present in the repo tree
+- `make verify`: thin wrapper around the same repo-root verification flow for reviewers who prefer `make`
+
+### Frontend
 
 ```bash
 cd frontend
@@ -297,7 +344,7 @@ npm run test:run
 npm run build
 ```
 
-Use Node 20.19+ or newer for frontend lint/test/build to match the Vite/Vitest toolchain and CI.
+Use Node `20.19.0` from `.nvmrc` for frontend lint/test/build to match CI.
 
 ## CI
 
@@ -325,7 +372,7 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 
 `python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, `python scripts/check_index_consistency.py`, release zip verification, and smoke.
 
-The release zip is a clean source package. `scripts/package_release.py` writes `dist/knowledge-workspace-<version>.zip` by default, does not build frontend assets unless `--build-frontend` is passed, and still does not ship `frontend/dist` in the final archive even when that staging build flag is used. The archive deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal files, caches, uploads, and temporary AutoTest/Chroma data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
+The release zip is a clean source package. `scripts/package_release.py` writes `dist/knowledge-workspace-<version>.zip` by default, does not build frontend assets unless `--build-frontend` is passed, and still does not ship `frontend/dist` in the final archive even when that staging build flag is used. The archive deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal/WAL/SHM files, `ci_chroma/`, `.chroma/`, `chroma/`, `runtime/`, `data/index/`, caches, uploads, and temporary AutoTest data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
 
 ### Release Zip Quickstart
 
@@ -424,7 +471,7 @@ Metric sources:
 
 - extracts the ZIP
 - detects Node/Python project roots
-- requires `KW_AUTOTEST_REAL_MODE=1`
+- requires `AUTOTEST_SANDBOX_BACKEND=local_trusted` plus either `KW_AUTOTEST_REAL_MODE=1` or `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
 - runs a fixed command plan from the uploaded project with constrained subprocess settings
 - does not run Python dependency installation for uploaded projects
 - should only be used on trusted code in an isolated environment
@@ -445,8 +492,8 @@ Metric sources:
 - `GET /api/index/status`: summary of `pending/indexed/failed/unavailable` state plus provider mode
 - `POST /api/index/rebuild`: rebuild all indexable content for the current owner
 - `POST /api/index/rebuild/{item_type}/{item_id}`: rebuild one item
-- `python scripts/check_index_consistency.py`: detect DB/vector/full-text drift and report repair-queue items
-- `python scripts/check_index_consistency.py --repair`: replay queued index/deindex repairs and re-check consistency
+- `python scripts/check_index_consistency.py`: detect DB/vector/full-text drift and report repair-queue items with `deferred`, `index_unavailable`, or `failed` repair states
+- `python scripts/check_index_consistency.py --repair`: replay queued index/deindex repairs and report `repaired`, `index_unavailable`, or `failed`
 
 ## AutoTest Timeline Statuses
 
@@ -475,8 +522,9 @@ Status meanings:
 - AutoTest uses an in-process background worker, not a durable external queue; backend process crashes can interrupt active jobs
 - GitHub analyze is currently an intake-only flow: validated URL intake plus `registered` local-analysis metadata, not a remote clone-and-run executor, full repository scan, or real execution queue entry
 - built-in vector search uses deterministic lightweight hash embeddings for demos/tests; it is not a production semantic retrieval model
+- if Chroma is unavailable or cannot initialize, indexing/search degrade safely and repair-queue items are marked `index_unavailable` rather than being misreported as repair failures
 - Chroma emits third-party deprecation warnings in tests
-- frontend verification should be run with Node `20` to match CI
+- frontend verification should be run with Node `20.19.0` from `.nvmrc` to match CI
 - `legacy_main.py` and `legacy_database.py` remain compatibility bridges during the refactor; see [docs/DEPRECATION.md](docs/DEPRECATION.md) for removal conditions
 
 ## Portfolio Case Study
@@ -494,5 +542,4 @@ See [docs/PORTFOLIO_CASE_STUDY.md](docs/PORTFOLIO_CASE_STUDY.md) for:
 - major bug fixes
 - dashboard contract design
 - interview demo script
-
 

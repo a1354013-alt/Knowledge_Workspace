@@ -41,6 +41,9 @@ def test_release_package_includes_docs_and_excludes_cache(tmp_path: Path):
 
     for name in (
         "VERSION",
+        ".nvmrc",
+        "MANIFEST.in",
+        "Makefile",
         "start_backend.sh",
         "start_frontend.sh",
         "QUICK_START.md",
@@ -89,6 +92,7 @@ def test_release_package_excludes_runtime_artifacts(tmp_path: Path):
         "chroma_db",
         "ci_chroma",
         "ci_uploads",
+        "data/index",
     ):
         (root_dir / directory).mkdir(parents=True)
 
@@ -96,6 +100,8 @@ def test_release_package_excludes_runtime_artifacts(tmp_path: Path):
         "backend/.openapi-runtime/openapi.db",
         "backend/.openapi-runtime/openapi.db-journal",
         "backend/.openapi.db-journal",
+        "backend/app.sqlite-wal",
+        "backend/app.sqlite-shm",
         "backend/app.db",
         "backend/app.sqlite3",
         ".env",
@@ -106,6 +112,8 @@ def test_release_package_excludes_runtime_artifacts(tmp_path: Path):
         "ci_uploads/private.txt",
         "ci_chroma/index.bin",
         "knowledge_workspace_release.zip",
+        "ci_chroma/chroma.sqlite3",
+        "data/index/segments.sqlite-wal",
         "frontend/dist/index.html",
     ]
     for rel_path in runtime_files:
@@ -181,12 +189,16 @@ def test_verify_release_zip_rejects_runtime_artifacts(tmp_path: Path):
     forbidden_paths = [
         "knowledge_workspace/backend/.openapi-runtime/openapi.db-journal",
         "knowledge_workspace/backend/.openapi.db-journal",
+        "knowledge_workspace/backend/app.sqlite-wal",
+        "knowledge_workspace/backend/app.sqlite-shm",
         "knowledge_workspace/backend/app.sqlite3",
         "knowledge_workspace/.env",
         "knowledge_workspace/uploads/private.txt",
         "knowledge_workspace/chroma_db/index.bin",
         "knowledge_workspace/ci_uploads/private.txt",
         "knowledge_workspace/ci_documents.db",
+        "knowledge_workspace/ci_chroma/chroma.sqlite3",
+        "knowledge_workspace/data/index/segments.sqlite-wal",
         "knowledge_workspace/frontend/dist/index.html",
         "knowledge_workspace/backend/knowledge_workspace.egg-info/PKG-INFO",
         "knowledge_workspace/frontend/pkg.dist-info/METADATA",
@@ -211,7 +223,8 @@ def test_verify_release_zip_accepts_clean_zip(tmp_path: Path):
 
     required_files = {
         "knowledge_workspace/README.md": "# README\n",
-        "knowledge_workspace/.python-version": "3.11\n",
+        "knowledge_workspace/.python-version": "3.11.9\n",
+        "knowledge_workspace/.nvmrc": "20.19.0\n",
         "knowledge_workspace/.env.example": "JWT_SECRET=replace-me\n",
         "knowledge_workspace/SECURITY_MODEL.md": "# Security\n",
         "knowledge_workspace/API_CONTRACT.md": "# API\n",
@@ -229,3 +242,12 @@ def test_verify_release_zip_accepts_clean_zip(tmp_path: Path):
             archive.writestr(rel_path, content)
 
     verify_release_zip.verify(zip_path)
+
+
+def test_verify_repo_hygiene_rejects_runtime_artifacts(tmp_path: Path, monkeypatch):
+    verify_repo_hygiene = import_module("scripts.verify_repo_hygiene")
+    (tmp_path / "ci_chroma").mkdir()
+    (tmp_path / "sample.sqlite-wal").write_text("wal\n", encoding="utf-8")
+    monkeypatch.setattr(verify_repo_hygiene, "ROOT", tmp_path)
+
+    assert verify_repo_hygiene.main() == 1

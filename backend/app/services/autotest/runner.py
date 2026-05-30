@@ -7,7 +7,11 @@ from pathlib import Path
 
 from app.context import settings
 from app.services.autotest.runners import DockerSandboxRunner, RunnerCommand
-from app.services.autotest.security import current_autotest_execution_mode, current_autotest_runner_mode
+from app.services.autotest.security import (
+    current_autotest_execution_mode,
+    current_autotest_runner_mode,
+    real_autotest_block_reason,
+)
 from app.services.autotest.timeline import clamp_output
 
 logger = logging.getLogger("knowledge_workspace")
@@ -30,6 +34,9 @@ def _scrubbed_autotest_env(base_env: dict[str, str] | None = None) -> dict[str, 
 def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[int, str, str]:
     if not argv:
         raise ValueError("Missing command argv.")
+    block_reason = real_autotest_block_reason()
+    if block_reason and current_autotest_runner_mode() == "local_trusted":
+        raise PermissionError(block_reason)
     if current_autotest_runner_mode() == "docker_sandbox":
         result = DockerSandboxRunner().run(
             RunnerCommand(

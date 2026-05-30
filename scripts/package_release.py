@@ -8,8 +8,17 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+
+def _detect_root() -> Path:
+    cwd = Path.cwd()
+    if (cwd / "scripts").exists() and (cwd / "backend").exists() and (cwd / "frontend").exists():
+        return cwd
+    return Path(__file__).resolve().parents[1]
+
+
 COMMON_IGNORE_PATTERNS = (
     "__pycache__",
+    "*.egg-info",
     ".pytest_cache",
     ".pytest-tmp",
     "pytest_run",
@@ -26,6 +35,8 @@ COMMON_IGNORE_PATTERNS = (
     "*.db-journal",
     "*.sqlite",
     "*.sqlite3",
+    "*.sqlite-shm",
+    "*.sqlite-wal",
     "*.sqlite-journal",
     "*.sqlite3-journal",
     ".env",
@@ -46,6 +57,10 @@ BACKEND_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + (
     "photos",
     "autotest_uploads",
     "chroma_db",
+    "ci_chroma",
+    ".chroma",
+    "chroma",
+    "runtime",
     "chroma.sqlite3",
 )
 FRONTEND_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + (
@@ -59,6 +74,7 @@ FRONTEND_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + (
 DOCS_IGNORE_PATTERNS = COMMON_IGNORE_PATTERNS + ("node_modules",)
 FORBIDDEN_DIR_NAMES = {
     ".git",
+    ".egg-info",
     "__pycache__",
     ".openapi-runtime",
     "openapi-runtime",
@@ -74,6 +90,11 @@ FORBIDDEN_DIR_NAMES = {
     "uploads",
     "photos",
     "chroma_db",
+    "ci_chroma",
+    ".chroma",
+    "chroma",
+    "runtime",
+    "index",
     "autotest_uploads",
     "node_modules",
     "dist",
@@ -96,13 +117,18 @@ FORBIDDEN_FILE_SUFFIXES = (
     ".db-journal",
     ".sqlite",
     ".sqlite3",
+    ".sqlite-shm",
+    ".sqlite-wal",
     ".sqlite-journal",
     ".sqlite3-journal",
 )
 ROOT_RELEASE_FILES = (
     ".python-version",
+    ".nvmrc",
     ".env.example",
     "VERSION",
+    "MANIFEST.in",
+    "Makefile",
     "start_backend.sh",
     "start_frontend.sh",
     "README.md",
@@ -188,6 +214,8 @@ def prune_release_tree(release_root: Path) -> None:
     # Exclusions (must not ship)
     for dir_name in FORBIDDEN_DIR_NAMES:
         for candidate in release_root.rglob(dir_name):
+            if candidate.name == "index" and candidate.parent.name != "data":
+                continue
             rm_tree(candidate)
 
     for pattern in ("*.egg-info", "*.dist-info"):
@@ -276,7 +304,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    root_dir = Path(__file__).resolve().parents[1]
+    root_dir = _detect_root()
     out_zip = _default_release_zip(root_dir) if not args.out_zip else Path(args.out_zip)
     if args.output_dir and not args.out_zip:
         out_zip = Path(args.output_dir) / out_zip.name

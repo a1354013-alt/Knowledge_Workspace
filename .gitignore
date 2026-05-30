@@ -6,6 +6,7 @@ __pycache__/
 *.dist-info/
 *$py.class
 .Python
+*.egg-info/
 env/
 venv/
 .venv/
@@ -32,6 +33,8 @@ htmlcov/
 *.sqlite3-journal
 *.sqlite
 *.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
 chroma.sqlite3
 ci_documents.db
 ci_test.db
@@ -50,18 +53,26 @@ frontend/.vite/
 frontend/coverage/
 
 # Backend runtime data
+.chroma/
+chroma/
+runtime/
+data/index/
 backend/*.db
 backend/*.db-journal
 backend/*.sqlite
 backend/*.sqlite3
 backend/*.sqlite-journal
 backend/*.sqlite3-journal
+backend/*.sqlite-shm
+backend/*.sqlite-wal
 backend/**/*.db
 backend/**/*.db-journal
 backend/**/*.sqlite
 backend/**/*.sqlite3
 backend/**/*.sqlite-journal
 backend/**/*.sqlite3-journal
+backend/**/*.sqlite-shm
+backend/**/*.sqlite-wal
 backend/.openapi-runtime/
 backend/**/.openapi-runtime/
 uploads/
@@ -69,7 +80,6 @@ backend/uploads/
 photos/
 backend/photos/
 autotest_uploads/
-autotest/
 backend/autotest_uploads/
 chroma_db/
 backend/chroma_db/
@@ -77,20 +87,24 @@ ci_uploads/
 ci_photos/
 ci_chroma/
 ci_autotest/
-*.chroma/
-*.uploads/
-*.photos/
-*.autotest/
 backend/.pytest_cache/
 backend/.pytest-tmp/
 backend/.pytest-chroma/
 backend/.env
+backend/knowledge_workspace.egg-info/
 
 # Logs / artifacts
 *.log
+*.pid
 ci_backend.log
 ci_backend.pid
-*.zip
+ci_*.db
+ci_*.sqlite
+ci_*.sqlite3
+ci_*.sqlite-shm
+ci_*.sqlite-wal
+knowledge_workspace_release.zip
+test_release.zip
 *.tar.gz
 knowledge_workspace_release.zip
 release-validation.zip

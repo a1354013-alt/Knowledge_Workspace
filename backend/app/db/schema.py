@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS index_repair_queue (
     last_error TEXT NOT NULL DEFAULT '',
     attempts INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(item_id, action)
+    UNIQUE(owner_user_id, item_id, action)
 )
 """
 

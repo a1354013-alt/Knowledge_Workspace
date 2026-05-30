@@ -33,6 +33,7 @@ from app.services.autotest.security import (
     current_autotest_response_runner_mode,
     is_real_autotest_enabled,
     is_real_autotest_requested,
+    real_autotest_block_reason,
 )
 from app.services.autotest.security import (
     get_autotest_capabilities as _get_autotest_capabilities,
@@ -90,14 +91,11 @@ def get_autotest_capabilities() -> AutoTestCapabilitiesResponse:
 
 async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunResponse:
     user_id = current_user["sub"]
-    if is_real_autotest_requested() and not is_real_autotest_enabled():
+    block_reason = real_autotest_block_reason()
+    if is_real_autotest_requested() and block_reason is not None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "AutoTest local trusted mode is disabled. Set AUTOTEST_MODE=local_trusted and KW_AUTOTEST_REAL_MODE=1 "
-                "only for local trusted projects. Do not execute untrusted ZIP uploads. "
-                "Use AUTOTEST_MODE=docker_sandbox for container execution."
-            ),
+            status_code=status.HTTP_403_FORBIDDEN if not is_real_autotest_enabled() else status.HTTP_409_CONFLICT,
+            detail=block_reason,
         )
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing filename.")

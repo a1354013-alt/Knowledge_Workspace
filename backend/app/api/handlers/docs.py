@@ -168,7 +168,12 @@ async def upload_document(
             logger.warning("Document indexing failed for %s: %s", doc_id, exc)
             indexing_payload = _upload_indexing_payload(index_status=index_status, detail=detail)
         else:
-            db.resolve_index_repair(item_id=item_id_from_parts("document", doc_id), action="index")
+            indexing_payload = _upload_indexing_payload(index_status="indexed")
+            db.resolve_index_repair(
+                item_id=item_id_from_parts("document", doc_id),
+                action="index",
+                owner_user_id=str(current_user["sub"]),
+            )
             indexing_payload = _upload_indexing_payload(index_status="indexed")
         document = db.get_document(doc_id) or document
     logger.info("Uploaded document %s by %s", doc_id, current_user["sub"])
@@ -246,7 +251,11 @@ async def update_document(
         )
         warning = f"Document indexing failed: {exc}"
     else:
-        db.resolve_index_repair(item_id=item_id_from_parts("document", doc_id), action="index")
+        db.resolve_index_repair(
+            item_id=item_id_from_parts("document", doc_id),
+            action="index",
+            owner_user_id=str(current_user["sub"]),
+        )
     return MessageResponse(message=_side_effect_warning("Document updated.", warning))
 
 
@@ -272,7 +281,11 @@ async def delete_own_document(doc_id: str, current_user: dict = Depends(get_curr
             last_error=warning,
         )
     else:
-        db.resolve_index_repair(item_id=item_id_from_parts("document", doc_id), action="deindex")
+        db.resolve_index_repair(
+            item_id=item_id_from_parts("document", doc_id),
+            action="deindex",
+            owner_user_id=str(current_user["sub"]),
+        )
     item_id = item_id_from_parts("document", doc_id)
     with db.transaction() as conn:
         try:

@@ -51,6 +51,14 @@
             "default": "",
             "title": "Safety Note",
             "type": "string"
+          },
+          "sandbox_backend": {
+            "title": "Sandbox Backend",
+            "type": "string"
+          },
+          "sandbox_backend_ready": {
+            "title": "Sandbox Backend Ready",
+            "type": "boolean"
           }
         },
         "required": [
@@ -59,6 +67,8 @@
           "real_mode_requested",
           "real_mode_enabled",
           "real_mode_available",
+          "sandbox_backend",
+          "sandbox_backend_ready",
           "message"
         ],
         "title": "AutoTestCapabilitiesResponse",
@@ -394,7 +404,7 @@
       "Body_run_autotest_api_autotest_run_post": {
         "properties": {
           "file": {
-            "format": "binary",
+            "contentMediaType": "application/octet-stream",
             "title": "File",
             "type": "string"
           }
@@ -413,7 +423,7 @@
             "type": "string"
           },
           "file": {
-            "format": "binary",
+            "contentMediaType": "application/octet-stream",
             "title": "File",
             "type": "string"
           },
@@ -437,7 +447,7 @@
             "type": "string"
           },
           "file": {
-            "format": "binary",
+            "contentMediaType": "application/octet-stream",
             "title": "File",
             "type": "string"
           },
@@ -856,6 +866,7 @@
         "additionalProperties": false,
         "properties": {
           "inputs": {
+            "additionalProperties": true,
             "title": "Inputs",
             "type": "object"
           },
@@ -908,12 +919,14 @@
           "analysis_scope": {
             "const": "intake_only",
             "default": "intake_only",
-            "title": "Analysis Scope"
+            "title": "Analysis Scope",
+            "type": "string"
           },
           "execution_mode": {
             "const": "simulated",
             "default": "simulated",
-            "title": "Execution Mode"
+            "title": "Execution Mode",
+            "type": "string"
           },
           "message": {
             "title": "Message",
@@ -938,7 +951,8 @@
           },
           "status": {
             "const": "registered",
-            "title": "Status"
+            "title": "Status",
+            "type": "string"
           }
         },
         "required": [
@@ -956,7 +970,8 @@
           "analysis_scope": {
             "const": "intake_only",
             "default": "intake_only",
-            "title": "Analysis Scope"
+            "title": "Analysis Scope",
+            "type": "string"
           },
           "clone_supported": {
             "default": false,
@@ -1135,6 +1150,15 @@
           "summary": {
             "additionalProperties": {
               "$ref": "#/components/schemas/IndexStatusSummaryItem"
+            },
+            "propertyNames": {
+              "enum": [
+                "document",
+                "knowledge",
+                "logbook",
+                "photo",
+                "prompt"
+              ]
             },
             "title": "Summary",
             "type": "object"
@@ -2790,6 +2814,13 @@
       },
       "ValidationError": {
         "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
           "loc": {
             "items": {
               "anyOf": [

@@ -1,0 +1,13 @@
+prune ci_chroma
+prune ci_uploads
+prune ci_photos
+prune ci_autotest
+prune .chroma
+prune chroma
+prune runtime
+prune data/index
+prune node_modules
+prune frontend/node_modules
+prune frontend/dist
+prune backend/knowledge_workspace.egg-info
+global-exclude __pycache__ *.py[cod] *.sqlite *.sqlite3 *.sqlite-shm *.sqlite-wal *.db *.db-journal

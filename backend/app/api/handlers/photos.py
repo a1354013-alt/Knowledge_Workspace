@@ -140,7 +140,11 @@ async def upload_photo(
                 last_error=warning,
             )
         else:
-            db.resolve_index_repair(item_id=item_id_from_parts("photo", photo_id), action="index")
+            db.resolve_index_repair(
+                item_id=item_id_from_parts("photo", photo_id),
+                action="index",
+                owner_user_id=str(user_id),
+            )
     else:
         warning = None
 
@@ -232,7 +236,11 @@ async def update_photo(
             last_error=warning,
         )
     else:
-        db.resolve_index_repair(item_id=item_id_from_parts("photo", photo_id), action="index")
+        db.resolve_index_repair(
+            item_id=item_id_from_parts("photo", photo_id),
+            action="index",
+            owner_user_id=str(current_user["sub"]),
+        )
     return MessageResponse(message=_side_effect_warning("Photo updated.", warning))
 
 
@@ -256,7 +264,11 @@ async def delete_photo(photo_id: str, current_user: dict = Depends(get_current_u
             last_error=warning,
         )
     else:
-        db.resolve_index_repair(item_id=item_id_from_parts("photo", photo_id), action="deindex")
+        db.resolve_index_repair(
+            item_id=item_id_from_parts("photo", photo_id),
+            action="deindex",
+            owner_user_id=str(current_user["sub"]),
+        )
     item_id = item_id_from_parts("photo", photo_id)
     with db.transaction() as conn:
         try:

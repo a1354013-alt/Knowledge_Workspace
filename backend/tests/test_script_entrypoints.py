@@ -81,6 +81,7 @@ def test_verify_release_zip_defaults_to_versioned_dist_zip(tmp_path: Path):
 
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("knowledge_workspace/.python-version", "3.11\n")
+        archive.writestr("knowledge_workspace/.nvmrc", "20.19.0\n")
         archive.writestr("knowledge_workspace/.env.example", "JWT_SECRET=replace-me\n")
         archive.writestr("knowledge_workspace/README.md", "# README\n")
         archive.writestr("knowledge_workspace/SECURITY_MODEL.md", "# Security\n")
@@ -106,4 +107,3 @@ def test_verify_release_zip_defaults_to_versioned_dist_zip(tmp_path: Path):
         assert "verified" in result.stdout.lower()
     finally:
         zip_path.unlink(missing_ok=True)
-

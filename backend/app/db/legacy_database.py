@@ -124,6 +124,7 @@ class DocumentDatabase(
             cursor.execute(schema.CREATE_ITEM_LINKS_TABLE_SQL)
             cursor.execute(schema.CREATE_SAVED_PROMPTS_TABLE_SQL)
             migrations.ensure_search_support_tables(cursor)
+            migrations.migrate_index_repair_queue_table(cursor)
             self._migrate_documents_table(cursor)
             self._migrate_users_table(cursor)
             self._migrate_knowledge_entries_table(cursor)

@@ -15,6 +15,9 @@
             <p v-if="capabilities?.safety_note">
               {{ capabilities.safety_note }}
             </p>
+            <p v-if="capabilities">
+              Sandbox backend: {{ capabilities.sandbox_backend }}{{ capabilities.sandbox_backend_ready ? ' (ready)' : ' (blocked)' }}
+            </p>
           </div>
           <div class="row">
             <input

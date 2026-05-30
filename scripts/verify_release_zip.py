@@ -12,10 +12,18 @@ except ModuleNotFoundError:  # pragma: no cover - used when imported as scripts.
     from scripts.artifact_checks import check_zip
 
 
+def _detect_root() -> Path:
+    cwd = Path.cwd()
+    if (cwd / "scripts").exists() and (cwd / "backend").exists() and (cwd / "frontend").exists():
+        return cwd
+    return Path(__file__).resolve().parents[1]
+
+
 FORBIDDEN_PARTS = {
     ".git",
     "node_modules",
     "dist",
+    ".egg-info",
     "__pycache__",
     ".openapi-runtime",
     "openapi-runtime",
@@ -31,6 +39,10 @@ FORBIDDEN_PARTS = {
     "uploads",
     "photos",
     "chroma_db",
+    "ci_chroma",
+    ".chroma",
+    "chroma",
+    "runtime",
     "autotest_uploads",
     "coverage",
     "playwright-report",
@@ -51,12 +63,15 @@ FORBIDDEN_SUFFIXES = (
     ".db-journal",
     ".sqlite",
     ".sqlite3",
+    ".sqlite-shm",
+    ".sqlite-wal",
     ".sqlite-journal",
     ".sqlite3-journal",
 )
 
 REQUIRED = {
     "knowledge_workspace/.python-version",
+    "knowledge_workspace/.nvmrc",
     "knowledge_workspace/.env.example",
     "knowledge_workspace/README.md",
     "knowledge_workspace/SECURITY_MODEL.md",
@@ -86,6 +101,9 @@ def verify(zip_path: Path) -> None:
     for name in names:
         parts = {part for part in name.split("/") if part}
         if parts & FORBIDDEN_PARTS:
+            bad.append(name)
+        normalized = name.lower()
+        if "/data/index/" in normalized or normalized.endswith("/data/index"):
             bad.append(name)
         basename = Path(name).name
         if basename == ".env" or (
@@ -117,6 +135,8 @@ def verify(zip_path: Path) -> None:
         for forbidden in FORBIDDEN_PARTS:
             if list(extracted_release.rglob(forbidden)):
                 raise SystemExit(f"Forbidden extracted path found: {forbidden}")
+        if (extracted_release / "data" / "index").exists():
+            raise SystemExit("Forbidden extracted path found: data/index")
         for candidate in extracted_release.rglob("*"):
             name = candidate.name
             if name.endswith(".egg-info") or name.endswith(".dist-info"):
@@ -139,10 +159,11 @@ def main() -> int:
     )
     parser.add_argument("zip_path", nargs="?", default="")
     args = parser.parse_args()
-    root_dir = Path(__file__).resolve().parents[1]
+    root_dir = _detect_root()
     zip_path = _default_release_zip(root_dir) if not args.zip_path else Path(args.zip_path)
     if not zip_path.is_absolute():
-        zip_path = root_dir / zip_path
+        cwd_candidate = Path.cwd() / zip_path
+        zip_path = cwd_candidate if cwd_candidate.exists() else root_dir / zip_path
     verify(zip_path)
     print(f"OK: verified {zip_path}")
     return 0

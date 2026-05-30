@@ -49,18 +49,20 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 
 ## Modes
 
-### `disabled`
+### `simulated`
 
 - default mode
 - safest option for CI and demos
 - does not execute real project commands
-- frontend/UI should describe this as disabled execution mode
-- queued/API responses explicitly report that disabled mode is active
+- frontend/UI should describe this as simulated execution mode
+- queued/API responses explicitly report that simulated mode is active
 - still creates a real run, timeline, and derived knowledge/logbook artifacts
 
 ### `local_trusted`
 
-- must be explicitly enabled with `AUTOTEST_MODE=local_trusted` and `KW_AUTOTEST_REAL_MODE=1`
+- must be explicitly enabled with `AUTOTEST_MODE=real` (or legacy `AUTOTEST_MODE=local_trusted`)
+- requires `AUTOTEST_SANDBOX_BACKEND=local_trusted`
+- requires either `KW_AUTOTEST_REAL_MODE=1` or `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
 - extracts the uploaded ZIP
 - detects a Node/Python project root
 - executes commands from the uploaded project
@@ -88,6 +90,8 @@ It is a local trusted-workspace execution mode, not Docker isolation.
 
 Do not accept arbitrary public ZIP uploads into local trusted mode. Guarded execution is still host execution.
 
+If the sandbox backend is missing, disabled, or set to an unimplemented value such as `docker`, the API fails safely before any uploaded command executes on the host.
+
 Sensitive env vars are stripped when their names contain:
 
 - `TOKEN`
@@ -98,8 +102,8 @@ Sensitive env vars are stripped when their names contain:
 
 Recommended usage:
 
-- use `disabled` in CI
-- use `disabled` on shared/dev machines
+- use `simulated` in CI
+- use `simulated` on shared/dev machines
 - use `local_trusted` only on isolated local environments you control
 - use `local_trusted` only with trusted local projects
 - use `docker_sandbox` when Docker is available and command execution should be containerized
@@ -189,4 +193,3 @@ It should not infer success/failure from missing fields or command text alone.
 3. Run a failing ZIP and point out `failed_reason` plus logbook creation.
 4. Promote the logbook entry and show dashboard metrics update.
 5. Explain that `local_trusted` and `docker_sandbox` exist with different safety boundaries.
-

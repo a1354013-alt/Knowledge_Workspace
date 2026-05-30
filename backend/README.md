@@ -100,8 +100,9 @@ Minimum required:
 Optional (common):
 - `ALLOWED_ORIGINS` (comma-separated)
 - `MAX_FILE_SIZE` (bytes; default: 52428800 = 50MB)
-- `AUTOTEST_MODE` (`disabled` by default; `local_trusted` or `docker_sandbox` for execution)
-- `KW_AUTOTEST_REAL_MODE` (`1` required before `AUTOTEST_MODE=local_trusted` can execute)
+- `AUTOTEST_MODE` (`simulated` by default; `real` or legacy `local_trusted` for trusted host execution, `docker_sandbox` for container execution)
+- `KW_AUTOTEST_REAL_MODE` / `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST` (set either to `1` before trusted host execution can run)
+- `AUTOTEST_SANDBOX_BACKEND` (`local_trusted` required before trusted host execution can run; `docker` is reserved but not implemented)
 - `AUTOTEST_TIMEOUT_SECONDS`
 - `AUTOTEST_MAX_FILES`
 - `AUTOTEST_MAX_UNZIPPED_BYTES`
@@ -115,12 +116,12 @@ Optional (common):
 
 AutoTest mode notes:
 
-- `AUTOTEST_MODE=local_trusted` without `KW_AUTOTEST_REAL_MODE=1` is rejected
-- local_trusted mode is not a hardened sandbox
+- `AUTOTEST_MODE=real` (or legacy `AUTOTEST_MODE=local_trusted`) without an explicit enable flag and `AUTOTEST_SANDBOX_BACKEND=local_trusted` is rejected
+- trusted host execution is not a hardened sandbox
 - it executes commands from uploaded projects on the trusted local workspace host
 - Docker sandbox mode (`AUTOTEST_MODE=docker_sandbox`) is implemented as an optional containerized AutoTest runner
 - Docker sandbox provides basic local container isolation with timeout/resource/network controls, but should not be described as a production-grade multi-tenant sandbox
-- use local_trusted mode only with trusted local code
+- use trusted host execution only with trusted local code
 - use docker_sandbox mode only on systems with Docker or Podman available
 
 Text uploads:
@@ -128,4 +129,3 @@ Text uploads:
 
 OCR notes:
 - `available=true` requires the Python deps **and** a runnable system Tesseract binary.
-

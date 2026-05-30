@@ -201,7 +201,79 @@ def ensure_search_support_tables(cursor: sqlite3.Cursor) -> None:
 
 
 def migrate_users_table(cursor: sqlite3.Cursor) -> None:
-    cursor.execute("UPDATE users SET role = 'owner' WHERE role != 'owner'")
+    cursor.execute("UPDATE users SET role = 'owner' WHERE role IS NULL OR TRIM(role) = ''")
+
+
+def migrate_index_repair_queue_table(cursor: sqlite3.Cursor) -> None:
+    cursor.execute("PRAGMA table_info(index_repair_queue)")
+    rows = cursor.fetchall()
+    if not rows:
+        cursor.execute(schema.CREATE_INDEX_REPAIR_QUEUE_TABLE_SQL)
+        return
+
+    columns = {row[1] for row in rows}
+    column_migrations = {
+        "owner_user_id": "ALTER TABLE index_repair_queue ADD COLUMN owner_user_id TEXT NOT NULL DEFAULT ''",
+        "last_error": "ALTER TABLE index_repair_queue ADD COLUMN last_error TEXT NOT NULL DEFAULT ''",
+        "attempts": "ALTER TABLE index_repair_queue ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0",
+        "updated_at": "ALTER TABLE index_repair_queue ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP",
+    }
+    for column, sql in column_migrations.items():
+        if column not in columns:
+            cursor.execute(sql)
+
+    cursor.execute("PRAGMA index_list(index_repair_queue)")
+    has_owner_scoped_unique = False
+    for row in cursor.fetchall():
+        if not int(row[2]):
+            continue
+        index_name = str(row[1])
+        cursor.execute(f"PRAGMA index_info('{index_name}')")
+        index_columns = tuple(index_row[2] for index_row in cursor.fetchall())
+        if index_columns == ("owner_user_id", "item_id", "action"):
+            has_owner_scoped_unique = True
+            break
+
+    if has_owner_scoped_unique:
+        return
+
+    cursor.execute(
+        """
+        CREATE TABLE index_repair_queue__new (
+            queue_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id TEXT NOT NULL,
+            item_type TEXT NOT NULL,
+            action TEXT NOT NULL,
+            owner_user_id TEXT NOT NULL DEFAULT '',
+            last_error TEXT NOT NULL DEFAULT '',
+            attempts INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(owner_user_id, item_id, action)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        INSERT INTO index_repair_queue__new
+        (item_id, item_type, action, owner_user_id, last_error, attempts, updated_at)
+        SELECT
+            item_id,
+            item_type,
+            action,
+            owner_user_id,
+            last_error,
+            attempts,
+            updated_at
+        FROM index_repair_queue
+        WHERE rowid IN (
+            SELECT MAX(rowid)
+            FROM index_repair_queue
+            GROUP BY owner_user_id, item_id, action
+        )
+        """
+    )
+    cursor.execute("DROP TABLE index_repair_queue")
+    cursor.execute("ALTER TABLE index_repair_queue__new RENAME TO index_repair_queue")
 
 
 def migrate_documents_table(cursor: sqlite3.Cursor) -> None:

@@ -114,7 +114,11 @@ async def create_knowledge_entry(
                 last_error=warning,
             )
         else:
-            db.resolve_index_repair(item_id=item_id_from_parts("knowledge", entry_id), action="index")
+            db.resolve_index_repair(
+                item_id=item_id_from_parts("knowledge", entry_id),
+                action="index",
+                owner_user_id=str(user_id),
+            )
     else:
         warning = None
     return MessageResponse(message=side_effect_warning("Knowledge entry created.", warning))
@@ -185,7 +189,11 @@ async def update_knowledge_entry(
             last_error=warning,
         )
     else:
-        db.resolve_index_repair(item_id=item_id_from_parts("knowledge", entry_id), action="index")
+        db.resolve_index_repair(
+            item_id=item_id_from_parts("knowledge", entry_id),
+            action="index",
+            owner_user_id=str(user_id),
+        )
     return MessageResponse(message=side_effect_warning("Knowledge entry updated.", warning))
 
 
@@ -279,5 +287,9 @@ async def restore_knowledge_revision(
             last_error=warning,
         )
     else:
-        db.resolve_index_repair(item_id=item_id_from_parts("knowledge", entry_id), action="index")
+        db.resolve_index_repair(
+            item_id=item_id_from_parts("knowledge", entry_id),
+            action="index",
+            owner_user_id=str(user_id),
+        )
     return MessageResponse(message=side_effect_warning("Knowledge revision restored.", warning))

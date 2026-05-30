@@ -45,6 +45,8 @@ class Settings(BaseModel):
     AUTOTEST_DIR: Path = Field(default=Path("autotest_uploads"))
     AUTOTEST_MODE: str = "simulated"
     KW_AUTOTEST_REAL_MODE: bool = False
+    KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST: bool = False
+    AUTOTEST_SANDBOX_BACKEND: str = "disabled"
 
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
@@ -148,6 +150,13 @@ class Settings(BaseModel):
                 os.getenv("KW_AUTOTEST_REAL_MODE", "0"),
                 default=False,
             ),
+            KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=parse_bool(
+                os.getenv("KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST", "0"),
+                default=False,
+            ),
+            AUTOTEST_SANDBOX_BACKEND=(
+                os.getenv("AUTOTEST_SANDBOX_BACKEND", "disabled") or "disabled"
+            ).strip().lower(),
             ALLOWED_ORIGINS=allowed_origins,
             AUTOTEST_MAX_FILES=int(os.getenv("AUTOTEST_MAX_FILES", "5000")),
             AUTOTEST_MAX_UNZIPPED_BYTES=int(os.getenv("AUTOTEST_MAX_UNZIPPED_BYTES", str(250 * 1024 * 1024))),

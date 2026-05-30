@@ -10,7 +10,14 @@ from contextlib import suppress
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+def _detect_root() -> Path:
+    cwd = Path.cwd()
+    if (cwd / "scripts").exists() and (cwd / "backend").exists() and (cwd / "frontend").exists():
+        return cwd
+    return Path(__file__).resolve().parents[1]
+
+
+ROOT = _detect_root()
 BACKEND_DIR = ROOT / "backend"
 FRONTEND_DIR = ROOT / "frontend"
 DEFAULT_RELEASE_ZIP = ROOT / "knowledge_workspace_release.zip"
@@ -171,6 +178,8 @@ def run_smoke_check() -> None:
 def main() -> int:
     os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
     clean_python_cache_artifacts()
+    run([sys.executable, "scripts/verify_repo_hygiene.py"])
+    clean_python_cache_artifacts()
     run([sys.executable, "scripts/check_python_version.py"])
     run([sys.executable, "scripts/artifact_checks.py"])
     run([sys.executable, "scripts/safe_compile.py", "-q", "."])
@@ -189,7 +198,7 @@ def main() -> int:
     run([npm, "run", "build"], cwd=FRONTEND_DIR)
 
     run([sys.executable, "scripts/package_release.py", str(DEFAULT_RELEASE_ZIP)])
-    run([sys.executable, "scripts/verify_release.py", str(DEFAULT_RELEASE_ZIP)])
+    run([sys.executable, "scripts/verify_release_zip.py", str(DEFAULT_RELEASE_ZIP)])
     run_smoke_check()
     clean_python_cache_artifacts()
     return 0

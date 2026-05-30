@@ -2,9 +2,9 @@
 
 1. Confirm runtime versions:
    - Python 3.11
-   - `.python-version` is `3.11`
+   - `.python-version` is `3.11.9`
    - `python scripts/check_python_version.py`
-   - Node 20.19+ LTS
+   - `.nvmrc` is `20.19.0`
 2. Backend verification:
    - use Python 3.11.x (`py -3.11 -m venv .venv`)
    - `.\\.venv\\Scripts\\Activate.ps1`
@@ -32,12 +32,13 @@
    - blob/download flows must go through `frontend/src/services/downloads.ts`
    - dangerous confirms must go through `frontend/src/services/confirm.ts`
 4. Release package:
-   - `python scripts/package_release.py`
-   - `python scripts/verify_release.py dist/knowledge-workspace-*.zip`
+   - `python scripts/verify_repo_hygiene.py`
+   - `python scripts/package_release.py --output dist`
+   - `python scripts/verify_release_zip.py dist/knowledge-workspace-<version>.zip`
    - `scripts/package_release.py` stages a source release and does not build or ship `frontend/dist` by default
    - default output is `dist/knowledge-workspace-<version>.zip`
    - release zip is a clean source package; it does not include `frontend/dist`
-   - release verification rejects `node_modules`, `dist`, `.env`, runtime databases/journals, caches, uploads, AutoTest workdirs, and test artifacts
+   - release verification rejects `node_modules`, `dist`, `.env`, runtime databases/journals/WAL/SHM files, `ci_chroma/`, `.chroma/`, `chroma/`, `runtime/`, `data/index/`, caches, uploads, AutoTest workdirs, and test artifacts
 5. Release zip quickstart reminder:
    - extracted users must create a Python 3.11 environment, install backend dev dependencies, run `cd frontend && npm ci`, copy `.env.example` to `.env`, then start backend and frontend separately
    - Windows PowerShell startup:

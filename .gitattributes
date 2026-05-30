@@ -13,3 +13,19 @@
 *.example text eol=lf
 VERSION text eol=lf
 
+ci_chroma/** export-ignore
+ci_uploads/** export-ignore
+ci_photos/** export-ignore
+ci_autotest/** export-ignore
+.chroma/** export-ignore
+chroma/** export-ignore
+runtime/** export-ignore
+data/index/** export-ignore
+node_modules/** export-ignore
+frontend/node_modules/** export-ignore
+frontend/dist/** export-ignore
+__pycache__/** export-ignore
+.pytest_cache/** export-ignore
+backend/knowledge_workspace.egg-info/** export-ignore
+knowledge_workspace_release.zip export-ignore
+test_release.zip export-ignore
