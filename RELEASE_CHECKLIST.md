@@ -7,6 +7,7 @@
    - Do not use Python `3.12` or `3.13` as release evidence
 2. Run backend verification from the repo root.
    - `python scripts/check_python_version.py`
+   - `python scripts/check_text_encoding.py`
    - `python scripts/safe_compile.py -q .`
    - `python -m ruff check backend scripts`
    - `python scripts/run_backend_tests.py`

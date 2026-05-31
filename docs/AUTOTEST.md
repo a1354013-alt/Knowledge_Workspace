@@ -1,4 +1,4 @@
-﻿# AutoTest
+# AutoTest
 
 ## Purpose
 

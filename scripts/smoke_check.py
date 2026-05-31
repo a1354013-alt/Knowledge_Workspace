@@ -230,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         print("FAIL missing knowledge_entry_id")
         return 1
 
-    # Run AutoTest (expects AUTOTEST_MODE=disabled or docker_sandbox in delivery/CI)
+    # Run AutoTest (delivery/CI uses simulated execution by default unless Docker live execution is explicitly enabled)
     if (
         run_autotest_smoke_check(base_url=args.base_url, token=token, smoke_id=smoke_id)
         != 0

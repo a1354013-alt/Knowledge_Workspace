@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import subprocess
@@ -38,9 +38,13 @@ def test_check_index_consistency_runs_from_repo_root(tmp_path: Path):
 def test_wrapper_scripts_delegate_to_existing_modules():
     safe_compile = (ROOT / "scripts" / "safe_compile.py").read_text(encoding="utf-8")
     verify_release = (ROOT / "scripts" / "verify_release.py").read_text(encoding="utf-8")
+    check_text_encoding = (ROOT / "scripts" / "check_text_encoding.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "from safe_compileall import main" in safe_compile
     assert "from verify_release_zip import main" in verify_release
+    assert "UTF-8 BOM detected" in check_text_encoding
 
 
 def test_export_openapi_check_runs_from_repo_root(tmp_path: Path):

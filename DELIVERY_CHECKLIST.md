@@ -1,4 +1,4 @@
-﻿# Delivery Checklist
+# Delivery Checklist
 
 ## Pre-delivery cleanup
 
@@ -36,26 +36,31 @@
 
 Backend:
 
-- `cd backend`
-- `python -m compileall -q app`
-- `ruff check .`
-- `python -m pytest`
+- `python scripts/check_python_version.py`
+- `python scripts/check_text_encoding.py`
+- `python scripts/safe_compile.py -q .`
+- `python -m ruff check backend scripts`
+- `python scripts/run_backend_tests.py`
+- `python scripts/check_index_consistency.py`
+- `python scripts/export_openapi.py --check`
+- `python scripts/generate_api_types.py --check`
+- `python scripts/check_version_consistency.py`
 
 Frontend:
 
 - `cd frontend`
 - `npm ci`
+- `npm audit --omit=dev --audit-level=high`
 - `npm run lint`
 - `npm run typecheck`
 - `npm run test:run`
 - `npm run build`
-- `npm audit`
 
 Repo-wide:
 
-- `python scripts/check_version_consistency.py`
+- `python scripts/verify_repo_hygiene.py`
 - `python scripts/package_release.py --output dist`
-- `python scripts/verify_release_zip.py dist/knowledge_workspace_release.zip`
+- `python scripts/verify_release_zip.py dist/knowledge-workspace-<version>.zip`
 
 ## Packaging rule
 
@@ -66,4 +71,3 @@ Deliver only:
 - root documentation and startup scripts
 - `docs/`
 - `scripts/`
-

@@ -28,6 +28,9 @@ jobs:
       - name: Python runtime check
         run: python scripts/check_python_version.py
 
+      - name: Text encoding check
+        run: python scripts/check_text_encoding.py
+
       - name: Backend compile check
         run: python scripts/safe_compile.py -q .
 

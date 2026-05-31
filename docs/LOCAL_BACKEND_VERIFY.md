@@ -11,6 +11,7 @@ py -3.11 -m venv .venv
 python -m pip install -U pip
 pip install -e ".[dev]"
 python scripts/check_python_version.py
+python scripts/check_text_encoding.py
 python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
@@ -36,6 +37,7 @@ python scripts/verify_all.py
 ## What The Verification Covers
 
 - Python runtime guard
+- UTF-8 / BOM policy check for repo-maintained text files
 - import/compile sanity
 - Ruff lint on `backend` and `scripts`
 - backend pytest suite via `scripts/run_backend_tests.py`

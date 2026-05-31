@@ -181,6 +181,7 @@ def main() -> int:
     run([sys.executable, "scripts/verify_repo_hygiene.py"])
     clean_python_cache_artifacts()
     run([sys.executable, "scripts/check_python_version.py"])
+    run([sys.executable, "scripts/check_text_encoding.py"])
     run([sys.executable, "scripts/artifact_checks.py"])
     run([sys.executable, "scripts/safe_compile.py", "-q", "."])
     run([sys.executable, "-m", "ruff", "check", "backend", "scripts"])

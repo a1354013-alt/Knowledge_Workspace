@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+
+TEXT_SUFFIXES = {
+    ".md",
+    ".py",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".vue",
+    ".json",
+    ".yml",
+    ".yaml",
+    ".toml",
+    ".env",
+}
+TEXT_FILENAMES = {
+    ".env.example",
+    ".gitattributes",
+    ".gitignore",
+    ".nvmrc",
+    ".python-version",
+    "Makefile",
+    "VERSION",
+}
+SKIP_PARTS = {
+    ".git",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    "__pycache__",
+    "node_modules",
+    "dist",
+    ".vite",
+    "coverage",
+    "playwright-report",
+    "test-results",
+    ".venv",
+    ".venv311",
+}
+BOM = b"\xef\xbb\xbf"
+
+
+def _detect_root() -> Path:
+    cwd = Path.cwd()
+    if (cwd / "scripts").exists() and (cwd / "backend").exists() and (cwd / "frontend").exists():
+        return cwd
+    return Path(__file__).resolve().parents[1]
+
+
+ROOT = _detect_root()
+
+
+def should_check(path: Path) -> bool:
+    if any(part in SKIP_PARTS for part in path.parts):
+        return False
+    if path.name in TEXT_FILENAMES:
+        return True
+    if path.suffix.lower() in TEXT_SUFFIXES:
+        return True
+    return False
+
+
+def iter_candidate_files(root: Path) -> list[Path]:
+    return sorted(
+        path
+        for path in root.rglob("*")
+        if path.is_file() and should_check(path.relative_to(root))
+    )
+
+
+def check_file(path: Path) -> list[str]:
+    issues: list[str] = []
+    data = path.read_bytes()
+    rel = path.relative_to(ROOT).as_posix()
+    if data.startswith(BOM):
+        issues.append(f"{rel}: UTF-8 BOM detected; use UTF-8 without BOM.")
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        issues.append(
+            f"{rel}: not valid UTF-8 ({exc.reason} at byte {exc.start})."
+        )
+    return issues
+
+
+def main() -> int:
+    issues: list[str] = []
+    for path in iter_candidate_files(ROOT):
+        issues.extend(check_file(path))
+
+    if issues:
+        print("Text encoding check failed:")
+        for issue in issues:
+            print(f"- {issue}")
+        return 1
+
+    print("OK: all checked text files are valid UTF-8 without BOM.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

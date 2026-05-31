@@ -1,4 +1,4 @@
-﻿# Known Limitations
+# Known Limitations
 
 - AutoTest trusted-host live execution (`AUTOTEST_MODE=real`, with legacy `AUTOTEST_MODE=local_trusted` still accepted) is constrained local trusted-workspace command execution, not a hardened sandbox. It requires `AUTOTEST_SANDBOX_BACKEND=local_trusted` plus an explicit enable flag and should not be used for untrusted projects.
 - Docker sandbox mode (`AUTOTEST_MODE=docker_sandbox`) is implemented as an optional containerized AutoTest runner with basic local isolation, but should not be exposed as a public multi-tenant execution service.

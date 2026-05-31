@@ -44,11 +44,11 @@ Run from the repo root after activating Python 3.11:
 
 ```powershell
 python scripts/check_python_version.py
+python scripts/check_text_encoding.py
 python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 pytest
 python scripts/run_backend_tests.py
-python scripts/check_version_consistency.py
 python scripts/check_index_consistency.py
 python scripts/export_openapi.py
 python scripts/generate_api_types.py --check
@@ -89,9 +89,10 @@ Run from `frontend/` with Node 20 LTS:
 
 ```powershell
 cd frontend
+npm ci
 npm run lint
 npm run typecheck
-npm run test
+npm run test:run
 npm run build
 ```
 

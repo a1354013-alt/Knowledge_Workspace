@@ -74,6 +74,7 @@ Run these from the repo root with Python 3.11 active:
 
 ```powershell
 python scripts/check_python_version.py
+python scripts/check_text_encoding.py
 python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py

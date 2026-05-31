@@ -22,12 +22,14 @@ def test_runbook_lists_main_verification_and_release_commands():
     content = RUNBOOK_PATH.read_text(encoding="utf-8")
     for command in (
         "python scripts/safe_compile.py",
+        "python scripts/check_text_encoding.py",
         "python scripts/check_version_consistency.py",
         "python scripts/check_index_consistency.py",
         "pytest",
+        "npm ci",
         "npm run lint",
         "npm run typecheck",
-        "npm run test",
+        "npm run test:run",
         "npm run build",
         "python scripts/export_openapi.py",
         "python scripts/generate_api_types.py",
@@ -42,6 +44,6 @@ def test_runbook_frontend_commands_match_package_scripts():
     content = RUNBOOK_PATH.read_text(encoding="utf-8")
     package_data = json.loads(FRONTEND_PACKAGE_JSON.read_text(encoding="utf-8"))
     scripts = package_data["scripts"]
-    for script_name in ("lint", "typecheck", "test", "build"):
+    for script_name in ("lint", "typecheck", "test:run", "build"):
         assert f"npm run {script_name}" in content
         assert script_name in scripts

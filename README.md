@@ -1,4 +1,4 @@
-﻿# Knowledge Workspace
+# Knowledge Workspace
 
 Knowledge Workspace is a local-first engineering workspace that combines three product surfaces in one project:
 
@@ -320,6 +320,7 @@ The verification scripts reuse the existing CI-equivalent Python gate (`scripts/
 
 ```powershell
 .\.venv311\Scripts\python.exe scripts\check_python_version.py
+.\.venv311\Scripts\python.exe scripts\check_text_encoding.py
 .\.venv311\Scripts\python.exe scripts\safe_compile.py -q .
 .\.venv311\Scripts\python.exe -m ruff check backend scripts
 .\.venv311\Scripts\python.exe scripts\run_backend_tests.py
@@ -362,23 +363,24 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 
 1. backend dependency install on Python `3.11`
 2. `python scripts/check_python_version.py`
-3. `python scripts/safe_compile.py -q .`
-4. `python -m ruff check backend scripts`
-5. `python scripts/run_backend_tests.py`
-6. `python scripts/export_openapi.py --check`
-7. `python scripts/generate_api_types.py --check`
-8. Git checkouts also run `git diff --exit-code -- docs/openapi.json frontend/src/api/generated/api-types.ts`; source zip environments skip this Git-only check
-9. `python scripts/check_version_consistency.py`
-10. `python scripts/check_index_consistency.py`
-11. frontend `npm ci`
-12. frontend `npm audit --omit=dev --audit-level=high`
-13. frontend `npm run lint`
-14. frontend `npm run typecheck`
-15. frontend `npm run test:run`
-16. frontend `npm run build`
-17. `python scripts/package_release.py`
-18. `python scripts/verify_release.py dist/knowledge-workspace-*.zip`
-19. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
+3. `python scripts/check_text_encoding.py`
+4. `python scripts/safe_compile.py -q .`
+5. `python -m ruff check backend scripts`
+6. `python scripts/run_backend_tests.py`
+7. `python scripts/export_openapi.py --check`
+8. `python scripts/generate_api_types.py --check`
+9. Git checkouts also run `git diff --exit-code -- docs/openapi.json frontend/src/api/generated/api-types.ts`; source zip environments skip this Git-only check
+10. `python scripts/check_version_consistency.py`
+11. `python scripts/check_index_consistency.py`
+12. frontend `npm ci`
+13. frontend `npm audit --omit=dev --audit-level=high`
+14. frontend `npm run lint`
+15. frontend `npm run typecheck`
+16. frontend `npm run test:run`
+17. frontend `npm run build`
+18. `python scripts/package_release.py`
+19. `python scripts/verify_release.py dist/knowledge-workspace-*.zip`
+20. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
 
 `python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, `python scripts/check_index_consistency.py`, release zip verification, and smoke.
 

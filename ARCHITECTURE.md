@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 
 Knowledge Workspace is a local-first FastAPI + Vue + SQLite application.
 
@@ -30,8 +30,8 @@ ZIP upload -> guarded extraction -> stack detection -> fixed command plan -> sim
 
 AutoTest supports three runner modes:
 
-- `AUTOTEST_MODE=disabled` (default): no command execution, safe for demos and CI
-- `AUTOTEST_MODE=local_trusted`: trusted local execution; requires `KW_AUTOTEST_REAL_MODE=1`
+- `AUTOTEST_MODE=simulated` (default): no real uploaded-project command execution, safe for demos and CI
+- `AUTOTEST_MODE=real` plus `AUTOTEST_SANDBOX_BACKEND=local_trusted`: trusted local execution; requires `KW_AUTOTEST_REAL_MODE=1`
 - `AUTOTEST_MODE=docker_sandbox`: containerized execution with basic local isolation
 
 The current worker model is intentionally local-first and in-process:
@@ -72,4 +72,3 @@ Release packaging copies backend, frontend, scripts, and docs into a temporary t
 ## Deprecation Status
 
 `backend/app/api/legacy_main.py` and `backend/app/db/legacy_database.py` are compatibility bridges, not the preferred architecture entrypoints. See `docs/DEPRECATION.md` for the current role and removal conditions.
-

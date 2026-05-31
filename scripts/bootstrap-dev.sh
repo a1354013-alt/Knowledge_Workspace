@@ -85,7 +85,7 @@ write_backend_env_if_missing() {
 JWT_SECRET=$secret
 DEFAULT_OWNER_PASSWORD=ChangeMe123!
 ALLOWED_ORIGINS=http://localhost:5173
-DATABASE_PATH=documents.db
+DATABASE_PATH=./documents.db
 UPLOAD_DIR=./uploads
 MAX_FILE_SIZE=52428800
 PHOTO_DIR=./photos
