@@ -1,10 +1,10 @@
-﻿# Backend API
+# Backend API
 
-Prereqs: Python 3.11.x (matches `requires-python = ">=3.11,<3.12"` and CI).
+Supported backend runtime: Python `3.11.x` only. The repo currently declares `requires-python = ">=3.11,<3.12"`, so Python `3.12` and `3.13` are not supported verification or release evidence yet.
 
-## Start
+## Install
 
-Supported development and test install from the repo root:
+Preferred development and CI-equivalent install from the repo root:
 
 ```powershell
 py -3.11 -m venv .venv
@@ -20,112 +20,77 @@ cd backend
 python -m pip install -r requirements.txt
 ```
 
-`requirements.txt` now includes runtime imports such as `httpx`, but it is not the supported test/lint install path.
-If you need pytest, Ruff, or CI-equivalent verification, use `pip install -e ".[dev]"` from the repo root.
+Use the repo-root editable install whenever you need pytest, Ruff, OpenAPI checks, or release verification.
+
+## Start
+
+The backend is started from `backend/`, so environment file paths must be backend-relative.
 
 ```powershell
+Copy-Item .\backend\.env.example .\backend\.env
 cd backend
-# copy .env.example .env
-# Set at least: JWT_SECRET (min 32 chars) and DEFAULT_OWNER_PASSWORD
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-## Main endpoints
+Minimum required values in `backend/.env`:
 
-- `GET /health` (legacy)
-- `GET /api/health` (CI + clients)
-- `POST /api/login`
-- `GET /api/me`
-- `POST /api/docs/upload`
-- `GET /api/docs`
-- `PATCH /api/docs/{doc_id}`
-- `DELETE /api/docs/{doc_id}`
-- `GET /api/docs/{doc_id}/download`
-- `POST /api/photos/upload`
-- `GET /api/photos`
-- `PATCH /api/photos/{photo_id}`
-- `DELETE /api/photos/{photo_id}`
-- `GET /api/photos/{photo_id}/download`
-- `POST /api/qa`
-- `POST /api/generate`
-- `GET /api/knowledge/entries`
-- `POST /api/knowledge/entries`
-- `PATCH /api/knowledge/entries/{entry_id}`
-- `GET /api/logbook/entries`
-- `POST /api/logbook/entries`
-- `PATCH /api/logbook/entries/{entry_id}`
-- `POST /api/logbook/entries/{entry_id}/promote-to-knowledge`
-- `POST /api/autotest/run`
-- `GET /api/autotest/runs`
-- `GET /api/autotest/runs/{run_id}`
-- `GET /api/item-links?item_id=...`
-- `POST /api/items/resolve`
+- `JWT_SECRET`
+- `DEFAULT_OWNER_PASSWORD`
+- `ALLOWED_ORIGINS=http://localhost:5173`
 
-## Contract rules
+Path variables in `backend/.env.example` intentionally use:
 
-- Login, QA, generate, and knowledge/logbook create/update use JSON bodies
-- File upload uses multipart form data
-- Auth is handled only through bearer token dependency injection
+- `DATABASE_PATH=./documents.db`
+- `UPLOAD_DIR=./uploads`
+- `PHOTO_DIR=./photos`
+- `CHROMA_DB_PATH=./chroma_db`
 
-## Search reality
+This avoids accidental `backend/backend/...` nesting when the server is started from `backend/`.
 
-- Ollama embedding provider is now available as an optional real semantic embedding provider via `EMBEDDING_PROVIDER=ollama`
-- If Ollama is unavailable and fallback is enabled, the system falls back to demo hash embeddings or full-text search
-- the fallback vector path uses Chroma plus a deterministic lightweight hash embedding
-- demo hash embeddings keep demos, tests, and clean environments reproducible without external model dependencies
-- demo hash embeddings are not a production-grade semantic model
-- `/api/index/status` reports the current embedding mode
+## AutoTest naming
 
-## Tests
+Use these terms consistently:
+
+- `runner disabled`: `runner_mode=disabled`; no uploaded project commands run
+- `simulated execution`: `execution_mode=simulated`; safe default for local dev, demos, and CI
+- `live execution`: human-facing term for `execution_mode=real`; commands do run, using either the trusted host runner or Docker sandbox runner
+
+Environment settings:
+
+- `AUTOTEST_MODE=simulated`: default; keeps execution simulated
+- `AUTOTEST_MODE=real` plus `AUTOTEST_SANDBOX_BACKEND=local_trusted`: trusted-host live execution
+- `AUTOTEST_MODE=docker_sandbox`: Docker-backed live execution
+- `KW_AUTOTEST_REAL_MODE=1` or `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`: extra gate required before trusted-host live execution can run
+
+Safety notes:
+
+- trusted-host live execution is for a local trusted environment only
+- Docker sandbox execution adds useful isolation, but it is not a production multi-tenant sandbox
+- this backend remains local-first and is not a public code-execution service
+
+## Verification
+
+Run these from the repo root with Python 3.11 active:
 
 ```powershell
 python scripts/check_python_version.py
 python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
+python scripts/check_index_consistency.py
+python scripts/export_openapi.py --check
+python scripts/generate_api_types.py --check
+python scripts/check_version_consistency.py
 ```
 
-Integration smoke (starts a real backend process; used by CI):
+Integration smoke:
 
 ```powershell
 python scripts/smoke_check.py --password "<DEFAULT_OWNER_PASSWORD>"
 ```
 
-## Key env vars
+Do not treat a single green local test run as "production ready". The repo gate is the maintained verification baseline, but the deployment model is still local-first.
 
-Minimum required:
-- `JWT_SECRET` (min 32 chars)
-- `DEFAULT_OWNER_PASSWORD` (seeds initial `owner` when DB is empty)
+## Encoding note
 
-Optional (common):
-- `ALLOWED_ORIGINS` (comma-separated)
-- `MAX_FILE_SIZE` (bytes; default: 52428800 = 50MB)
-- `AUTOTEST_MODE` (`simulated` by default; `real` or legacy `local_trusted` for trusted host execution, `docker_sandbox` for container execution)
-- `KW_AUTOTEST_REAL_MODE` / `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST` (set either to `1` before trusted host execution can run)
-- `AUTOTEST_SANDBOX_BACKEND` (`local_trusted` required before trusted host execution can run; `docker` is reserved but not implemented)
-- `AUTOTEST_TIMEOUT_SECONDS`
-- `AUTOTEST_MAX_FILES`
-- `AUTOTEST_MAX_UNZIPPED_BYTES`
-- `AUTOTEST_RLIMIT_CPU_SECONDS`
-- `AUTOTEST_RLIMIT_AS_MB`
-- `AUTOTEST_RLIMIT_FSIZE_MB`
-- `OCR_ENABLED` (`true/false/1/0`)
-- `OCR_TESSERACT_CMD` (optional absolute path to the `tesseract` binary)
-- `LLM_PROVIDER` (`ollama`, `mock`, `fallback`)
-- `OLLAMA_BASE_URL`, `OLLAMA_MODEL`
-
-AutoTest mode notes:
-
-- `AUTOTEST_MODE=real` (or legacy `AUTOTEST_MODE=local_trusted`) without an explicit enable flag and `AUTOTEST_SANDBOX_BACKEND=local_trusted` is rejected
-- trusted host execution is not a hardened sandbox
-- it executes commands from uploaded projects on the trusted local workspace host
-- Docker sandbox mode (`AUTOTEST_MODE=docker_sandbox`) is implemented as an optional containerized AutoTest runner
-- Docker sandbox provides basic local container isolation with timeout/resource/network controls, but should not be described as a production-grade multi-tenant sandbox
-- use trusted host execution only with trusted local code
-- use docker_sandbox mode only on systems with Docker or Podman available
-
-Text uploads:
-- `.txt` / `.md` are decoded with `utf-8`, `utf-8-sig`, or `cp950` (upload validation and indexing use the same rules).
-
-OCR notes:
-- `available=true` requires the Python deps **and** a runnable system Tesseract binary.
+Text uploads are decoded with `utf-8`, `utf-8-sig`, or `cp950`. The bootstrap scripts also normalize UTF-8 BOM from existing `.env` files so Windows-created env files do not load with hidden prefix bytes.

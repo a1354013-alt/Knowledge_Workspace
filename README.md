@@ -51,9 +51,10 @@ graph TD
 ### AutoTest
 
 - upload `.zip` projects or register GitHub repos for intake-only analysis registration
-- simulated mode is the safe default for demos, CI, and reproducibility
-- trusted host execution is opt-in behind `AUTOTEST_MODE=real` (or legacy `AUTOTEST_MODE=local_trusted`) plus an explicit enable flag and `AUTOTEST_SANDBOX_BACKEND=local_trusted`
-- Docker sandbox mode is available with `AUTOTEST_MODE=docker_sandbox` and uses fixed timeouts, `shell=False`, output limits, path sanitization, artifact logs, network-off-by-default, and Docker CPU/memory flags
+- simulated execution is the safe default for demos, CI, and reproducibility
+- "live execution" in this repo means `execution_mode=real`, either through trusted host execution or Docker sandbox execution
+- trusted host live execution is opt-in behind `AUTOTEST_MODE=real` plus an explicit enable flag and `AUTOTEST_SANDBOX_BACKEND=local_trusted`
+- Docker live execution is available with `AUTOTEST_MODE=docker_sandbox` and uses fixed timeouts, `shell=False`, output limits, path sanitization, artifact logs, network-off-by-default, and Docker CPU/memory flags
 - backend is now split into:
   - `api/routes/autotest.py`: thin HTTP layer
   - `services/autotest_service.py`: compatibility shim for older imports
@@ -137,10 +138,11 @@ Responsibility split:
 
 ## AutoTest Safety Boundary
 
-AutoTest is intentionally constrained, but it is not a sandbox.
+AutoTest is intentionally constrained, but it is not a production-grade sandbox.
 
-- default mode is `AUTOTEST_MODE=simulated`
-- trusted host execution must be explicitly enabled with `AUTOTEST_MODE=real` (or legacy `AUTOTEST_MODE=local_trusted`), `AUTOTEST_SANDBOX_BACKEND=local_trusted`, and either `KW_AUTOTEST_REAL_MODE=1` or `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- `runner_mode=disabled` means no uploaded project commands will run
+- default execution is `AUTOTEST_MODE=simulated`
+- trusted host live execution must be explicitly enabled with `AUTOTEST_MODE=real`, `AUTOTEST_SANDBOX_BACKEND=local_trusted`, and either `KW_AUTOTEST_REAL_MODE=1` or `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
 - if trusted host execution is requested without that gate, the API rejects the run before any uploaded command can execute on the host
 - trusted host execution runs commands from uploaded projects on the local workspace host
 - Docker sandbox mode is enabled with `AUTOTEST_MODE=docker_sandbox`
@@ -161,9 +163,9 @@ AutoTest is intentionally constrained, but it is not a sandbox.
 
 Recommended usage:
 
-- use `disabled` mode in CI, demos, and shared machines
-- use `local_trusted` mode only on a local or isolated environment you control
-- use `local_trusted` mode only with trusted local projects
+- use simulated execution with the runner effectively disabled in CI, demos, and shared machines
+- use trusted host live execution only on a local or isolated environment you control
+- use trusted host live execution only with trusted local projects
 - use `docker_sandbox` when Docker is available and you want containerized execution
 - enable Docker network only with `AUTOTEST_DOCKER_NETWORK=true` when tests require it
 - recommended future hardening direction:
@@ -182,7 +184,8 @@ Recommended usage:
 
 - Python `3.11.x` is required; Python `3.12` / `3.13` are not supported until dependency constraints are updated.
 - Node.js `20` LTS with npm `10` or newer is the supported frontend runtime and matches CI.
-- The bootstrap scripts create `.venv311`, install backend dev dependencies, run `npm ci` in `frontend/`, and create `.env` / `backend/.env` if missing.
+- The bootstrap scripts create `.venv311`, install backend dev dependencies, run `npm ci` in `frontend/`, and create `backend/.env` if missing.
+- The repo-root `.env` is documentation/reference only; `backend/.env` is the backend startup file.
 - Existing `.env` files are never overwritten.
 
 ### Windows
@@ -209,12 +212,12 @@ JWT_SECRET=<32+ chars>
 DEFAULT_OWNER_PASSWORD=<local password>
 ALLOWED_ORIGINS=http://localhost:5173
 AUTOTEST_MODE=simulated
-# optional real mode, sandbox/container only:
+# trusted host live execution:
 # AUTOTEST_MODE=real
 # KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1
 # AUTOTEST_SANDBOX_BACKEND=local_trusted
-# optional: AUTOTEST_TIMEOUT_SECONDS=300
-# optional: AUTOTEST_MAX_UNZIPPED_BYTES=262144000
+# docker live execution:
+# AUTOTEST_MODE=docker_sandbox
 ```
 
 Run:
@@ -242,8 +245,9 @@ Default development URLs:
 
 Bootstrap writes safe local defaults only when files are missing:
 
-- `.env` for repo-root defaults and documentation
-- `backend/.env` for the backend server started from `backend/`
+- `backend/.env` is the authoritative backend startup env file
+- `.env` at the repo root is reference-only and should not override `backend/.env`
+- both templates use backend-relative paths such as `./documents.db` to avoid `backend/backend/...` nesting
 
 AutoTest real mode stays off in both files:
 
@@ -256,9 +260,15 @@ AUTOTEST_SANDBOX_BACKEND=disabled
 
 ### AutoTest Runner Modes
 
-AutoTest local trusted mode is disabled by default because it executes commands from uploaded projects on the local host. Use it only for trusted local projects; do not run untrusted ZIP uploads.
+Use these terms consistently:
 
-To enable local trusted mode:
+- `runner disabled`: `runner_mode=disabled`, no uploaded project commands run
+- `simulated execution`: `execution_mode=simulated`, safe default
+- `live execution`: `execution_mode=real`, actual commands run via trusted host or Docker
+
+Trusted host live execution is disabled by default because it executes commands from uploaded projects on the local host. Use it only for trusted local projects; do not run untrusted ZIP uploads.
+
+To enable trusted host live execution:
 
 ```env
 AUTOTEST_MODE=real
@@ -266,7 +276,7 @@ KW_AUTOTEST_REAL_MODE=1
 AUTOTEST_SANDBOX_BACKEND=local_trusted
 ```
 
-To enable Docker sandbox mode:
+To enable Docker live execution:
 
 ```env
 AUTOTEST_MODE=docker_sandbox
@@ -372,11 +382,11 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 
 `python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, `python scripts/check_index_consistency.py`, release zip verification, and smoke.
 
-The release zip is a clean source package. `scripts/package_release.py` writes `dist/knowledge-workspace-<version>.zip` by default, does not build frontend assets unless `--build-frontend` is passed, and still does not ship `frontend/dist` in the final archive even when that staging build flag is used. The archive deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal/WAL/SHM files, `ci_chroma/`, `.chroma/`, `chroma/`, `runtime/`, `data/index/`, caches, uploads, and temporary AutoTest data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`.
+The release zip is a clean source package. `scripts/package_release.py` writes `dist/knowledge-workspace-<version>.zip` by default, does not build frontend assets unless `--build-frontend` is passed, and still does not ship `frontend/dist` in the final archive even when that staging build flag is used. The archive deliberately excludes `frontend/dist`, `node_modules`, runtime DB/journal/WAL/SHM files, `ci_chroma/`, `.chroma/`, `chroma/`, `runtime/`, `data/index/`, caches, uploads, and temporary AutoTest data; users build frontend assets after extraction with `cd frontend && npm ci && npm run build`. Treat this artifact as a source release, not a deployable bundle.
 
 ### Release Zip Quickstart
 
-The release zip is a source package, not a prebuilt app bundle. It does not include `frontend/dist`.
+The release zip is a source package, not a prebuilt app bundle or one-click deploy artifact. It does not include `frontend/dist`.
 
 After extracting the zip:
 
@@ -390,7 +400,7 @@ pip install -e ".[dev]"
 cd frontend
 npm ci
 cd ..
-copy .env.example .env
+copy backend\.env.example backend\.env
 cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
@@ -412,7 +422,7 @@ pip install -e ".[dev]"
 cd frontend
 npm ci
 cd ..
-cp .env.example .env
+cp backend/.env.example backend/.env
 cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
@@ -459,7 +469,7 @@ Metric sources:
 
 ## AutoTest Modes
 
-`POST /api/autotest/run` creates an asynchronous job and returns `202 Accepted` with the queued run. The queued response summary explicitly states whether the backend is in `simulated` or `real` mode. The frontend polls `GET /api/autotest/runs/{run_id}` for timeline/log updates and downloads reports only after the run reaches `passed` or `failed`.
+`POST /api/autotest/run` creates an asynchronous job and returns `202 Accepted` with the queued run. The queued response summary explicitly states whether the backend is in `simulated` execution or live execution. The frontend polls `GET /api/autotest/runs/{run_id}` for timeline/log updates and downloads reports only after the run reaches `passed` or `failed`.
 
 ### `simulated`
 
@@ -467,11 +477,12 @@ Metric sources:
 - no real dependency install or user project command execution
 - stable for CI and screenshots
 
-### `real`
+### live execution
 
 - extracts the ZIP
 - detects Node/Python project roots
-- requires `AUTOTEST_SANDBOX_BACKEND=local_trusted` plus either `KW_AUTOTEST_REAL_MODE=1` or `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- trusted-host live execution requires `AUTOTEST_MODE=real`, `AUTOTEST_SANDBOX_BACKEND=local_trusted`, plus either `KW_AUTOTEST_REAL_MODE=1` or `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
+- Docker live execution uses `AUTOTEST_MODE=docker_sandbox`
 - runs a fixed command plan from the uploaded project with constrained subprocess settings
 - does not run Python dependency installation for uploaded projects
 - should only be used on trusted code in an isolated environment
@@ -519,13 +530,14 @@ Status meanings:
 - `legacy_main.py` is a compatibility shim for older imports and monkeypatch-based tests; it now forwards only the compatibility names that still need to reach concrete handlers
 - `api/handlers/support.py` is a compatibility export layer, not the preferred place for new handler dependencies
 - AutoTest real mode is constrained local trusted-workspace subprocess execution, not a hardened sandbox
+- AutoTest live execution is still local-first trusted-environment execution, not public SaaS-ready code execution
 - AutoTest uses an in-process background worker, not a durable external queue; backend process crashes can interrupt active jobs
 - GitHub analyze is currently an intake-only flow: validated URL intake plus `registered` local-analysis metadata, not a remote clone-and-run executor, full repository scan, or real execution queue entry
 - built-in vector search uses deterministic lightweight hash embeddings for demos/tests; it is not a production semantic retrieval model
 - if Chroma is unavailable or cannot initialize, indexing/search degrade safely and repair-queue items are marked `index_unavailable` rather than being misreported as repair failures
 - Chroma emits third-party deprecation warnings in tests
 - frontend verification should be run with Node `20.19.0` from `.nvmrc` to match CI
-- `legacy_main.py` and `legacy_database.py` remain compatibility bridges during the refactor; see [docs/DEPRECATION.md](docs/DEPRECATION.md) for removal conditions
+- `legacy_main.py` and `legacy_database.py` remain compatibility bridges during the refactor; see [docs/LEGACY_DEPRECATION_PLAN.md](docs/LEGACY_DEPRECATION_PLAN.md) for removal conditions
 
 ## Portfolio Case Study
 
@@ -542,4 +554,3 @@ See [docs/PORTFOLIO_CASE_STUDY.md](docs/PORTFOLIO_CASE_STUDY.md) for:
 - major bug fixes
 - dashboard contract design
 - interview demo script
-

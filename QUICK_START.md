@@ -1,11 +1,13 @@
-﻿# Quick Start
+# Quick Start
 
-Recommended toolchain:
+Supported toolchain:
 
 - Python `3.11.x`
 - Node.js `20` LTS
 
-## 1. Create the supported Python 3.11 environment
+Python `3.12` and `3.13` are not supported backend runtimes for this repo today.
+
+## 1. Create the supported Python environment
 
 ```powershell
 py -3.11 -m venv .venv
@@ -14,56 +16,38 @@ python -m pip install -U pip
 pip install -e ".[dev]"
 ```
 
-Required environment variables:
+## 2. Prepare backend env
 
-```env
-JWT_SECRET=<minimum 32 chars>
-DEFAULT_OWNER_PASSWORD=<local owner password>
-ALLOWED_ORIGINS=http://localhost:5173
-AUTOTEST_MODE=disabled
-# local_trusted mode additionally requires KW_AUTOTEST_REAL_MODE=1
+```powershell
+Copy-Item .\backend\.env.example .\backend\.env
 ```
 
-Notes:
+`backend/.env.example` uses backend-relative paths like `./documents.db` and `./uploads` because the API starts from `backend/`.
 
-- keep `AUTOTEST_MODE=disabled` by default for safety
-- `AUTOTEST_MODE=local_trusted` requires `KW_AUTOTEST_REAL_MODE=1` to enable trusted local command execution
-- local_trusted mode is guarded local execution, not a hardened sandbox; do not run untrusted ZIPs there
-- `AUTOTEST_MODE=docker_sandbox` uses Docker for containerized execution with basic local isolation
-
-## 2. Start backend
+## 3. Start backend
 
 ```powershell
 cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-## 3. Install frontend
+## 4. Install and start frontend
 
 ```powershell
 cd frontend
 npm ci
-```
-
-## 4. Start frontend
-
-```powershell
-cd frontend
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-## 5. Verify the app
+## 5. AutoTest mode vocabulary
 
-- open `http://localhost:5173`
-- sign in with `owner`
-- upload a document and confirm index status is visible
-- run AutoTest in `simulated` mode
-- open the run detail and verify:
-  - timeline is populated
-  - Markdown/HTML export works
-  - AI fix prompt copy works for failed runs
+- `simulated execution`: default and safest mode
+- `runner disabled`: no uploaded commands execute
+- `live execution`: real command execution through trusted host or Docker
 
-## 6. Run verification commands
+Trusted-host live execution is only for code you trust. This repo is local-first, not a public upload execution service.
+
+## 6. Verify the app
 
 Backend:
 
@@ -72,17 +56,12 @@ python scripts/check_python_version.py
 python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
-python scripts/export_openapi.py
-python scripts/generate_api_types.py --check
-python scripts/check_version_consistency.py
 ```
 
 Frontend:
 
 ```powershell
 cd frontend
-npm ci
-npm audit --omit=dev --audit-level=high
 npm run lint
 npm run typecheck
 npm run test:run
@@ -92,12 +71,9 @@ npm run build
 Repo-wide:
 
 ```powershell
-python scripts/package_release.py dist/knowledge_workspace_release.zip
-python scripts/verify_release.py dist/knowledge_workspace_release.zip
+python scripts/verify_all.py
 ```
 
-Runtime-only fallback:
+## 7. Release expectation
 
-- `backend/requirements.txt` is kept for runtime-only installs such as `cd backend && python -m pip install -r requirements.txt`
-- if you need tests, lint, or CI-equivalent verification, use the repo-root `pip install -e ".[dev]"` flow above
-
+`python scripts/package_release.py` produces a source release zip. It is not a one-click deployable package and does not include prebuilt `frontend/dist`.

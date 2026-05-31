@@ -43,6 +43,7 @@ resolve_venv_python() {
 
 write_root_env_if_missing() {
   if [[ -f "$root_env" ]]; then
+    normalize_utf8_bom_if_present "$root_env"
     echo ".env already exists; leaving it unchanged."
     return
   fi
@@ -52,14 +53,16 @@ write_root_env_if_missing() {
 # Backend runtime
 JWT_SECRET=$secret
 DEFAULT_OWNER_PASSWORD=ChangeMe123!
-DATABASE_PATH=backend/documents.db
-UPLOAD_DIR=backend/uploads
-PHOTO_DIR=backend/photos
-CHROMA_DB_PATH=backend/chroma_db
+DATABASE_PATH=./documents.db
+UPLOAD_DIR=./uploads
+PHOTO_DIR=./photos
+CHROMA_DB_PATH=./chroma_db
 
-# AutoTest is disabled by default for safety. local_trusted or docker_sandbox mode requires explicit configuration.
-AUTOTEST_MODE=disabled
+# AutoTest defaults to simulated execution; uploaded code does not run until explicitly enabled.
+AUTOTEST_MODE=simulated
 KW_AUTOTEST_REAL_MODE=0
+KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=0
+AUTOTEST_SANDBOX_BACKEND=disabled
 AUTOTEST_STALE_RUN_MINUTES=30
 
 # LLM provider
@@ -72,6 +75,7 @@ EOF
 
 write_backend_env_if_missing() {
   if [[ -f "$backend_env" ]]; then
+    normalize_utf8_bom_if_present "$backend_env"
     echo "backend/.env already exists; leaving it unchanged."
     return
   fi
@@ -89,6 +93,8 @@ CHROMA_DB_PATH=./chroma_db
 AUTOTEST_DIR=./autotest_uploads
 AUTOTEST_MODE=simulated
 KW_AUTOTEST_REAL_MODE=0
+KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=0
+AUTOTEST_SANDBOX_BACKEND=disabled
 AUTOTEST_TIMEOUT_SECONDS=120
 AUTOTEST_MAX_FILES=500
 AUTOTEST_MAX_UNZIPPED_BYTES=52428800
@@ -106,6 +112,22 @@ EOF
 
 clean_packaging_artifacts() {
   find "$repo_root/backend" -maxdepth 1 \( -name "*.egg-info" -o -name "*.dist-info" \) -exec rm -rf {} +
+}
+
+normalize_utf8_bom_if_present() {
+  local path="$1"
+  [[ -f "$path" ]] || return 0
+  "$python_cmd" - "$path" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+data = path.read_bytes()
+prefix = b"\xef\xbb\xbf"
+if data.startswith(prefix):
+    path.write_bytes(data[len(prefix):])
+    print(f"{path} had a UTF-8 BOM; normalized encoding without changing values.")
+PY
 }
 
 echo "Bootstrapping Knowledge Workspace with Python 3.11..."

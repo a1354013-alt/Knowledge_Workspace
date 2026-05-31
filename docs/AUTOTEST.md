@@ -47,6 +47,19 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 - `backend/app/repositories/autotest_repository.py`
   - narrow service-facing repository wrapper
 
+## Mode vocabulary
+
+Use these terms consistently across UI, docs, and code reviews:
+
+- `runner disabled`: `runner_mode=disabled`; uploaded project commands do not execute
+- `simulated execution`: `execution_mode=simulated`; safe default for CI, demos, and shared machines
+- `live execution`: human-facing term for `execution_mode=real`
+
+Live execution currently has two runner shapes:
+
+- trusted host live execution: `AUTOTEST_MODE=real` with `AUTOTEST_SANDBOX_BACKEND=local_trusted`
+- Docker live execution: `AUTOTEST_MODE=docker_sandbox`
+
 ## Modes
 
 ### `simulated`
@@ -58,9 +71,9 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 - queued/API responses explicitly report that simulated mode is active
 - still creates a real run, timeline, and derived knowledge/logbook artifacts
 
-### `local_trusted`
+### trusted host live execution
 
-- must be explicitly enabled with `AUTOTEST_MODE=real` (or legacy `AUTOTEST_MODE=local_trusted`)
+- must be explicitly enabled with `AUTOTEST_MODE=real` (legacy `AUTOTEST_MODE=local_trusted` remains compatibility-only)
 - requires `AUTOTEST_SANDBOX_BACKEND=local_trusted`
 - requires either `KW_AUTOTEST_REAL_MODE=1` or `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
 - extracts the uploaded ZIP
@@ -74,7 +87,7 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
   - sensitive environment variable scrubbing
   - zip path traversal / absolute path / drive path / UNC path / symlink rejection
 
-### `docker_sandbox`
+### Docker live execution
 
 - enabled with `AUTOTEST_MODE=docker_sandbox`
 - runs commands through Docker without `shell=True`
@@ -102,10 +115,10 @@ Sensitive env vars are stripped when their names contain:
 
 Recommended usage:
 
-- use `simulated` in CI
-- use `simulated` on shared/dev machines
-- use `local_trusted` only on isolated local environments you control
-- use `local_trusted` only with trusted local projects
+- use simulated execution in CI
+- use simulated execution on shared/dev machines
+- use trusted host live execution only on isolated local environments you control
+- use trusted host live execution only with trusted local projects
 - use `docker_sandbox` when Docker is available and command execution should be containerized
 - future hardening direction:
   - Docker or Podman sandbox
@@ -188,8 +201,8 @@ It should not infer success/failure from missing fields or command text alone.
 
 ## Interview Demo Flow
 
-1. Show AutoTest in `disabled` mode and explain why it is the default.
+1. Show the runner-disabled / simulated default and explain why it is the default.
 2. Run a passing ZIP and inspect the timeline.
 3. Run a failing ZIP and point out `failed_reason` plus logbook creation.
 4. Promote the logbook entry and show dashboard metrics update.
-5. Explain that `local_trusted` and `docker_sandbox` exist with different safety boundaries.
+5. Explain that trusted host live execution and Docker live execution exist with different safety boundaries.

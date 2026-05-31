@@ -1,67 +1,71 @@
-﻿# Security Model
+# Security Model
 
-Knowledge Workspace is a local-first portfolio tool. It is designed for a developer machine, CI, or an isolated demo environment, not for a public upload service.
+Knowledge Workspace is a local-first, single-owner, trusted-environment application. It is suitable for a developer workstation, private demo machine, or similarly controlled environment. It is not a hardened public SaaS deployment and should not be described as production-ready in that sense.
 
-## Trust Boundary
+## Current security posture
 
-- The backend trusts the authenticated local owner account.
-- Uploaded documents and photos are treated as untrusted content.
-- AutoTest ZIP uploads are treated as untrusted code unless local trusted mode is explicitly enabled for trusted inputs or Docker sandbox mode is used.
-- Do not expose this app directly to the public internet without adding hardened auth, malware scanning, network isolation, and resource controls.
+- auth, storage, and process boundaries are scoped to a trusted local owner workflow
+- uploaded documents and photos are treated as untrusted content and validated accordingly
+- AutoTest ZIPs are treated as untrusted code unless live execution is deliberately enabled in a trusted environment
+- the app should not be exposed directly to the public internet without additional controls
 
-## AutoTest Modes
+## What "not production SaaS ready" means here
 
-Disabled mode is the default. It extracts and inspects project ZIPs, creates deterministic reports, and does not execute arbitrary uploaded project code.
+The repo does not yet provide all of the controls expected for a public multi-tenant service, including:
 
-Local trusted mode requires both settings:
+- hardened session management and broader auth policy
+- network isolation for uploaded-code execution
+- malware scanning and content quarantine
+- durable external job execution
+- per-tenant isolation and stronger secrets handling
+- deployment packaging for prebuilt frontend assets and service orchestration
+
+The current release zip is therefore a source release for controlled environments, not a turnkey deploy artifact.
+
+## AutoTest modes
+
+Use these terms consistently:
+
+- `runner disabled`: `runner_mode=disabled`; no uploaded project commands execute
+- `simulated execution`: `execution_mode=simulated`; safe default for CI, demos, and shared machines
+- `live execution`: human-facing term for `execution_mode=real`
+
+Trusted-host live execution requires:
 
 ```env
-AUTOTEST_MODE=local_trusted
+AUTOTEST_MODE=real
 KW_AUTOTEST_REAL_MODE=1
+AUTOTEST_SANDBOX_BACKEND=local_trusted
 ```
 
-If `AUTOTEST_MODE=local_trusted` is set without the explicit enable flag, the API rejects the run with `403`.
+Docker live execution uses:
 
-AutoTest local trusted mode is constrained command execution, not a hardened sandbox. Use it only inside an isolated local environment with projects you trust. It uses `shell=False`, fixed command timeouts, output truncation, sanitized report paths, and environment scrubbing, but those controls are not a full sandbox.
+```env
+AUTOTEST_MODE=docker_sandbox
+AUTOTEST_DOCKER_NETWORK=false
+```
 
-Docker sandbox mode uses Docker command execution with copied isolated workspaces, artifact logs, fixed timeouts, network disabled by default, and CPU/memory flags where Docker supports them. It still depends on the host Docker daemon and image policy, so do not present it as a complete multi-tenant execution platform.
+Safety boundaries:
 
-Do not treat guarded execution as safe for arbitrary public ZIP uploads. Local trusted mode is appropriate for controlled/local inputs that you trust, not for exposing uploaded code execution to unknown internet users or multi-user public services.
+- trusted-host live execution runs uploaded project commands on the local host
+- Docker live execution adds useful container isolation, but it still depends on host Docker policy and is not a full public sandbox
+- the worker is still in-process, so process interruption can fail active runs
 
-The current AutoTest worker is also in-process rather than a durable queue. If the backend process is interrupted, an active run can become stale/interrupted and is later marked failed during startup recovery instead of being resumed mid-flight.
+## Command policy
 
-If you need production-style execution, add all of the following:
+- Node installs use `npm ci --ignore-scripts --no-audit --no-fund`
+- missing package scripts are skipped instead of guessed
+- Python dependency installation for uploaded projects remains disabled
+- subprocesses use fixed timeouts, output truncation, and environment scrubbing
 
-- container or VM isolation
-- non-root user
-- read-only workspace/root filesystem
-- network egress restriction
-- CPU, memory, and disk quotas
-- disposable per-run workspace
-
-## AutoTest Command Policy
-
-- Node install uses `npm ci --ignore-scripts --no-audit --no-fund`.
-- Node package scripts are limited to the fixed AutoTest steps: `build`, `test`, and `lint`.
-- Missing Node scripts are skipped instead of guessed.
-- Python dependency installation is disabled for uploaded projects. Python local trusted mode can compile and run tests only when tests are detected.
-- Every subprocess receives a timeout and capped stdout/stderr.
-
-## ZIP Intake
+## ZIP intake
 
 ZIP extraction rejects path traversal, absolute paths, Windows drive paths, symlinks, excessive file counts, and excessive expanded size.
 
-## Auth And Storage Limits
+## Auth and storage limits
 
-JWT auth is intended for a local owner workflow. Frontend token storage uses browser storage, so XSS would be a serious risk in a public deployment. Use HTTPS, stronger session handling, CSRF review, and separate user roles before multi-user or public use.
+JWT auth and browser token storage are acceptable for the current trusted local scope, but would need stronger session handling, XSS hardening, transport guarantees, and role separation before any multi-user or public deployment.
 
-Password hashing is currently local-first PBKDF2-HMAC-SHA256. New hashes include the algorithm and iteration metadata, and legacy two-part PBKDF2 hashes remain readable so existing users can still log in. This is acceptable for the current local-first scope, but Argon2id would be the preferred production upgrade path if the deployment model expands.
+## Release hygiene
 
-## Dependency Audit Policy
-
-CI enforces the frontend production dependency audit gate with `npm audit --omit=dev --audit-level=high`. High or critical production dependency vulnerabilities must be fixed before release. Any accepted exception must be documented in `docs/KNOWN_LIMITATIONS.md` with package name, dependency path, risk, and follow-up plan.
-
-## Release Hygiene
-
-Release zip verification rejects runtime databases, journal files, secrets, caches, uploads, build outputs, and test artifacts before a package is accepted.
-
+Release verification rejects runtime databases, journal files, secrets, caches, uploads, build outputs, and test artifacts. Passing those checks means the source release is clean; it does not mean the system is ready for internet-facing production deployment.

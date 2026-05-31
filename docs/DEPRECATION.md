@@ -1,61 +1,10 @@
 # Deprecation Plan
 
-## Legacy API Bridge
+The maintained legacy-module plan now lives in [docs/LEGACY_DEPRECATION_PLAN.md](docs/LEGACY_DEPRECATION_PLAN.md).
 
-`backend/app/api/legacy_main.py` remains in the repo only as a compatibility bridge.
+Use that document for:
 
-Current purpose:
-
-- keep older monkeypatch-heavy tests working during the router/service split
-- preserve import compatibility for code that still reaches legacy names
-
-It is not the primary architecture entrypoint. The supported runtime path is:
-
-- `backend/app/main.py`
-- `backend/app/api/app_factory.py`
-- `backend/app/api/routes/*`
-- `backend/app/services/*`
-- `backend/app/repositories/*`
-
-Removal conditions:
-
-1. all tests patch concrete route, service, or repository modules directly
-2. runtime code no longer imports `app.api.legacy_main` for behavior
-3. release notes explicitly mark the bridge deprecated before removal
-
-## Legacy Database Facade
-
-`backend/app/db/legacy_database.py` is still the schema/bootstrap compatibility facade.
-
-Current purpose:
-
-- initialize SQLite schema and migrations
-- compose repository mixins into the public `DocumentDatabase` facade
-- preserve older import paths during the repository split
-
-It should not grow new business logic. New behavior belongs in:
-
-- `backend/app/db/schema.py`
-- `backend/app/db/migrations.py`
-- `backend/app/repositories/*`
-- `backend/app/services/*`
-
-## Handler Support Barrel
-
-`backend/app/api/handlers/support.py` is also a compatibility barrel.
-
-Current purpose:
-
-- preserve shared imports for older split handlers and monkeypatch-heavy tests
-- bridge legacy patch targets such as `app.api.legacy_main.process_file`
-- keep the router/service split incremental instead of forcing a large rewrite
-
-New handler code should not add fresh dependencies on `support.py`.
-Prefer importing concrete objects from:
-
-- `app.api.common`
-- `app.context`
-- `app.dependencies`
-- `app.models`
-- `app.kb_index`
-- `app.database`
+- why legacy bridge modules still exist
+- which concrete replacements should receive new work
+- removal conditions
+- the rule that new code must not add fresh dependencies on legacy bridges

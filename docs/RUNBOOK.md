@@ -1,50 +1,91 @@
-﻿# Development Runbook
+# Development Runbook
 
-## Supported Toolchain
+## Supported toolchain
 
 - Backend: Python `3.11.x` only
-- Frontend: Node `20 LTS` with `npm ci`
+- Frontend: Node `20 LTS`
 
-Do not treat Python `3.12` / `3.13` or Node `22` results as supported validation for this repo unless dependency constraints and CI are updated.
+Do not treat Python `3.12` or `3.13` results as supported validation for this repo until dependency constraints and CI are updated.
 
-## Windows PowerShell Setup
-
-Create and activate a Python 3.11 virtual environment:
+## Windows PowerShell setup
 
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
-```
-
-Install backend development dependencies from the repo root:
-
-```powershell
 pip install -e ".[dev]"
-```
-
-Install frontend dependencies with Node 20 LTS:
-
-```powershell
 cd frontend
 npm ci
 cd ..
+Copy-Item .\backend\.env.example .\backend\.env
 ```
 
-## Backend Verification
+## Start services
 
-Run the backend verification commands from the repo root after the Python 3.11 venv is active:
+Backend:
 
 ```powershell
-python scripts/safe_compile.py
-python scripts/check_version_consistency.py
-python scripts/check_index_consistency.py
-pytest
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-## Frontend Verification
+Frontend:
 
-Run the frontend checks from `frontend/` with Node 20 LTS:
+```powershell
+cd frontend
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Use backend-relative paths in `backend/.env` such as `./documents.db` and `./uploads`; this avoids the old `backend/backend/...` mistake.
+
+## Backend verification
+
+Run from the repo root after activating Python 3.11:
+
+```powershell
+python scripts/check_python_version.py
+python scripts/safe_compile.py -q .
+python -m ruff check backend scripts
+pytest
+python scripts/run_backend_tests.py
+python scripts/check_version_consistency.py
+python scripts/check_index_consistency.py
+python scripts/export_openapi.py
+python scripts/generate_api_types.py --check
+python scripts/generate_api_types.py
+python scripts/check_version_consistency.py
+```
+
+## AutoTest terminology and safety
+
+Use these labels consistently:
+
+- `runner disabled`: no uploaded commands execute
+- `simulated execution`: safe default, same practical posture as disabled runner
+- `live execution`: real command execution on either the trusted host or Docker runner
+
+Trusted-host live execution:
+
+```env
+AUTOTEST_MODE=real
+KW_AUTOTEST_REAL_MODE=1
+AUTOTEST_SANDBOX_BACKEND=local_trusted
+```
+
+Docker live execution:
+
+```env
+AUTOTEST_MODE=docker_sandbox
+AUTOTEST_DOCKER_IMAGE=python:3.11-slim
+AUTOTEST_DOCKER_NETWORK=false
+```
+
+This remains a local-first trusted-environment system, not a production SaaS runner.
+Use trusted-host live execution only inside a trusted local workspace, and remember it is not a public sandbox.
+
+## Frontend verification
+
+Run from `frontend/` with Node 20 LTS:
 
 ```powershell
 cd frontend
@@ -52,41 +93,15 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
-cd ..
 ```
 
-## API Contract Refresh
+## Release packaging
 
-Refresh the backend OpenAPI schema and frontend generated API types from the repo root:
-
-```powershell
-python scripts/export_openapi.py
-python scripts/generate_api_types.py
-python scripts/generate_api_types.py --check
-```
-
-## Release Packaging
-
-Build and verify the release zip from the repo root:
+Build and verify the source release from the repo root:
 
 ```powershell
 python scripts/package_release.py
-python scripts/verify_release.py dist/knowledge-workspace-5.0.0.zip
+python scripts/verify_release.py dist/knowledge-workspace-<version>.zip
 ```
 
-If you want the exact generated filename without hard-coding the version, inspect `dist/` after packaging and pass that path to `verify_release.py`.
-
-## AutoTest Safety Reminder
-
-`AUTOTEST_MODE=disabled` is the safe default.
-
-AutoTest local_trusted mode is only for a trusted local workspace that you control:
-
-- requires `AUTOTEST_MODE=local_trusted`
-- requires `KW_AUTOTEST_REAL_MODE=1`
-- is not a public sandbox
-- is not container isolation
-- must not be exposed as arbitrary public code execution
-
-`AUTOTEST_MODE=docker_sandbox` uses Docker for containerized execution with basic local isolation but is not a production-grade multi-tenant sandbox.
-
+The generated zip is a source release. It is not a deployable bundle and does not include `frontend/dist`.

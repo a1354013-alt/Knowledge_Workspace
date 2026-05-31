@@ -69,14 +69,16 @@ function Write-RootEnvIfMissing {
 # Backend runtime
 JWT_SECRET=$secret
 DEFAULT_OWNER_PASSWORD=ChangeMe123!
-DATABASE_PATH=backend/documents.db
-UPLOAD_DIR=backend/uploads
-PHOTO_DIR=backend/photos
-CHROMA_DB_PATH=backend/chroma_db
+DATABASE_PATH=./documents.db
+UPLOAD_DIR=./uploads
+PHOTO_DIR=./photos
+CHROMA_DB_PATH=./chroma_db
 
-# AutoTest is disabled by default for safety. local_trusted or docker_sandbox mode requires explicit configuration.
-AUTOTEST_MODE=disabled
+# AutoTest defaults to simulated execution; uploaded code does not run until explicitly enabled.
+AUTOTEST_MODE=simulated
 KW_AUTOTEST_REAL_MODE=0
+KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=0
+AUTOTEST_SANDBOX_BACKEND=disabled
 AUTOTEST_STALE_RUN_MINUTES=30
 
 # LLM provider
@@ -105,8 +107,10 @@ MAX_FILE_SIZE=52428800
 PHOTO_DIR=./photos
 CHROMA_DB_PATH=./chroma_db
 AUTOTEST_DIR=./autotest_uploads
-AUTOTEST_MODE=disabled
+AUTOTEST_MODE=simulated
 KW_AUTOTEST_REAL_MODE=0
+KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=0
+AUTOTEST_SANDBOX_BACKEND=disabled
 AUTOTEST_TIMEOUT_SECONDS=120
 AUTOTEST_MAX_FILES=500
 AUTOTEST_MAX_UNZIPPED_BYTES=52428800
