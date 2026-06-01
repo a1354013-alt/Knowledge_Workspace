@@ -16,6 +16,12 @@ python -m pip install -U pip
 pip install -e ".[dev]"
 ```
 
+Or let the project bootstrap both backend and frontend dependencies:
+
+```powershell
+.\scripts\bootstrap-dev.ps1
+```
+
 ## 2. Prepare backend env
 
 ```powershell
@@ -39,11 +45,18 @@ npm ci
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
+`package-lock.json` is the source of truth for frontend installs; use `npm ci`, not `npm install`, during verification.
+
+## VS Code F5
+
+Open the repo root in VS Code, select `Knowledge Workspace: Full Stack Dev`, and press F5. The compound launch runs `bootstrap: dev`, starts FastAPI with `.venv`, starts Vite, and opens `http://localhost:5173`.
+
 ## 5. AutoTest mode vocabulary
 
-- `simulated execution`: default and safest mode
-- `runner disabled`: no uploaded commands execute
-- `live execution`: real command execution through trusted host or Docker
+- `disabled`: no uploaded commands execute
+- `simulated`: default and safest mode
+- `local_trusted`: host execution for trusted local projects only
+- `docker_sandbox`: Docker-backed execution after Docker executable and daemon preflight
 
 Trusted-host live execution is only for code you trust. This repo is local-first, not a public upload execution service.
 
@@ -54,6 +67,7 @@ Backend:
 ```powershell
 python scripts/check_python_version.py
 python scripts/check_text_encoding.py
+python scripts/audit_python.py
 python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py

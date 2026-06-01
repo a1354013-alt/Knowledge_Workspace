@@ -334,6 +334,8 @@ def migrate_photos_table(cursor: sqlite3.Cursor) -> None:
         "status": "ALTER TABLE photos ADD COLUMN status TEXT NOT NULL DEFAULT 'reviewed'",
         "description": "ALTER TABLE photos ADD COLUMN description TEXT NOT NULL DEFAULT ''",
         "ocr_text": "ALTER TABLE photos ADD COLUMN ocr_text TEXT NOT NULL DEFAULT ''",
+        "ocr_status": "ALTER TABLE photos ADD COLUMN ocr_status TEXT NOT NULL DEFAULT 'completed'",
+        "ocr_error": "ALTER TABLE photos ADD COLUMN ocr_error TEXT NOT NULL DEFAULT ''",
         "created_at": "ALTER TABLE photos ADD COLUMN created_at TEXT NOT NULL DEFAULT ''",
         "index_status": "ALTER TABLE photos ADD COLUMN index_status TEXT NOT NULL DEFAULT 'pending'",
         "index_error": "ALTER TABLE photos ADD COLUMN index_error TEXT NOT NULL DEFAULT ''",
@@ -358,6 +360,8 @@ def migrate_photos_table(cursor: sqlite3.Cursor) -> None:
 
     cursor.execute("UPDATE photos SET status = 'archived' WHERE is_active = 0 AND status != 'archived'")
     cursor.execute("UPDATE photos SET status = 'reviewed' WHERE is_active = 1 AND status = ''")
+    cursor.execute("UPDATE photos SET ocr_status = 'completed' WHERE ocr_status IS NULL OR ocr_status = ''")
+    cursor.execute("UPDATE photos SET ocr_status = 'failed' WHERE ocr_status NOT IN ('pending', 'completed', 'failed', 'unavailable')")
     cursor.execute("UPDATE photos SET uploaded_by = 'owner' WHERE uploaded_by IS NULL OR uploaded_by = ''")
     cursor.execute(
         """

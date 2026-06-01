@@ -105,8 +105,7 @@ Ollama is optional. If Ollama is not running, the application still starts and t
 
 OpenAI-compatible providers are not enabled as production runtime providers in this release, and no OpenAI API key is required to start or use the project. OpenAPI is the local API contract in `docs/openapi.json`; it is used for tests and frontend type generation, not as an external AI service.
 
-Ollama 為選用服務。未啟動 Ollama 時，系統仍可正常啟動與使用主要 knowledge workspace、logbook、docs/photos 功能，但 AI 生成回答會降級為 retrieval-only / unavailable / no-op fallback。OpenAI-compatible provider 在本版本尚未作為正式 runtime provider 啟用，也不需要 OpenAI API Key 才能啟動專案。OpenAPI 是本專案的 API 契約與前端型別產生依據，不是外部 AI 服務。
-
+Ollama ?粹?冽???? Ollama ??蝟餌絞隞甇?虜???蝙?其蜓閬?knowledge workspace?ogbook?ocs/photos ?嚗? AI ??????蝝 retrieval-only / unavailable / no-op fallback?penAI-compatible provider ?冽?撠雿甇?? runtime provider ?嚗?銝?閬?OpenAI API Key ???撠??penAPI ?舀撠???API 憟???蝡臬??亦????銝憭 AI ????
 ## Entry Points And Architecture
 
 Primary runtime entrypoints:
@@ -184,7 +183,8 @@ Recommended usage:
 
 - Python `3.11.x` is required; Python `3.12` / `3.13` are not supported until dependency constraints are updated.
 - Node.js `20` LTS with npm `10` or newer is the supported frontend runtime and matches CI.
-- The bootstrap scripts create `.venv311`, install backend dev dependencies, run `npm ci` in `frontend/`, and create `backend/.env` if missing.
+- The bootstrap scripts create `.venv`, install backend dev dependencies, run `npm ci` in `frontend/`, and create `backend/.env` if missing.
+- VS Code users can select `Knowledge Workspace: Full Stack Dev` and press F5 to bootstrap, start FastAPI, start Vite, and open `http://localhost:5173`.
 - The repo-root `.env` is documentation/reference only; `backend/.env` is the backend startup file.
 - Existing `.env` files are never overwritten.
 
@@ -319,15 +319,16 @@ The verification scripts reuse the existing CI-equivalent Python gate (`scripts/
 ### Backend Checks
 
 ```powershell
-.\.venv311\Scripts\python.exe scripts\check_python_version.py
-.\.venv311\Scripts\python.exe scripts\check_text_encoding.py
-.\.venv311\Scripts\python.exe scripts\safe_compile.py -q .
-.\.venv311\Scripts\python.exe -m ruff check backend scripts
-.\.venv311\Scripts\python.exe scripts\run_backend_tests.py
-.\.venv311\Scripts\python.exe scripts\check_index_consistency.py
-.\.venv311\Scripts\python.exe scripts\export_openapi.py
-.\.venv311\Scripts\python.exe scripts\generate_api_types.py --check
-.\.venv311\Scripts\python.exe scripts\check_version_consistency.py
+.\.venv\Scripts\python.exe scripts\check_python_version.py
+.\.venv\Scripts\python.exe scripts\check_text_encoding.py
+.\.venv\Scripts\python.exe scripts\audit_python.py
+.\.venv\Scripts\python.exe scripts\safe_compile.py -q .
+.\.venv\Scripts\python.exe -m ruff check backend scripts
+.\.venv\Scripts\python.exe scripts\run_backend_tests.py
+.\.venv\Scripts\python.exe scripts\check_index_consistency.py
+.\.venv\Scripts\python.exe scripts\export_openapi.py
+.\.venv\Scripts\python.exe scripts\generate_api_types.py --check
+.\.venv\Scripts\python.exe scripts\check_version_consistency.py
 ```
 
 Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md) and `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
@@ -355,6 +356,8 @@ npm run test:run
 npm run build
 ```
 
+Use `npm ci` for local verification and CI; `frontend/package-lock.json` is the dependency source of truth. Core frontend tooling versions are pinned in `frontend/package.json` to reduce lockfile regeneration drift.
+
 Use Node `20.19.0` from `.nvmrc` for frontend lint/test/build to match CI.
 
 ## CI
@@ -364,23 +367,24 @@ CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently r
 1. backend dependency install on Python `3.11`
 2. `python scripts/check_python_version.py`
 3. `python scripts/check_text_encoding.py`
-4. `python scripts/safe_compile.py -q .`
-5. `python -m ruff check backend scripts`
-6. `python scripts/run_backend_tests.py`
-7. `python scripts/export_openapi.py --check`
-8. `python scripts/generate_api_types.py --check`
-9. Git checkouts also run `git diff --exit-code -- docs/openapi.json frontend/src/api/generated/api-types.ts`; source zip environments skip this Git-only check
-10. `python scripts/check_version_consistency.py`
-11. `python scripts/check_index_consistency.py`
-12. frontend `npm ci`
-13. frontend `npm audit --omit=dev --audit-level=high`
-14. frontend `npm run lint`
-15. frontend `npm run typecheck`
-16. frontend `npm run test:run`
-17. frontend `npm run build`
-18. `python scripts/package_release.py`
-19. `python scripts/verify_release.py dist/knowledge-workspace-*.zip`
-20. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
+4. `python scripts/audit_python.py`
+5. `python scripts/safe_compile.py -q .`
+6. `python -m ruff check backend scripts`
+7. `python scripts/run_backend_tests.py`
+8. `python scripts/export_openapi.py --check`
+9. `python scripts/generate_api_types.py --check`
+10. Git checkouts also run `git diff --exit-code -- docs/openapi.json frontend/src/api/generated/api-types.ts`; source zip environments skip this Git-only check
+11. `python scripts/check_version_consistency.py`
+12. `python scripts/check_index_consistency.py`
+13. frontend `npm ci`
+14. frontend `npm audit --omit=dev --audit-level=high`
+15. frontend `npm run lint`
+16. frontend `npm run typecheck`
+17. frontend `npm run test:run`
+18. frontend `npm run build`
+19. `python scripts/package_release.py`
+20. `python scripts/verify_release.py dist/knowledge-workspace-*.zip`
+21. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
 
 `python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, `python scripts/check_index_consistency.py`, release zip verification, and smoke.
 
@@ -556,3 +560,4 @@ See [docs/PORTFOLIO_CASE_STUDY.md](docs/PORTFOLIO_CASE_STUDY.md) for:
 - major bug fixes
 - dashboard contract design
 - interview demo script
+

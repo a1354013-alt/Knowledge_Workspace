@@ -121,8 +121,9 @@ def test_openapi_exposes_runner_and_index_modes(client: TestClient):
     schema = client.app.openapi()
 
     capabilities = schema["components"]["schemas"]["AutoTestCapabilitiesResponse"]["properties"]
-    assert set(capabilities["runner_mode"]["enum"]) == {"disabled", "local_trusted", "docker_sandbox"}
+    assert set(capabilities["runner_mode"]["enum"]) == {"disabled", "simulated", "local_trusted", "docker_sandbox"}
     assert "safety_note" in capabilities
+    assert "docker_sandbox_unavailable_reason" in capabilities
 
     provider = schema["components"]["schemas"]["EmbeddingProviderStatusResponse"]["properties"]
     assert set(provider["index_mode"]["enum"]) == {

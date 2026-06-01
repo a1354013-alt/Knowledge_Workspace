@@ -89,6 +89,8 @@ class DockerSandboxRunner:
             "256",
             # Security hardening
             "--read-only",
+            "--tmpfs",
+            "/tmp:rw,noexec,nosuid,nodev,size=256m",
             "--cap-drop=ALL",
             "--security-opt",
             "no-new-privileges",

@@ -38,7 +38,19 @@ FORBIDDEN_PATH_PATTERNS = (
     "*.sqlite-shm",
     "*.sqlite-wal",
 )
-IGNORE_PREFIXES = {".git"}
+IGNORE_PREFIXES = {".git", ".venv", ".venv311", ".venv311_clean"}
+
+
+def _is_ignored_path(relative: Path) -> bool:
+    if not relative.parts:
+        return True
+    if relative.parts[0] in IGNORE_PREFIXES:
+        return True
+    if len(relative.parts) >= 2 and relative.parts[:2] == ("frontend", "node_modules"):
+        return True
+    if len(relative.parts) >= 2 and relative.parts[:2] == ("backend", ".pytest-tmp"):
+        return True
+    return False
 
 
 def _is_forbidden_dir(path: Path) -> bool:
@@ -60,9 +72,7 @@ def main() -> int:
     violations: list[str] = []
     for path in ROOT.rglob("*"):
         relative = path.relative_to(ROOT)
-        if not relative.parts:
-            continue
-        if relative.parts[0] in IGNORE_PREFIXES:
+        if _is_ignored_path(relative):
             continue
         if path.is_dir() and _is_forbidden_dir(path):
             violations.append(relative.as_posix() + "/")

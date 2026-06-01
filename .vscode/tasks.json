@@ -1,0 +1,85 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "bootstrap: dev",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\bootstrap-dev.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "backend: dev",
+      "type": "shell",
+      "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "args": [
+        "-m",
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+        "--reload"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}\\backend",
+        "env": {
+          "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "python",
+        "pattern": {
+          "regexp": "."
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Uvicorn running on",
+          "endsPattern": "Application startup complete"
+        }
+      },
+      "dependsOn": "bootstrap: dev"
+    },
+    {
+      "label": "frontend: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "dev",
+        "--",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5173"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}\\frontend",
+        "env": {
+          "VITE_API_BASE": "http://127.0.0.1:8000"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "."
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "VITE",
+          "endsPattern": "Local:"
+        }
+      },
+      "dependsOn": "bootstrap: dev"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: FastAPI",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+        "--reload"
+      ],
+      "cwd": "${workspaceFolder}\\backend",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "env": {
+        "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173"
+      },
+      "preLaunchTask": "bootstrap: dev",
+      "jinja": true
+    },
+    {
+      "name": "Frontend: Browser",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}\\frontend\\src",
+      "preLaunchTask": "frontend: dev"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Knowledge Workspace: Full Stack Dev",
+      "configurations": [
+        "Backend: FastAPI",
+        "Frontend: Browser"
+      ],
+      "stopAll": true
+    }
+  ]
+}

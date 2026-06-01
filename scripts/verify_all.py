@@ -49,6 +49,23 @@ def clean_python_cache_artifacts() -> None:
                 shutil.rmtree(candidate, ignore_errors=True)
 
 
+def clean_verify_runtime_artifacts() -> None:
+    for path in (
+        DEFAULT_RELEASE_ZIP,
+        ROOT / "ci_documents.db",
+        ROOT / "ci_uploads",
+        ROOT / "ci_photos",
+        ROOT / "ci_chroma",
+        ROOT / "ci_autotest",
+        ROOT / "ci_backend.log",
+        ROOT / "ci_backend.pid",
+    ):
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            path.unlink(missing_ok=True)
+
+
 def is_git_checkout() -> bool:
     return (ROOT / ".git").exists()
 
@@ -56,6 +73,9 @@ def is_git_checkout() -> bool:
 def run_contract_checks() -> None:
     run([sys.executable, "scripts/export_openapi.py", "--check"])
     run([sys.executable, "scripts/generate_api_types.py", "--check"])
+    if os.getenv("CI", "").strip().lower() not in {"1", "true", "yes"}:
+        print("Skipping git diff contract check outside CI; --check commands already verified generated artifacts.")
+        return
     if not is_git_checkout():
         print("Skipping git diff check because this is not a Git checkout.")
         return
@@ -177,11 +197,13 @@ def run_smoke_check() -> None:
 
 def main() -> int:
     os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+    clean_verify_runtime_artifacts()
     clean_python_cache_artifacts()
     run([sys.executable, "scripts/verify_repo_hygiene.py"])
     clean_python_cache_artifacts()
     run([sys.executable, "scripts/check_python_version.py"])
     run([sys.executable, "scripts/check_text_encoding.py"])
+    run([sys.executable, "scripts/audit_python.py"])
     run([sys.executable, "scripts/artifact_checks.py"])
     run([sys.executable, "scripts/safe_compile.py", "-q", "."])
     run([sys.executable, "-m", "ruff", "check", "backend", "scripts"])
@@ -201,6 +223,7 @@ def main() -> int:
     run([sys.executable, "scripts/package_release.py", str(DEFAULT_RELEASE_ZIP)])
     run([sys.executable, "scripts/verify_release_zip.py", str(DEFAULT_RELEASE_ZIP)])
     run_smoke_check()
+    clean_verify_runtime_artifacts()
     clean_python_cache_artifacts()
     return 0
 

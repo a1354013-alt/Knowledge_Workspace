@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, File, Request, UploadFile, status
 from fastapi.responses import Response
 
-from app.api import legacy_main
+from app.api.runtime import limiter
 from app.dependencies import get_current_user
 from app.models import (
     AutoTestCapabilitiesResponse,
@@ -10,7 +10,7 @@ from app.models import (
     GitHubAnalyzeRequest,
     GitHubAnalyzeResponse,
 )
-from app.services import autotest_service
+from app.services.autotest import service as autotest_service
 
 router = APIRouter()
 
@@ -22,7 +22,7 @@ async def get_autotest_capabilities(current_user: dict = Depends(get_current_use
 
 
 @router.post("/api/autotest/run", response_model=AutoTestRunResponse, status_code=status.HTTP_202_ACCEPTED)
-@legacy_main.limiter.limit("3/minute")
+@limiter.limit("3/minute")
 async def run_autotest(
     request: Request,
     file: UploadFile = File(...),

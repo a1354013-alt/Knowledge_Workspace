@@ -21,6 +21,7 @@
 
 - document upload/update/delete works even when indexing fails, and warnings are visible instead of 500 errors
 - photo upload/update/delete works without pretending indexing is transactional
+- photo upload still succeeds when OCR is unavailable; `ocr_status`/`ocr_error` tell the user what happened
 - knowledge/logbook create/update/promote flows survive indexing failures and still persist DB state
 - saved prompt creation reports indexing failure honestly
 - dashboard shows only real metrics
@@ -30,6 +31,7 @@
   - HTML report download
   - AI fix prompt copy when available
 - AutoTest real mode availability is visible in UI and docs, and the API rejects real mode unless `KW_AUTOTEST_REAL_MODE=1`
+- AutoTest mode vocabulary is `disabled`, `simulated`, `local_trusted`, `docker_sandbox`; Docker mode reports executable/daemon preflight failures before a run starts
 - GitHub repo analyze language says register/queue, not clone-and-run
 
 ## Verification commands
@@ -38,6 +40,7 @@ Backend:
 
 - `python scripts/check_python_version.py`
 - `python scripts/check_text_encoding.py`
+- `python scripts/audit_python.py`
 - `python scripts/safe_compile.py -q .`
 - `python -m ruff check backend scripts`
 - `python scripts/run_backend_tests.py`

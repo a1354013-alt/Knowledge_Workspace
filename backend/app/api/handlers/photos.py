@@ -94,12 +94,16 @@ async def upload_photo(
     file_size = await stream_write_file(file, file_path)
     _validate_image_file(file_path)
 
-    # Extract text from image using OCR
+    # OCR is best-effort: once the image is stored, OCR failure should not make the upload fail.
     try:
         ocr_text = extract_text_from_image(file_path)
-    except Exception:
-        safe_unlink(file_path)
-        raise
+        ocr_status = "completed"
+        ocr_error = ""
+    except Exception as exc:
+        ocr_text = ""
+        detail = str(exc)
+        ocr_status = "unavailable" if "tesseract" in detail.lower() or "ocr is disabled" in detail.lower() else "failed"
+        ocr_error = detail
 
     photo_id = str(uuid.uuid4())
     try:
@@ -110,6 +114,8 @@ async def upload_photo(
             tags=str(tags or ""),
             description=str(description or ""),
             ocr_text=ocr_text,
+            ocr_status=ocr_status,
+            ocr_error=ocr_error,
             file_size=file_size,
             uploaded_by=user_id,
             status="reviewed",
@@ -149,18 +155,23 @@ async def upload_photo(
         warning = None
 
     photo_row = db.get_photo(photo_id) or {}
+    message = "Photo uploaded."
+    if ocr_error:
+        message += f" OCR did not complete: {ocr_error}"
     return UploadPhotoResponse(
         id=photo_id,
         filename=str(photo_row.get("filename", "")),
         tags=str(photo_row.get("tags", "")),
         description=str(photo_row.get("description", "")),
         ocr_text=str(photo_row.get("ocr_text", "")),
+        ocr_status=str(photo_row.get("ocr_status", "pending") or "pending"),
+        ocr_error=str(photo_row.get("ocr_error", "")),
         status=str(photo_row.get("status", "reviewed") or "reviewed"),
         uploaded_by=str(photo_row.get("uploaded_by") or ""),
         file_size=int(photo_row.get("file_size", 0)),
         created_at=str(photo_row.get("created_at", "")),
         updated_at=str(photo_row.get("updated_at", "")),
-        message=_side_effect_warning("Photo uploaded.", warning),
+        message=_side_effect_warning(message, warning),
     )
 
 
@@ -173,6 +184,8 @@ async def list_photos(current_user: dict = Depends(get_current_user)) -> list[Ph
             tags=row.get("tags", ""),
             description=row.get("description", ""),
             ocr_text=row.get("ocr_text", ""),
+            ocr_status=row.get("ocr_status", "pending") or "pending",
+            ocr_error=row.get("ocr_error", ""),
             status=row.get("status", "reviewed") or "reviewed",
             uploaded_by=row.get("uploaded_by"),
             file_size=int(row.get("file_size", 0)),

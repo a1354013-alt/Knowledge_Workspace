@@ -3,13 +3,14 @@
 
 export interface AutoTestCapabilitiesResponse {
   docker_sandbox_available?: boolean;
+  docker_sandbox_unavailable_reason?: string;
   message: string;
   mode: "real" | "simulated";
   network_enabled?: boolean;
   real_mode_available: boolean;
   real_mode_enabled: boolean;
   real_mode_requested: boolean;
-  runner_mode: "disabled" | "local_trusted" | "docker_sandbox";
+  runner_mode: "disabled" | "simulated" | "local_trusted" | "docker_sandbox";
   safety_note?: string;
   sandbox_backend: string;
   sandbox_backend_ready: boolean;
@@ -33,7 +34,7 @@ export interface AutoTestRunResponse {
   project_type: string;
   project_type_detected?: string;
   prompt_output: string;
-  runner_mode?: "disabled" | "local_trusted" | "docker_sandbox";
+  runner_mode?: "disabled" | "simulated" | "local_trusted" | "docker_sandbox";
   solution_entry_id?: string;
   source_ref: string;
   source_type: string;
@@ -405,6 +406,8 @@ export interface PhotoResponse {
   file_size: number;
   filename: string;
   id: string;
+  ocr_error?: string;
+  ocr_status?: "pending" | "completed" | "failed" | "unavailable";
   ocr_text: string;
   status?: "draft" | "reviewed" | "verified" | "archived";
   tags: string;
@@ -521,6 +524,8 @@ export interface UploadPhotoResponse {
   filename: string;
   id: string;
   message: string;
+  ocr_error?: string;
+  ocr_status?: "pending" | "completed" | "failed" | "unavailable";
   ocr_text: string;
   status?: "draft" | "reviewed" | "verified" | "archived";
   tags: string;

@@ -191,9 +191,9 @@ def _sync_kb_search_content(
 def sync_document_index(document: dict[str, Any]) -> None:
     doc_id = str(document["doc_id"])
     document_item_id = f"document:{doc_id}"
-    delete_from_vector_db(doc_id)
     if _is_excluded_row(document):
         db.delete_search_content(document_item_id)
+        delete_from_vector_db(doc_id)
         _sync_document_status(doc_id, status="excluded", error="", indexed_at="")
         _clear_repair(document_item_id, owner_user_id=str(document.get("uploaded_by") or ""))
         return
@@ -250,9 +250,9 @@ def sync_document_index(document: dict[str, Any]) -> None:
 
 def sync_knowledge_entry_index(entry: dict[str, Any]) -> None:
     item_id = f"knowledge:{entry['entry_id']}"
-    delete_from_kb_vector_db(item_id)
     if _is_excluded_row(entry):
         db.delete_search_content(item_id)
+        delete_from_kb_vector_db(item_id)
         _sync_knowledge_status(str(entry["entry_id"]), status="excluded", error="", indexed_at="")
         _clear_repair(item_id, owner_user_id=str(entry.get("created_by") or ""))
         return
@@ -295,9 +295,9 @@ def sync_knowledge_entry_index(entry: dict[str, Any]) -> None:
 
 def sync_logbook_entry_index(entry: dict[str, Any]) -> None:
     item_id = f"logbook:{entry['entry_id']}"
-    delete_from_kb_vector_db(item_id)
     if _is_excluded_row(entry):
         db.delete_search_content(item_id)
+        delete_from_kb_vector_db(item_id)
         _sync_logbook_status(str(entry["entry_id"]), status="excluded", error="", indexed_at="")
         _clear_repair(item_id, owner_user_id=str(entry.get("created_by") or ""))
         return
@@ -340,9 +340,9 @@ def sync_logbook_entry_index(entry: dict[str, Any]) -> None:
 
 def sync_photo_index(entry: dict[str, Any]) -> None:
     item_id = f"photo:{entry['photo_id']}"
-    delete_from_kb_vector_db(item_id)
     if _is_excluded_row(entry):
         db.delete_search_content(item_id)
+        delete_from_kb_vector_db(item_id)
         _sync_photo_status(str(entry["photo_id"]), status="excluded", error="", indexed_at="")
         _clear_repair(item_id, owner_user_id=str(entry.get("uploaded_by") or ""))
         return
@@ -385,9 +385,9 @@ def sync_photo_index(entry: dict[str, Any]) -> None:
 
 def sync_prompt_index(entry: dict[str, Any]) -> None:
     item_id = f"prompt:{entry['prompt_id']}"
-    delete_from_kb_vector_db(item_id)
     if _is_excluded_row(entry):
         db.delete_search_content(item_id)
+        delete_from_kb_vector_db(item_id)
         _sync_prompt_status(str(entry["prompt_id"]), status="excluded", error="", indexed_at="")
         _clear_repair(item_id, owner_user_id=str(entry.get("created_by") or ""))
         return

@@ -9,6 +9,11 @@
             "title": "Docker Sandbox Available",
             "type": "boolean"
           },
+          "docker_sandbox_unavailable_reason": {
+            "default": "",
+            "title": "Docker Sandbox Unavailable Reason",
+            "type": "string"
+          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -41,6 +46,7 @@
           "runner_mode": {
             "enum": [
               "disabled",
+              "simulated",
               "local_trusted",
               "docker_sandbox"
             ],
@@ -167,6 +173,7 @@
             "default": "disabled",
             "enum": [
               "disabled",
+              "simulated",
               "local_trusted",
               "docker_sandbox"
             ],
@@ -2160,6 +2167,22 @@
             "title": "Id",
             "type": "string"
           },
+          "ocr_error": {
+            "default": "",
+            "title": "Ocr Error",
+            "type": "string"
+          },
+          "ocr_status": {
+            "default": "pending",
+            "enum": [
+              "pending",
+              "completed",
+              "failed",
+              "unavailable"
+            ],
+            "title": "Ocr Status",
+            "type": "string"
+          },
           "ocr_text": {
             "title": "Ocr Text",
             "type": "string"
@@ -2747,6 +2770,22 @@
           },
           "message": {
             "title": "Message",
+            "type": "string"
+          },
+          "ocr_error": {
+            "default": "",
+            "title": "Ocr Error",
+            "type": "string"
+          },
+          "ocr_status": {
+            "default": "pending",
+            "enum": [
+              "pending",
+              "completed",
+              "failed",
+              "unavailable"
+            ],
+            "title": "Ocr Status",
             "type": "string"
           },
           "ocr_text": {

@@ -477,10 +477,10 @@ def test_autotest_run_returns_queued_response_before_background_execution(
     assert scheduled[0]["run_id"] == payload["id"]
 
 
-def test_autotest_run_detail_falls_back_to_simulated_for_missing_execution_mode(
+def test_autotest_run_detail_uses_valid_simulated_execution_mode(
     app_module, client: TestClient, auth_headers: dict[str, str]
 ):
-    run_id = "legacy-missing-mode"
+    run_id = "valid-simulated-mode"
     with app_module.db._connection() as conn:
         conn.execute(
             """
@@ -509,17 +509,17 @@ def test_autotest_run_detail_falls_back_to_simulated_for_missing_execution_mode(
             (
                 run_id,
                 "zip_upload",
-                "legacy.zip",
+                "simulated.zip",
+                "simulated",
                 "",
                 "",
-                "",
-                "Legacy",
+                "Simulated",
                 "zip",
                 "failed",
-                "legacy row",
+                "simulated row",
                 "",
                 "",
-                "legacy failure",
+                "simulated failure",
                 "",
                 "",
                 "",
@@ -533,6 +533,62 @@ def test_autotest_run_detail_falls_back_to_simulated_for_missing_execution_mode(
     response = client.get(f"/api/autotest/runs/{run_id}", headers=auth_headers)
     assert response.status_code == 200, response.text
     assert response.json()["execution_mode"] == "simulated"
+
+
+def test_autotest_run_detail_rejects_missing_execution_mode_at_db_layer(app_module):
+    with app_module.db._connection() as conn:
+        try:
+            conn.execute(
+                """
+                INSERT INTO autotest_runs (
+                    run_id,
+                    source_type,
+                    source_ref,
+                    execution_mode,
+                    project_type_detected,
+                    working_directory,
+                    project_name,
+                    project_type,
+                    status,
+                    summary,
+                    suggestion,
+                    prompt_output,
+                    failed_reason,
+                    timeline_json,
+                    problem_entry_id,
+                    solution_entry_id,
+                    created_by,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "invalid-missing-mode",
+                    "zip_upload",
+                    "legacy.zip",
+                    "",
+                    "",
+                    "",
+                    "Legacy",
+                    "zip",
+                    "failed",
+                    "legacy row",
+                    "",
+                    "",
+                    "legacy failure",
+                    "",
+                    "",
+                    "",
+                    "owner",
+                    "2026-05-08T00:00:00+00:00",
+                    "2026-05-08T00:00:00+00:00",
+                ),
+            )
+            conn.commit()
+        except sqlite3.IntegrityError as exc:
+            assert "CHECK constraint failed" in str(exc)
+        else:
+            raise AssertionError("Expected invalid execution_mode to fail a SQLite CHECK constraint.")
 
 
 def test_set_timeline_item_can_clear_message(app_module):

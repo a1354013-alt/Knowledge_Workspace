@@ -247,6 +247,18 @@
               field="description"
               header="Description"
             />
+            <Column header="OCR">
+              <template #body="slotProps">
+                <Tag
+                  :severity="slotProps.data.ocr_status === 'completed' ? 'success' : slotProps.data.ocr_status === 'pending' ? 'info' : 'warn'"
+                  :value="slotProps.data.ocr_status || 'pending'"
+                />
+                <small
+                  v-if="slotProps.data.ocr_error"
+                  class="muted block"
+                >{{ slotProps.data.ocr_error }}</small>
+              </template>
+            </Column>
             <Column
               field="created_at"
               header="Created"
@@ -391,6 +403,7 @@ import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
+import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 
 import { del, get, patch, post } from '../api'
@@ -593,7 +606,13 @@ async function uploadPhoto() {
     const response = await post<UploadPhotoResponse, FormData>(apiPaths.photos.upload, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-    toast.add({ severity: 'success', summary: 'Uploaded', detail: response.message || 'Image saved.', life: 3000 })
+    const ocrDegraded = response.ocr_status === 'failed' || response.ocr_status === 'unavailable'
+    toast.add({
+      severity: ocrDegraded ? 'warn' : 'success',
+      summary: ocrDegraded ? 'Uploaded; OCR unavailable' : 'Uploaded',
+      detail: response.message || 'Image saved.',
+      life: 3500,
+    })
     selectedPhoto.value = null
     if (photoInput.value) {
       photoInput.value.value = ''

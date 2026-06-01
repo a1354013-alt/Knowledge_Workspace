@@ -8,6 +8,7 @@
 2. Run backend verification from the repo root.
    - `python scripts/check_python_version.py`
    - `python scripts/check_text_encoding.py`
+   - `python scripts/audit_python.py`
    - `python scripts/safe_compile.py -q .`
    - `python -m ruff check backend scripts`
    - `python scripts/run_backend_tests.py`
@@ -35,7 +36,7 @@
 6. Check env documentation accuracy.
    - `backend/.env.example` remains the startup template
    - path values are backend-relative such as `./documents.db`
-   - AutoTest wording uses `runner disabled`, `simulated execution`, and `live execution`
+   - AutoTest wording uses `disabled`, `simulated`, `local_trusted`, and `docker_sandbox`
 7. Check security positioning accuracy.
    - do not describe the repo as public-production-ready or SaaS-ready
    - keep local-first / trusted-environment wording intact

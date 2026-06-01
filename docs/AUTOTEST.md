@@ -51,14 +51,12 @@ AutoTest gives the project a fast acceptance-style verification lane without pre
 
 Use these terms consistently across UI, docs, and code reviews:
 
-- `runner disabled`: `runner_mode=disabled`; uploaded project commands do not execute
-- `simulated execution`: `execution_mode=simulated`; safe default for CI, demos, and shared machines
-- `live execution`: human-facing term for `execution_mode=real`
+- `disabled`: uploaded project commands do not execute
+- `simulated`: safe default for CI, demos, and shared machines
+- `local_trusted`: trusted-host execution for local projects only
+- `docker_sandbox`: Docker-backed execution after Docker executable and daemon preflight
 
-Live execution currently has two runner shapes:
-
-- trusted host live execution: `AUTOTEST_MODE=real` with `AUTOTEST_SANDBOX_BACKEND=local_trusted`
-- Docker live execution: `AUTOTEST_MODE=docker_sandbox`
+Legacy aliases such as `AUTOTEST_MODE=real` and `AUTOTEST_MODE=docker` are normalized internally for compatibility, but new docs and configs should use the vocabulary above.
 
 ## Modes
 
@@ -71,9 +69,9 @@ Live execution currently has two runner shapes:
 - queued/API responses explicitly report that simulated mode is active
 - still creates a real run, timeline, and derived knowledge/logbook artifacts
 
-### trusted host live execution
+### `local_trusted`
 
-- must be explicitly enabled with `AUTOTEST_MODE=real` (legacy `AUTOTEST_MODE=local_trusted` remains compatibility-only)
+- must be explicitly enabled with `AUTOTEST_MODE=local_trusted`
 - requires `AUTOTEST_SANDBOX_BACKEND=local_trusted`
 - requires either `KW_AUTOTEST_REAL_MODE=1` or `KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST=1`
 - extracts the uploaded ZIP
@@ -87,14 +85,16 @@ Live execution currently has two runner shapes:
   - sensitive environment variable scrubbing
   - zip path traversal / absolute path / drive path / UNC path / symlink rejection
 
-### Docker live execution
+### `docker_sandbox`
 
 - enabled with `AUTOTEST_MODE=docker_sandbox`
+- performs preflight checks for the `docker` executable and Docker daemon before accepting a run
 - runs commands through Docker without `shell=True`
 - copies source into an isolated artifact workspace before container execution
 - applies command timeout, CPU and memory flags where Docker supports them
 - writes stdout/stderr logs under the configured artifact directory
 - disables network by default; set `AUTOTEST_DOCKER_NETWORK=true` only when tests require it
+- mounts a writable `/tmp` tmpfs while keeping the rest of the container read-only
 
 ## Local Trusted Safety Boundary
 

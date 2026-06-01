@@ -8,6 +8,7 @@ from pathlib import Path
 from app.context import settings
 from app.services.autotest.runners import DockerSandboxRunner, RunnerCommand
 from app.services.autotest.security import (
+    autotest_run_block_reason,
     current_autotest_execution_mode,
     current_autotest_runner_mode,
     real_autotest_block_reason,
@@ -38,6 +39,9 @@ def _run_command(*, argv: list[str], cwd: Path, timeout_seconds: int) -> tuple[i
     if block_reason and current_autotest_runner_mode() == "local_trusted":
         raise PermissionError(block_reason)
     if current_autotest_runner_mode() == "docker_sandbox":
+        docker_block_reason = autotest_run_block_reason()
+        if docker_block_reason:
+            raise PermissionError(docker_block_reason)
         result = DockerSandboxRunner().run(
             RunnerCommand(
                 argv=argv,

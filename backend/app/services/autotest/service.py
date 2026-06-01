@@ -29,11 +29,10 @@ from app.services.autotest.github import get_repo_info, validate_github_url
 from app.services.autotest.reports import _safe_autotest_index_entry, _safe_download_filename, suggest_fix_from_autotest
 from app.services.autotest.runner import _run_command
 from app.services.autotest.security import (
+    autotest_run_block_reason,
     current_autotest_execution_mode,
     current_autotest_response_runner_mode,
     is_real_autotest_enabled,
-    is_real_autotest_requested,
-    real_autotest_block_reason,
 )
 from app.services.autotest.security import (
     get_autotest_capabilities as _get_autotest_capabilities,
@@ -91,10 +90,14 @@ def get_autotest_capabilities() -> AutoTestCapabilitiesResponse:
 
 async def run_autotest(file: UploadFile, current_user: dict) -> AutoTestRunResponse:
     user_id = current_user["sub"]
-    block_reason = real_autotest_block_reason()
-    if is_real_autotest_requested() and block_reason is not None:
+    block_reason = autotest_run_block_reason()
+    if block_reason is not None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN if not is_real_autotest_enabled() else status.HTTP_409_CONFLICT,
+            status_code=(
+                status.HTTP_403_FORBIDDEN
+                if "real mode is disabled" in block_reason.lower() and not is_real_autotest_enabled()
+                else status.HTTP_409_CONFLICT
+            ),
             detail=block_reason,
         )
     if not file.filename:

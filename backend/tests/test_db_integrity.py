@@ -156,3 +156,52 @@ def test_autotest_step_foreign_key_cascades_on_run_delete(app_module):
         conn.commit()
         count = conn.execute("SELECT COUNT(*) FROM autotest_steps WHERE run_id = 'run-delete'").fetchone()[0]
     assert count == 0
+
+
+def test_sqlite_check_constraints_reject_invalid_status_values(app_module):
+    with app_module.db._connection() as conn:  # noqa: SLF001 - test-only DB inspection
+        try:
+            conn.execute(
+                """
+                INSERT INTO documents
+                (doc_id, filename, saved_filename, allowed_roles, status, uploaded_at, updated_at)
+                VALUES ('bad-status', 'bad.txt', 'bad.txt', 'owner', 'nonsense', '2026-05-01', '2026-05-01')
+                """
+            )
+            conn.commit()
+        except sqlite3.IntegrityError as exc:
+            assert "CHECK constraint failed" in str(exc)
+        else:
+            raise AssertionError("Expected invalid document status to fail a SQLite CHECK constraint.")
+
+
+def test_sqlite_check_constraints_reject_invalid_link_type(app_module):
+    with app_module.db._connection() as conn:  # noqa: SLF001 - test-only DB inspection
+        try:
+            conn.execute(
+                """
+                INSERT INTO item_links (link_id, from_item_id, to_item_id, link_type, created_at)
+                VALUES ('bad-link', 'knowledge:k1', 'document:d1', 'sideways', '2026-05-01')
+                """
+            )
+            conn.commit()
+        except sqlite3.IntegrityError as exc:
+            assert "CHECK constraint failed" in str(exc)
+        else:
+            raise AssertionError("Expected invalid link type to fail a SQLite CHECK constraint.")
+
+
+def test_sqlite_check_constraints_reject_invalid_search_item_type(app_module):
+    with app_module.db._connection() as conn:  # noqa: SLF001 - test-only DB inspection
+        try:
+            conn.execute(
+                """
+                INSERT INTO item_search_content (item_id, item_type, owner_user_id, title, content, updated_at)
+                VALUES ('weird:1', 'weird', 'owner', 'bad', 'bad', '2026-05-01')
+                """
+            )
+            conn.commit()
+        except sqlite3.IntegrityError as exc:
+            assert "CHECK constraint failed" in str(exc)
+        else:
+            raise AssertionError("Expected invalid item type to fail a SQLite CHECK constraint.")

@@ -16,7 +16,7 @@ AUTOTEST_STEP_STATUS_VALUES = ("queued", "running", "passed", "failed", "skipped
 AutoTestRunStatus = Literal["registered", "queued", "running", "passed", "failed"]
 AutoTestStepStatus = Literal["queued", "running", "passed", "failed", "skipped", "unavailable"]
 AutoTestExecutionMode = Literal["real", "simulated"]
-AutoTestRunnerMode = Literal["disabled", "local_trusted", "docker_sandbox"]
+AutoTestRunnerMode = Literal["disabled", "simulated", "local_trusted", "docker_sandbox"]
 AutoTestExportFormat = Literal["md", "html"]
 IndexItemType = Literal["document", "knowledge", "logbook", "photo", "prompt"]
 IndexStatusValue = Literal["pending", "indexed", "failed", "unavailable", "excluded"]
@@ -313,6 +313,8 @@ class PhotoResponse(StrictModel):
     updated_at: str
     file_size: int
     ocr_text: str
+    ocr_status: Literal["pending", "completed", "failed", "unavailable"] = "pending"
+    ocr_error: str = ""
 
 
 class UploadPhotoResponse(PhotoResponse):
@@ -401,6 +403,7 @@ class AutoTestCapabilitiesResponse(StrictModel):
     safety_note: str = ""
     sandbox_backend: str
     sandbox_backend_ready: bool
+    docker_sandbox_unavailable_reason: str = ""
     message: str
 
 

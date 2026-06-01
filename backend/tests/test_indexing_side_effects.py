@@ -262,8 +262,76 @@ def test_photo_upload_keeps_success_when_indexing_fails(
         data={"tags": "demo", "description": "desc"},
     )
     assert response.status_code == 200, response.text
+    assert response.json()["ocr_status"] == "completed"
     assert "indexing failed" in response.json()["message"].lower()
     assert len(app_module.db.list_photos(user_id="owner", include_archived=False)) == 1
+
+
+def test_photo_upload_keeps_success_when_ocr_fails(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        _handler_module("photos"),
+        "extract_text_from_image",
+        lambda path: (_ for _ in ()).throw(RuntimeError("OCR engine crashed")),
+    )
+
+    if Image is None:
+        png_bytes = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
+    else:
+        buffer = BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 255, 255)).save(buffer, format="PNG")
+        png_bytes = buffer.getvalue()
+
+    response = client.post(
+        "/api/photos/upload",
+        headers=auth_headers,
+        files={"file": ("ocr-fails.png", png_bytes, "image/png")},
+        data={"tags": "demo", "description": "desc"},
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["ocr_status"] == "failed"
+    assert "OCR engine crashed" in payload["ocr_error"]
+    assert "ocr did not complete" in payload["message"].lower()
+
+    photo = app_module.db.list_photos(user_id="owner", include_archived=False)[0]
+    assert photo["ocr_status"] == "failed"
+    assert "OCR engine crashed" in photo["ocr_error"]
+
+
+def test_photo_upload_marks_ocr_unavailable_when_engine_missing(
+    app_module,
+    client: TestClient,
+    auth_headers: dict[str, str],
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        _handler_module("photos"),
+        "extract_text_from_image",
+        lambda path: (_ for _ in ()).throw(RuntimeError("Tesseract executable not found")),
+    )
+
+    if Image is None:
+        png_bytes = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
+    else:
+        buffer = BytesIO()
+        Image.new("RGB", (1, 1), color=(255, 255, 255)).save(buffer, format="PNG")
+        png_bytes = buffer.getvalue()
+
+    response = client.post(
+        "/api/photos/upload",
+        headers=auth_headers,
+        files={"file": ("ocr-unavailable.png", png_bytes, "image/png")},
+        data={"tags": "demo", "description": "desc"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["ocr_status"] == "unavailable"
 
 
 def test_saved_prompt_create_keeps_success_when_indexing_fails(
@@ -315,6 +383,84 @@ def test_saved_prompt_create_reports_unavailable_vector_index(
     payload = response.json()
     assert payload["index_status"] == "unavailable"
     assert "vector index unavailable" in payload["index_error"].lower()
+
+
+def test_knowledge_index_failure_does_not_delete_last_known_good_vector(app_module, monkeypatch):
+    from app.services import indexing_service
+
+    assert app_module.db.add_knowledge_entry(
+        entry_id="lkg-knowledge",
+        title="LKG",
+        status="reviewed",
+        problem="Problem",
+        root_cause="",
+        solution="Solution",
+        tags="",
+        notes="",
+        created_by="owner",
+        index_status="indexed",
+        indexed_at="2026-05-01T00:00:00+00:00",
+    )
+    row = app_module.db.get_knowledge_entry("lkg-knowledge")
+    deleted: list[str] = []
+    monkeypatch.setattr(indexing_service, "delete_from_kb_vector_db", lambda item_id: deleted.append(item_id) or True)
+    monkeypatch.setattr(
+        indexing_service,
+        "index_knowledge_entry",
+        lambda entry: (_ for _ in ()).throw(RuntimeError("new index failed")),
+    )
+
+    try:
+        indexing_service.sync_knowledge_entry_index(row)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("Expected indexing failure.")
+
+    assert deleted == []
+    updated = app_module.db.get_knowledge_entry("lkg-knowledge")
+    assert updated["index_status"] == "failed"
+    repairs = app_module.db.list_index_repairs(owner_user_id="owner")
+    assert any(row["item_id"] == "knowledge:lkg-knowledge" and row["action"] == "index" for row in repairs)
+
+
+def test_repair_success_clears_repair_queue(app_module, monkeypatch):
+    from app.services import indexing_service
+
+    assert app_module.db.add_knowledge_entry(
+        entry_id="repair-knowledge",
+        title="Repair",
+        status="reviewed",
+        problem="Problem",
+        root_cause="",
+        solution="Solution",
+        tags="",
+        notes="",
+        created_by="owner",
+        index_status="failed",
+        index_error="old failure",
+    )
+    app_module.db.queue_index_repair(
+        item_id="knowledge:repair-knowledge",
+        item_type="knowledge",
+        action="index",
+        owner_user_id="owner",
+        last_error="old failure",
+    )
+    monkeypatch.setattr(indexing_service, "index_knowledge_entry", lambda entry: True)
+
+    repaired = indexing_service.repair_index_consistency(owner_user_id="owner")
+
+    assert repaired == [
+        {
+            "item_id": "knowledge:repair-knowledge",
+            "item_type": "knowledge",
+            "status": "repaired",
+            "action": "index",
+        }
+    ]
+    assert app_module.db.list_index_repairs(owner_user_id="owner") == []
+    assert app_module.db.get_knowledge_entry("repair-knowledge")["index_status"] == "indexed"
 
 
 def test_saved_prompt_delete_keeps_success_when_deindex_fails(

@@ -8,6 +8,10 @@ statements so the schema is auditable and reusable from tests.
 
 LINK_TYPE_VALUES = ("references", "derived_from", "produced")
 WORKFLOW_STATUS_VALUES = ("draft", "reviewed", "verified", "archived")
+INDEX_STATUS_VALUES = ("pending", "indexed", "failed", "unavailable", "excluded")
+SEARCH_ITEM_TYPE_VALUES = ("document", "knowledge", "logbook", "photo", "prompt")
+INDEX_REPAIR_ACTION_VALUES = ("index", "deindex")
+OCR_STATUS_VALUES = ("pending", "completed", "failed", "unavailable")
 KNOWLEDGE_STATUS_VALUES = WORKFLOW_STATUS_VALUES
 LOGBOOK_STATUS_VALUES = WORKFLOW_STATUS_VALUES
 DOC_STATUS_VALUES = WORKFLOW_STATUS_VALUES
@@ -24,7 +28,9 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL DEFAULT 'owner',
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    CHECK(role IN ('owner')),
+    CHECK(is_active IN (0, 1))
 )
 """
 
@@ -45,7 +51,10 @@ CREATE TABLE IF NOT EXISTS documents (
     index_status TEXT NOT NULL DEFAULT 'pending',
     index_error TEXT NOT NULL DEFAULT '',
     indexed_at TEXT NOT NULL DEFAULT '',
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    CHECK(status IN ('draft', 'reviewed', 'verified', 'archived')),
+    CHECK(is_active IN (0, 1)),
+    CHECK(index_status IN ('pending', 'indexed', 'failed', 'unavailable', 'excluded'))
 )
 """
 
@@ -67,7 +76,11 @@ CREATE TABLE IF NOT EXISTS knowledge_entries (
     index_error TEXT NOT NULL DEFAULT '',
     indexed_at TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    CHECK(status IN ('draft', 'reviewed', 'verified', 'archived')),
+    CHECK(source_type IN ('manual', 'document-derived', 'autotest-derived')),
+    CHECK(is_active IN (0, 1)),
+    CHECK(index_status IN ('pending', 'indexed', 'failed', 'unavailable', 'excluded'))
 )
 """
 
@@ -89,7 +102,11 @@ CREATE TABLE IF NOT EXISTS logbook_entries (
     index_error TEXT NOT NULL DEFAULT '',
     indexed_at TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    CHECK(status IN ('draft', 'reviewed', 'verified', 'archived')),
+    CHECK(source_type IN ('manual', 'document-derived', 'autotest-derived')),
+    CHECK(is_active IN (0, 1)),
+    CHECK(index_status IN ('pending', 'indexed', 'failed', 'unavailable', 'excluded'))
 )
 """
 
@@ -110,7 +127,9 @@ CREATE TABLE IF NOT EXISTS knowledge_revisions (
     change_note TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    FOREIGN KEY(entry_id) REFERENCES knowledge_entries(entry_id) ON DELETE CASCADE
+    FOREIGN KEY(entry_id) REFERENCES knowledge_entries(entry_id) ON DELETE CASCADE,
+    CHECK(status IN ('draft', 'reviewed', 'verified', 'archived')),
+    CHECK(source_type IN ('manual', 'document-derived', 'autotest-derived'))
 )
 """
 
@@ -122,6 +141,8 @@ CREATE TABLE IF NOT EXISTS photos (
     tags TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     ocr_text TEXT NOT NULL DEFAULT '',
+    ocr_status TEXT NOT NULL DEFAULT 'pending',
+    ocr_error TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'reviewed',
     uploaded_by TEXT,
     file_size INTEGER NOT NULL DEFAULT 0,
@@ -130,7 +151,11 @@ CREATE TABLE IF NOT EXISTS photos (
     index_error TEXT NOT NULL DEFAULT '',
     indexed_at TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    CHECK(status IN ('draft', 'reviewed', 'verified', 'archived')),
+    CHECK(is_active IN (0, 1)),
+    CHECK(index_status IN ('pending', 'indexed', 'failed', 'unavailable', 'excluded')),
+    CHECK(ocr_status IN ('pending', 'completed', 'failed', 'unavailable'))
 )
 """
 
@@ -154,7 +179,10 @@ CREATE TABLE IF NOT EXISTS autotest_runs (
     solution_entry_id TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    CHECK(source_type IN ('zip_upload', 'github_repo', 'upload')),
+    CHECK(execution_mode IN ('real', 'simulated')),
+    CHECK(status IN ('registered', 'queued', 'running', 'passed', 'failed'))
 )
 """
 
@@ -174,7 +202,9 @@ CREATE TABLE IF NOT EXISTS autotest_steps (
     stderr_summary TEXT NOT NULL DEFAULT '',
     error_type TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    FOREIGN KEY(run_id) REFERENCES autotest_runs(run_id) ON DELETE CASCADE
+    FOREIGN KEY(run_id) REFERENCES autotest_runs(run_id) ON DELETE CASCADE,
+    CHECK(status IN ('queued', 'running', 'passed', 'failed', 'skipped', 'unavailable')),
+    CHECK(success IN (0, 1))
 )
 """
 
@@ -184,7 +214,8 @@ CREATE TABLE IF NOT EXISTS item_links (
     from_item_id TEXT NOT NULL,
     to_item_id TEXT NOT NULL,
     link_type TEXT NOT NULL DEFAULT 'references',
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    CHECK(link_type IN ('references', 'derived_from', 'produced'))
 )
 """
 
@@ -200,7 +231,9 @@ CREATE TABLE IF NOT EXISTS saved_prompts (
     index_error TEXT NOT NULL DEFAULT '',
     indexed_at TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    CHECK(is_active IN (0, 1)),
+    CHECK(index_status IN ('pending', 'indexed', 'failed', 'unavailable', 'excluded'))
 )
 """
 
@@ -212,7 +245,9 @@ CREATE TABLE IF NOT EXISTS item_search_content (
     title TEXT NOT NULL DEFAULT '',
     content TEXT NOT NULL DEFAULT '',
     is_active INTEGER NOT NULL DEFAULT 1,
-    updated_at TEXT NOT NULL DEFAULT ''
+    updated_at TEXT NOT NULL DEFAULT '',
+    CHECK(item_type IN ('document', 'knowledge', 'logbook', 'photo', 'prompt')),
+    CHECK(is_active IN (0, 1))
 )
 """
 
@@ -226,7 +261,10 @@ CREATE TABLE IF NOT EXISTS index_repair_queue (
     last_error TEXT NOT NULL DEFAULT '',
     attempts INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(owner_user_id, item_id, action)
+    UNIQUE(owner_user_id, item_id, action),
+    CHECK(item_type IN ('document', 'knowledge', 'logbook', 'photo', 'prompt')),
+    CHECK(action IN ('index', 'deindex')),
+    CHECK(attempts >= 0)
 )
 """
 

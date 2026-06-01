@@ -11,6 +11,7 @@ python -m pip install --upgrade pip
 pip install -e ".[dev]"
 python scripts/check_python_version.py
 python scripts/check_text_encoding.py
+python scripts/audit_python.py
 python scripts/safe_compile.py -q .
 python -m ruff check backend scripts
 python scripts/run_backend_tests.py
@@ -44,6 +45,7 @@ npm run build
 ```
 
 Use Node `20.19.0` from `.nvmrc` to match CI.
+Frontend dependency installation is lockfile-driven: use `npm ci` and keep `frontend/package-lock.json` committed after dependency changes.
 
 ## Contract and release checks
 
@@ -52,6 +54,7 @@ python scripts/export_openapi.py --check
 python scripts/generate_api_types.py --check
 python scripts/check_version_consistency.py
 python scripts/check_index_consistency.py
+python scripts/audit_python.py
 python scripts/package_release.py
 python scripts/verify_release_zip.py dist/knowledge-workspace-*.zip
 ```

@@ -185,7 +185,7 @@ def test_service_source_does_not_use_shell_true(app_module):
 
 
 def test_real_autotest_defaults_to_simulated_mode(app_module):
-    app_module.autotest_service.settings.AUTOTEST_MODE = "disabled"
+    app_module.autotest_service.settings.AUTOTEST_MODE = "simulated"
     app_module.autotest_service.settings.KW_AUTOTEST_REAL_MODE = False
     app_module.autotest_service.settings.KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST = False
     app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "disabled"
@@ -193,10 +193,67 @@ def test_real_autotest_defaults_to_simulated_mode(app_module):
     capabilities = app_module.autotest_service.get_autotest_capabilities()
 
     assert capabilities.mode == "simulated"
-    assert capabilities.runner_mode == "disabled"
+    assert capabilities.runner_mode == "simulated"
     assert capabilities.real_mode_requested is False
     assert capabilities.real_mode_available is False
     assert "No uploaded project commands will run" in capabilities.message
+
+
+def test_disabled_autotest_reports_disabled_runner(app_module):
+    app_module.autotest_service.settings.AUTOTEST_MODE = "disabled"
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "disabled"
+
+    capabilities = app_module.autotest_service.get_autotest_capabilities()
+
+    assert capabilities.mode == "simulated"
+    assert capabilities.runner_mode == "disabled"
+
+
+def test_autotest_mode_normalization_accepts_legacy_aliases(app_module, monkeypatch):
+    from app.services.autotest import security
+
+    app_module.autotest_service.settings.AUTOTEST_MODE = "docker"
+    monkeypatch.setattr(security, "docker_sandbox_unavailable_reason", lambda: "")
+    assert security.current_autotest_runner_mode() == "docker_sandbox"
+    assert security.current_autotest_execution_mode() == "real"
+
+    app_module.autotest_service.settings.AUTOTEST_MODE = "local-trusted"
+    assert security.current_autotest_runner_mode() == "local_trusted"
+
+
+def test_docker_sandbox_capabilities_report_unavailable_reason(app_module, monkeypatch):
+    from app.services.autotest import security
+
+    app_module.autotest_service.settings.AUTOTEST_MODE = "docker_sandbox"
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "docker_sandbox"
+    monkeypatch.setattr(security, "docker_sandbox_unavailable_reason", lambda: "Docker executable was not found on PATH.")
+
+    capabilities = app_module.autotest_service.get_autotest_capabilities()
+
+    assert capabilities.mode == "simulated"
+    assert capabilities.runner_mode == "docker_sandbox"
+    assert capabilities.docker_sandbox_available is False
+    assert capabilities.sandbox_backend_ready is False
+    assert "Docker executable" in capabilities.docker_sandbox_unavailable_reason
+    assert "unavailable" in capabilities.message.lower()
+
+
+def test_docker_sandbox_run_is_rejected_when_preflight_fails(app_module, client, auth_headers, monkeypatch):
+    from app.services.autotest import security
+
+    app_module.autotest_service.settings.AUTOTEST_MODE = "docker_sandbox"
+    app_module.autotest_service.settings.AUTOTEST_SANDBOX_BACKEND = "docker_sandbox"
+    monkeypatch.setattr(security, "docker_sandbox_unavailable_reason", lambda: "Docker daemon is not available.")
+
+    response = client.post(
+        "/api/autotest/run",
+        headers=auth_headers,
+        files={"file": ("demo.zip", build_node_zip(), "application/zip")},
+    )
+
+    assert response.status_code == 409
+    assert "docker_sandbox" in response.text
+    assert "Docker daemon is not available" in response.text
 
 
 def test_docker_sandbox_runner_builds_constrained_command(app_module, tmp_path: Path):
@@ -237,6 +294,8 @@ def test_docker_sandbox_runner_builds_constrained_command(app_module, tmp_path: 
     assert "256" in command
     # Verify security hardening
     assert "--read-only" in command
+    assert "--tmpfs" in command
+    assert "/tmp:rw,noexec,nosuid,nodev,size=256m" in command
     assert "--cap-drop=ALL" in command
     assert "--security-opt" in command
     assert "no-new-privileges" in command

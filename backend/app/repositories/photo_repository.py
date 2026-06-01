@@ -24,6 +24,8 @@ class PhotoRepositoryMixin:
         ocr_text: str,
         file_size: int,
         uploaded_by: str | None,
+        ocr_status: str = "completed",
+        ocr_error: str = "",
         status: str = "reviewed",
         index_status: str = "pending",
         index_error: str = "",
@@ -36,13 +38,16 @@ class PhotoRepositoryMixin:
             raise ValueError(f"Unsupported photo index_status: {index_status}")
         now = utc_now_iso()
         is_active = 0 if status == "archived" else 1
+        ocr_status_value = str(ocr_status or "completed").strip().lower()
+        if ocr_status_value not in {"pending", "completed", "failed", "unavailable"}:
+            raise ValueError(f"Unsupported photo ocr_status: {ocr_status_value}")
         try:
             with self._connection() as conn:
                 conn.execute(
                     """
                     INSERT INTO photos
-                    (photo_id, filename, saved_filename, tags, description, ocr_text, status, uploaded_by, is_active, file_size, index_status, index_error, indexed_at, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (photo_id, filename, saved_filename, tags, description, ocr_text, ocr_status, ocr_error, status, uploaded_by, is_active, file_size, index_status, index_error, indexed_at, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         photo_id,
@@ -51,6 +56,8 @@ class PhotoRepositoryMixin:
                         tags,
                         description,
                         ocr_text,
+                        ocr_status_value,
+                        str(ocr_error or ""),
                         status,
                         uploaded_by,
                         is_active,
@@ -118,6 +125,18 @@ class PhotoRepositoryMixin:
         if "description" in updates:
             columns.append("description = ?")
             params.append(str(updates["description"] or ""))
+        if "ocr_text" in updates:
+            columns.append("ocr_text = ?")
+            params.append(str(updates["ocr_text"] or ""))
+        if "ocr_status" in updates:
+            ocr_status_value = str(updates["ocr_status"] or "").strip().lower()
+            if ocr_status_value not in {"pending", "completed", "failed", "unavailable"}:
+                raise ValueError(f"Unsupported photo ocr_status: {ocr_status_value}")
+            columns.append("ocr_status = ?")
+            params.append(ocr_status_value)
+        if "ocr_error" in updates:
+            columns.append("ocr_error = ?")
+            params.append(str(updates["ocr_error"] or ""))
         if "status" in updates:
             status_value = str(updates["status"] or "").strip()
             if status_value and status_value not in PHOTO_STATUS_VALUES and status_value not in WORKFLOW_STATUS_VALUES:

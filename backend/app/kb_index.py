@@ -34,8 +34,8 @@ def _build_metadata(
 
 def index_knowledge_entry(entry: dict[str, Any]) -> bool:
     item_id = f"knowledge:{entry['entry_id']}"
-    delete_from_kb_vector_db(item_id)
     if int(entry.get("is_active", 1)) != 1 or entry.get("status") == "archived":
+        delete_from_kb_vector_db(item_id)
         return True
     text = build_knowledge_search_text(entry)
 
@@ -54,8 +54,8 @@ def index_knowledge_entry(entry: dict[str, Any]) -> bool:
 
 def index_logbook_entry(entry: dict[str, Any]) -> bool:
     item_id = f"logbook:{entry['entry_id']}"
-    delete_from_kb_vector_db(item_id)
     if int(entry.get("is_active", 1)) != 1 or entry.get("status") == "archived":
+        delete_from_kb_vector_db(item_id)
         return True
     text = build_logbook_search_text(entry)
 
@@ -74,8 +74,8 @@ def index_logbook_entry(entry: dict[str, Any]) -> bool:
 
 def index_photo(entry: dict[str, Any]) -> bool:
     item_id = f"photo:{entry['photo_id']}"
-    delete_from_kb_vector_db(item_id)
     if int(entry.get("is_active", 1)) != 1 or entry.get("status") == "archived":
+        delete_from_kb_vector_db(item_id)
         return True
     text = build_photo_search_text(entry)
 
@@ -94,8 +94,8 @@ def index_photo(entry: dict[str, Any]) -> bool:
 
 def index_saved_prompt(entry: dict[str, Any]) -> bool:
     item_id = f"prompt:{entry['prompt_id']}"
-    delete_from_kb_vector_db(item_id)
     if int(entry.get("is_active", 1)) != 1:
+        delete_from_kb_vector_db(item_id)
         return True
     text = build_prompt_search_text(entry)
     chunks = split_text(text)

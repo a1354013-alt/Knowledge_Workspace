@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
-$VenvPath = Join-Path $RepoRoot ".venv311"
+$VenvPath = Join-Path $RepoRoot ".venv"
 $VenvPython = Join-Path $VenvPath "Scripts\python.exe"
 $FrontendDir = Join-Path $RepoRoot "frontend"
 $BackendEnvPath = Join-Path $RepoRoot "backend\.env"

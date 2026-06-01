@@ -28,6 +28,9 @@ jobs:
       - name: Python runtime check
         run: python scripts/check_python_version.py
 
+      - name: Python dependency audit
+        run: python scripts/audit_python.py
+
       - name: Text encoding check
         run: python scripts/check_text_encoding.py
 

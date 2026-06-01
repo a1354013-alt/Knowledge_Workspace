@@ -346,7 +346,7 @@ def add_to_vector_db(doc_id: str, chunks: list[str], metadata_list: list[dict[st
         return False
     try:
         ids = [f"{doc_id}_{index}" for index in range(len(chunks))]
-        collection.add(ids=ids, documents=chunks, metadatas=metadata_list)
+        collection.upsert(ids=ids, documents=chunks, metadatas=metadata_list)
         return True
     except Exception as exc:
         logger.error("Failed to add document %s to vector DB: %s", doc_id, exc)
@@ -383,7 +383,7 @@ def add_to_kb_vector_db(item_id: str, chunks: list[str], metadata_list: list[dic
         return False
     try:
         ids = [f"{item_id}_{index}" for index in range(len(chunks))]
-        collection.add(ids=ids, documents=chunks, metadatas=metadata_list)
+        collection.upsert(ids=ids, documents=chunks, metadatas=metadata_list)
         return True
     except Exception as exc:
         logger.error("Failed to add KB item %s to vector DB: %s", item_id, exc)

@@ -3,14 +3,17 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $BackendDir = Join-Path $RepoRoot "backend"
 $FrontendDir = Join-Path $RepoRoot "frontend"
-$VenvPython = Join-Path $RepoRoot ".venv311\Scripts\python.exe"
+$VenvPython = Join-Path $RepoRoot ".venv\Scripts\python.exe"
 $BackendEnv = Join-Path $BackendDir ".env"
 
 if (-not (Test-Path $VenvPython)) {
-    throw "Missing .venv311. Run .\scripts\bootstrap-dev.ps1 first."
+    throw "Missing .venv. Run .\scripts\bootstrap-dev.ps1 first, or create it with: py -3.11 -m venv .venv"
 }
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     throw "npm was not found. Install Node.js 20 LTS or newer, then run .\scripts\bootstrap-dev.ps1."
+}
+if (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
+    throw "Missing frontend\node_modules. Run .\scripts\bootstrap-dev.ps1 first so npm ci installs the locked frontend dependencies."
 }
 $NpmCommand = if (Get-Command npm.cmd -ErrorAction SilentlyContinue) {
     (Get-Command npm.cmd).Source

@@ -26,14 +26,15 @@ The current release zip is therefore a source release for controlled environment
 
 Use these terms consistently:
 
-- `runner disabled`: `runner_mode=disabled`; no uploaded project commands execute
-- `simulated execution`: `execution_mode=simulated`; safe default for CI, demos, and shared machines
-- `live execution`: human-facing term for `execution_mode=real`
+- `disabled`: no uploaded project commands execute
+- `simulated`: safe default for CI, demos, and shared machines
+- `local_trusted`: explicit trusted-host execution for local projects only
+- `docker_sandbox`: Docker-backed execution after Docker executable and daemon preflight
 
 Trusted-host live execution requires:
 
 ```env
-AUTOTEST_MODE=real
+AUTOTEST_MODE=local_trusted
 KW_AUTOTEST_REAL_MODE=1
 AUTOTEST_SANDBOX_BACKEND=local_trusted
 ```
