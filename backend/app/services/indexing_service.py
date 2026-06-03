@@ -28,7 +28,9 @@ from app.vector_db import (
     get_embedding_provider_descriptor,
 )
 
-
+# Local demo scan limit for index rebuild / consistency checks.
+# Keep this centralized so the scan size is explicit and easy to tune.
+INDEX_SCAN_LIMIT = 500
 def _is_excluded_row(row: dict[str, Any]) -> bool:
     return int(row.get("is_active", 1)) != 1 or str(row.get("status", "")).strip().lower() == "archived"
 
@@ -433,19 +435,19 @@ def get_index_status(current_user: dict[str, Any]) -> IndexStatusResponse:
     documents = [_document_target(row) for row in db.list_documents(user_id=user_id, include_archived=True)]
     knowledge = [
         _kb_target("knowledge", row, id_key="entry_id", title_key="title")
-        for row in db.list_knowledge_entries(user_id=user_id, include_archived=True, limit=500)
+        for row in db.list_knowledge_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
     ]
     logbook = [
         _kb_target("logbook", row, id_key="entry_id", title_key="title")
-        for row in db.list_logbook_entries(user_id=user_id, include_archived=True, limit=500)
+        for row in db.list_logbook_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
     ]
     photos = [
         _kb_target("photo", row, id_key="photo_id", title_key="filename")
-        for row in db.list_photos(user_id=user_id, include_archived=True, limit=500)
+        for row in db.list_photos(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
     ]
     prompts = [
         _kb_target("prompt", row, id_key="prompt_id", title_key="title")
-        for row in db.list_saved_prompts(user_id=user_id, limit=500, include_inactive=True)
+        for row in db.list_saved_prompts(user_id=user_id, limit=INDEX_SCAN_LIMIT, include_inactive=True)
     ]
 
     grouped = {
@@ -510,13 +512,13 @@ def rebuild_single_item_type(current_user: dict[str, Any], item_type: IndexItemT
     if item_type == "document":
         rows = db.list_documents(user_id=user_id, include_archived=True)
     elif item_type == "knowledge":
-        rows = db.list_knowledge_entries(user_id=user_id, include_archived=True, limit=500)
+        rows = db.list_knowledge_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
     elif item_type == "logbook":
-        rows = db.list_logbook_entries(user_id=user_id, include_archived=True, limit=500)
+        rows = db.list_logbook_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
     elif item_type == "photo":
-        rows = db.list_photos(user_id=user_id, include_archived=True, limit=500)
+        rows = db.list_photos(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
     else:
-        rows = db.list_saved_prompts(user_id=user_id, limit=500, include_inactive=True)
+        rows = db.list_saved_prompts(user_id=user_id, limit=INDEX_SCAN_LIMIT, include_inactive=True)
 
     result_items: list[IndexStatusItemResponse] = []
     rebuilt = 0
@@ -631,16 +633,16 @@ def get_index_consistency_report(*, owner_user_id: str | None = None) -> list[di
         for document in db.list_documents(user_id=user_id, include_archived=True):
             item_id = f"document:{document['doc_id']}"
             report.extend(_check_row_consistency("document", item_id, document))
-        for entry in db.list_knowledge_entries(user_id=user_id, include_archived=True, limit=500):
+        for entry in db.list_knowledge_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT):
             item_id = f"knowledge:{entry['entry_id']}"
             report.extend(_check_row_consistency("knowledge", item_id, entry))
-        for entry in db.list_logbook_entries(user_id=user_id, include_archived=True, limit=500):
+        for entry in db.list_logbook_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT):
             item_id = f"logbook:{entry['entry_id']}"
             report.extend(_check_row_consistency("logbook", item_id, entry))
-        for photo in db.list_photos(user_id=user_id, include_archived=True, limit=500):
+        for photo in db.list_photos(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT):
             item_id = f"photo:{photo['photo_id']}"
             report.extend(_check_row_consistency("photo", item_id, photo))
-        for prompt in db.list_saved_prompts(user_id=user_id, limit=500, include_inactive=True):
+        for prompt in db.list_saved_prompts(user_id=user_id, limit=INDEX_SCAN_LIMIT, include_inactive=True):
             item_id = f"prompt:{prompt['prompt_id']}"
             report.extend(_check_row_consistency("prompt", item_id, prompt))
     report.extend(
