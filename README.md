@@ -103,9 +103,7 @@ graph TD
 
 Ollama is optional. If Ollama is not running, the application still starts and the core workspace, knowledge, logbook, docs, and photos features remain available. LLM generation and QA degrade to retrieval-only, unavailable, or no-op fallback behavior depending on the endpoint path.
 
-OpenAI-compatible providers are not enabled as production runtime providers in this release, and no OpenAI API key is required to start or use the project. OpenAPI is the local API contract in `docs/openapi.json`; it is used for tests and frontend type generation, not as an external AI service.
-
-Ollama ?粹?冽???? Ollama ??蝟餌絞隞甇?虜???蝙?其蜓閬?knowledge workspace?ogbook?ocs/photos ?嚗? AI ??????蝝 retrieval-only / unavailable / no-op fallback?penAI-compatible provider ?冽?撠雿甇?? runtime provider ?嚗?銝?閬?OpenAI API Key ???撠??penAPI ?舀撠???API 憟???蝡臬??亦????銝憭 AI ????
+OpenAI-compatible providers are not enabled as production runtime providers in this release, and no OpenAI API key is required to start or use the project. OpenAPI is the local API contract in docs/openapi.json; it is used for tests and frontend type generation, not as an external AI service.
 ## Entry Points And Architecture
 
 Primary runtime entrypoints:
