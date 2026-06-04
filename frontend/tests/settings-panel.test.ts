@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 import SettingsPanel from '../src/components/SettingsPanel.vue'
+import { setLocale } from '../src/i18n'
 import { PrimeStubs } from './stubs'
 
 const toastAdd = vi.fn()
@@ -44,6 +45,7 @@ function primeIndexStatus() {
 
 describe('SettingsPanel index rebuild toasts', () => {
   it('shows a warning toast when rebuild-all reports failures', async () => {
+    setLocale('en')
     toastAdd.mockReset()
     apiMocks.get
       .mockResolvedValueOnce({
@@ -85,6 +87,7 @@ describe('SettingsPanel index rebuild toasts', () => {
   })
 
   it('shows a success toast only when rebuild-all has no failures', async () => {
+    setLocale('en')
     toastAdd.mockReset()
     apiMocks.get
       .mockResolvedValueOnce({

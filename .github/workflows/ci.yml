@@ -111,10 +111,12 @@ jobs:
 
       - name: Install Playwright browser
         working-directory: frontend
+        timeout-minutes: 10
         run: npx playwright install --with-deps chromium
 
       - name: Frontend browser smoke
         working-directory: frontend
+        timeout-minutes: 5
         run: npm run test:e2e:ci
 
       - name: Package release zip

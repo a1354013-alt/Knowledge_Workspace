@@ -72,18 +72,18 @@ export function useKnowledgeEntries() {
   const knowledgeEntries = ref<KnowledgeEntryResponse[]>([])
   const logbookEntries = ref<LogbookEntryResponse[]>([])
 
-  const sourceTypes = [
-    { label: 'Manual', value: 'manual' },
-    { label: 'Document-derived', value: 'document-derived' },
-    { label: 'AutoTest-derived', value: 'autotest-derived' },
-  ]
+  const sourceTypes = computed(() => [
+    { label: t('knowledge.sourceManual'), value: 'manual' },
+    { label: t('knowledge.sourceDocumentDerived'), value: 'document-derived' },
+    { label: t('knowledge.sourceAutotestDerived'), value: 'autotest-derived' },
+  ])
 
-  const statusOptions = [
-    { label: 'Draft', value: 'draft' },
-    { label: 'Reviewed', value: 'reviewed' },
-    { label: 'Verified', value: 'verified' },
-    { label: 'Archived', value: 'archived' },
-  ]
+  const statusOptions = computed(() => [
+    { label: t('common.draft'), value: 'draft' },
+    { label: t('common.reviewed'), value: 'reviewed' },
+    { label: t('common.verified'), value: 'verified' },
+    { label: t('common.archivedStatus'), value: 'archived' },
+  ])
 
   const pickerOptions = computed(() => {
     const docOptions = documents.value.map((doc) => ({
@@ -137,7 +137,7 @@ export function useKnowledgeEntries() {
 
   async function submitQA() {
     if (!question.value.trim()) {
-      toast.add({ severity: 'warn', summary: 'Question required', detail: 'Enter a question first.', life: 3000 })
+      toast.add({ severity: 'warn', summary: t('knowledge.questionRequired'), detail: t('knowledge.questionRequiredDetail'), life: 3000 })
       return
     }
 
@@ -148,7 +148,7 @@ export function useKnowledgeEntries() {
       sources.value = response.sources || []
     } catch (error: unknown) {
       const apiError = error as { message?: string }
-      toast.add({ severity: 'error', summary: 'QA failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+      toast.add({ severity: 'error', summary: t('knowledge.qaFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
     } finally {
       asking.value = false
     }
@@ -157,7 +157,7 @@ export function useKnowledgeEntries() {
   async function saveEntry() {
     const trimmedProblem = String(entry.value.problem || '').trim()
     if (!trimmedProblem) {
-      toast.add({ severity: 'warn', summary: 'Validation Error', detail: 'Problem field cannot be empty.', life: 3500 })
+      toast.add({ severity: 'warn', summary: t('common.validationError'), detail: t('knowledge.problemRequired'), life: 3500 })
       return
     }
 
@@ -174,14 +174,14 @@ export function useKnowledgeEntries() {
       related_item_ids: Array.isArray(entry.value.related_item_ids) ? entry.value.related_item_ids : [],
     }
     if (!payload.solution) {
-      toast.add({ severity: 'warn', summary: 'Missing fields', detail: 'Solution field is required.', life: 3500 })
+      toast.add({ severity: 'warn', summary: t('common.missingFields'), detail: t('knowledge.solutionRequired'), life: 3500 })
       return
     }
 
     saving.value = true
     try {
       await post<MessageResponse, KnowledgeEntryCreateRequest>(apiPaths.knowledge.list, payload)
-      toast.add({ severity: 'success', summary: 'Saved', detail: 'Knowledge note indexed.', life: 3000 })
+      toast.add({ severity: 'success', summary: t('common.saved'), detail: t('knowledge.noteIndexed'), life: 3000 })
       resetEntry()
       await loadRecent()
     } catch (error: unknown) {
@@ -285,7 +285,7 @@ export function useKnowledgeEntries() {
     editorSaving.value = true
     try {
       await patch<MessageResponse, KnowledgeEntryUpdateRequest>(apiPaths.knowledge.detail(editor.value.id), payload)
-      toast.add({ severity: 'success', summary: 'Saved', detail: 'Knowledge entry updated.', life: 2500 })
+      toast.add({ severity: 'success', summary: t('common.saved'), detail: t('knowledge.entryUpdated'), life: 2500 })
       editorVisible.value = false
       await loadRecent()
       selectedRelatedItemId.value = `knowledge:${editor.value.id}`
@@ -303,16 +303,16 @@ export function useKnowledgeEntries() {
     }
     if (
       !(await confirmDanger({
-        header: 'Archive knowledge entry',
-        message: `Archive "${item.title || 'this entry'}"?`,
-        acceptLabel: 'Archive',
+        header: t('knowledge.archiveEntry'),
+        message: t('knowledge.archiveEntryMessage', { title: item.title || t('knowledge.thisEntry') }),
+        acceptLabel: t('docsPhotos.archive'),
       }))
     ) {
       return
     }
     try {
       await patch<MessageResponse, KnowledgeEntryUpdateRequest>(apiPaths.knowledge.detail(item.id), { status: 'archived' })
-      toast.add({ severity: 'success', summary: 'Archived', detail: 'Entry archived.', life: 2200 })
+      toast.add({ severity: 'success', summary: t('common.archived'), detail: t('knowledge.entryArchived'), life: 2200 })
       await loadRecent()
       if (selectedRelatedItemId.value === `knowledge:${item.id}`) {
         selectedRelatedItemId.value = ''

@@ -58,4 +58,53 @@ describe('workspace-store', () => {
     expect(store.state.lists.documents).toHaveLength(1)
     expect(store.state.lists.documents[0]?.id).toBe('doc-1')
   })
+
+  it('refreshAll loads every workspace list endpoint', async () => {
+    const { apiPaths } = await import('../src/api/endpoints')
+    const { useWorkspaceStore } = await import('../src/workspace-store')
+
+    mocks.get.mockResolvedValue([])
+    const store = useWorkspaceStore()
+
+    await store.refreshAll({ force: true })
+
+    expect(mocks.get).toHaveBeenCalledWith(apiPaths.docs.list)
+    expect(mocks.get).toHaveBeenCalledWith(apiPaths.photos.list)
+    expect(mocks.get).toHaveBeenCalledWith(apiPaths.knowledge.list)
+    expect(mocks.get).toHaveBeenCalledWith(apiPaths.logbook.list)
+    expect(mocks.get).toHaveBeenCalledWith(apiPaths.autotest.listRuns)
+    expect(mocks.get).toHaveBeenCalledWith(apiPaths.prompts.list)
+  })
+
+  it('reset clears loaded data, errors, statuses, and cache timestamps', async () => {
+    const { useWorkspaceStore } = await import('../src/workspace-store')
+
+    mocks.get.mockResolvedValueOnce([
+      {
+        id: 'doc-1',
+        filename: 'demo.md',
+        category: 'guide',
+        tags: 'docs',
+        status: 'reviewed',
+        uploaded_at: '2026-05-01T00:00:00Z',
+        updated_at: '2026-05-01T00:00:00Z',
+        file_size: 12,
+        uploaded_by: 'owner',
+        index_status: 'indexed',
+        index_error: '',
+        indexed_at: '2026-05-01T00:00:00Z',
+      },
+    ])
+    const store = useWorkspaceStore()
+    await store.refreshDocuments({ force: true })
+
+    expect(store.state.lists.documents).toHaveLength(1)
+
+    store.reset()
+
+    expect(store.state.lists.documents).toEqual([])
+    expect(store.state.error.documents).toBe('')
+    expect(store.state.status.documents).toBe('idle')
+    expect(store.state.lastLoadedAt.documents).toBe(0)
+  })
 })

@@ -2,15 +2,15 @@
   <div class="grid">
     <Card>
       <template #title>
-        Local AI provider
+        {{ t('settings.localAiProvider') }}
       </template>
       <template #subtitle>
-        Ollama is the default provider. A noop fallback keeps retrieval endpoints alive, but it does not make generation ready.
+        {{ t('settings.localAiSubtitle') }}
       </template>
       <template #content>
         <div class="stack-md">
           <Button
-            label="Refresh"
+            :label="t('common.refresh')"
             outlined
             icon="pi pi-refresh"
             :loading="loading"
@@ -18,56 +18,56 @@
           />
           <div class="kv">
             <div class="key">
-              Primary provider
+              {{ t('settings.primaryProvider') }}
             </div>
             <div class="value">
               {{ status.primary_provider || '-' }}
             </div>
             <div class="key">
-              Active provider
+              {{ t('settings.activeProvider') }}
             </div>
             <div class="value">
               {{ status.active_provider || '-' }}
             </div>
             <div class="key">
-              Model
+              {{ t('settings.model') }}
             </div>
             <div class="value">
               {{ status.model || '-' }}
             </div>
             <div class="key">
-              Base URL
+              {{ t('settings.baseUrl') }}
             </div>
             <div class="value">
               {{ status.base_url || '-' }}
             </div>
             <div class="key">
-              Primary healthy
+              {{ t('settings.primaryHealthy') }}
             </div>
             <div class="value">
-              {{ status.primary_healthy ? 'yes' : 'no' }}
+              {{ status.primary_healthy ? t('common.yes') : t('common.no') }}
             </div>
             <div class="key">
-              Fallback
+              {{ t('settings.fallback') }}
             </div>
             <div class="value">
-              {{ status.fallback_enabled ? 'enabled' : 'disabled' }}
+              {{ status.fallback_enabled ? t('common.enabled') : t('common.disabled') }}
             </div>
             <div class="key">
-              Ready
+              {{ t('settings.ready') }}
             </div>
             <div class="value">
-              {{ status.llm_ready_for_generation ? 'yes' : 'no' }}
+              {{ status.llm_ready_for_generation ? t('common.yes') : t('common.no') }}
             </div>
             <div class="key">
-              Error
+              {{ t('settings.error') }}
             </div>
             <div class="value">
               {{ status.error_message || '-' }}
             </div>
           </div>
           <p class="muted">
-            Start Ollama: `ollama serve` and pull a model: `ollama pull llama3.1`. If the active provider is `none`, generation is unavailable until a real provider is healthy.
+            {{ t('settings.ollamaHint') }}
           </p>
         </div>
       </template>
@@ -75,15 +75,15 @@
 
     <Card>
       <template #title>
-        Prompt templates
+        {{ t('settings.promptTemplates') }}
       </template>
       <template #subtitle>
-        Engineering-focused templates for bug reports, troubleshooting notes, PR descriptions, and postmortems.
+        {{ t('settings.promptTemplatesSubtitle') }}
       </template>
       <template #content>
         <div class="stack-md">
           <Button
-            label="Refresh"
+            :label="t('common.refresh')"
             outlined
             icon="pi pi-refresh"
             :loading="loadingTemplates"
@@ -94,14 +94,14 @@
             class="kv"
           >
             <div class="key">
-              Available
+              {{ t('settings.availableTemplates') }}
             </div>
             <div class="value">
               {{ templates.map((t) => t.value).join(', ') }}
             </div>
           </div>
           <p class="muted">
-            Use `Generate` in the Knowledge tab via API: `POST /api/generate` with `template_type` and `inputs`.
+            {{ t('settings.generateHint') }}
           </p>
         </div>
       </template>
@@ -109,23 +109,23 @@
 
     <Card>
       <template #title>
-        Index health
+        {{ t('settings.indexHealth') }}
       </template>
       <template #subtitle>
-        The current provider is exposed here so the demo/fallback hash index is not mistaken for production semantic search.
+        {{ t('settings.indexHealthSubtitle') }}
       </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
             <Button
-              label="Refresh"
+              :label="t('common.refresh')"
               outlined
               icon="pi pi-refresh"
               :loading="loadingIndex"
               @click="loadIndexStatus"
             />
             <Button
-              label="Rebuild all indexes"
+              :label="t('settings.rebuildAllIndexes')"
               icon="pi pi-wrench"
               :loading="rebuildingIndex"
               @click="rebuildAllIndexes"
@@ -133,38 +133,38 @@
           </div>
           <div class="kv">
             <div class="key">
-              Provider
+              {{ t('settings.provider') }}
             </div>
             <div class="value">
               {{ indexStatus.provider.active_provider || '-' }}
             </div>
             <div class="key">
-              Mode
+              {{ t('settings.mode') }}
             </div>
             <div class="value">
-              {{ indexStatus.provider.demo_mode ? 'demo / fallback' : 'semantic-ready' }}
+              {{ indexStatus.provider.demo_mode ? t('settings.demoFallback') : t('settings.semanticReady') }}
             </div>
             <div class="key">
-              Status
+              {{ t('common.status') }}
             </div>
             <div class="value">
               {{ indexStatus.provider.status || '-' }}
             </div>
             <div class="key">
-              Message
+              {{ t('settings.message') }}
             </div>
             <div class="value">
               {{ indexStatus.provider.message || '-' }}
             </div>
             <div class="key">
-              Excluded
+              {{ t('settings.excluded') }}
             </div>
             <div class="value">
               {{ totalExcludedItems }}
             </div>
           </div>
           <p class="muted">
-            Archived or inactive items are tracked as `excluded`, so they do not count as pending indexing work.
+            {{ t('settings.excludedHint') }}
           </p>
         </div>
       </template>
@@ -172,15 +172,15 @@
 
     <Card>
       <template #title>
-        OCR
+        {{ t('settings.ocr') }}
       </template>
       <template #subtitle>
-        Extract text from photos for search. Controlled by backend environment variables.
+        {{ t('settings.ocrSubtitle') }}
       </template>
       <template #content>
         <div class="stack-md">
           <Button
-            label="Refresh"
+            :label="t('common.refresh')"
             outlined
             icon="pi pi-refresh"
             :loading="loadingOcr"
@@ -188,39 +188,38 @@
           />
           <div class="kv">
             <div class="key">
-              Enabled
+              {{ t('common.enabled') }}
             </div>
             <div class="value">
-              {{ ocr.enabled ? 'yes' : 'no' }}
+              {{ ocr.enabled ? t('common.yes') : t('common.no') }}
             </div>
             <div class="key">
-              Available
+              {{ t('common.available') }}
             </div>
             <div class="value">
-              {{ ocr.available ? 'yes' : 'no' }}
+              {{ ocr.available ? t('common.yes') : t('common.no') }}
             </div>
             <div class="key">
-              Tesseract
+              {{ t('settings.tesseract') }}
             </div>
             <div class="value">
               {{ ocr.tesseract_version || '-' }}
             </div>
             <div class="key">
-              Command
+              {{ t('settings.command') }}
             </div>
             <div class="value">
               {{ ocr.tesseract_cmd || '-' }}
             </div>
             <div class="key">
-              Details
+              {{ t('settings.details') }}
             </div>
             <div class="value">
               {{ ocr.details || '-' }}
             </div>
           </div>
           <p class="muted">
-            OCR requires both Python deps (pytesseract/Pillow) and a system Tesseract binary. Set `OCR_ENABLED=0` to disable OCR, or set
-            `OCR_TESSERACT_CMD=/path/to/tesseract` to point to the binary.
+            {{ t('settings.ocrHint') }}
           </p>
         </div>
       </template>
@@ -237,6 +236,7 @@ import Card from 'primevue/card'
 import { get } from '../api'
 import { post } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { t } from '../i18n'
 import type {
   IndexRebuildResponse,
   IndexStatusResponse,
@@ -312,10 +312,10 @@ async function loadStatus() {
       primary_healthy: false,
       fallback_enabled: true,
       llm_ready_for_generation: false,
-      error_message: 'Unable to load LLM status.',
+      error_message: t('settings.unableToLoadLlm'),
     }
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'LLM status failed', detail: apiError?.message || 'Request failed.', life: 3500 })
+    toast.add({ severity: 'error', summary: t('settings.llmStatusFailed'), detail: apiError?.message || t('common.requestFailed'), life: 3500 })
   } finally {
     loading.value = false
   }
@@ -331,7 +331,7 @@ async function loadTemplates() {
   } catch (error: unknown) {
     templates.value = []
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Template load failed', detail: apiError?.message || 'Request failed.', life: 3500 })
+    toast.add({ severity: 'error', summary: t('settings.templateLoadFailed'), detail: apiError?.message || t('common.requestFailed'), life: 3500 })
   } finally {
     loadingTemplates.value = false
   }
@@ -346,7 +346,7 @@ async function loadOcrStatus() {
   } catch (error: unknown) {
     ocr.value = { enabled: false, available: false, tesseract_cmd: '', tesseract_version: '', details: '' }
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'OCR status failed', detail: apiError?.message || 'Request failed.', life: 3500 })
+    toast.add({ severity: 'error', summary: t('settings.ocrStatusFailed'), detail: apiError?.message || t('common.requestFailed'), life: 3500 })
   } finally {
     loadingOcr.value = false
   }
@@ -360,7 +360,7 @@ async function loadIndexStatus() {
     indexStatus.value = await get<IndexStatusResponse>(apiPaths.index.status)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Index status failed', detail: apiError?.message || 'Request failed.', life: 3500 })
+    toast.add({ severity: 'error', summary: t('settings.indexStatusFailed'), detail: apiError?.message || t('common.requestFailed'), life: 3500 })
   } finally {
     loadingIndex.value = false
   }
@@ -372,17 +372,17 @@ async function rebuildAllIndexes() {
     const response = await post<IndexRebuildResponse>(apiPaths.index.rebuildAll)
     const failed = response.failed ?? 0
     const rebuilt = response.rebuilt ?? 0
-    const detail = response.message || (failed > 0 ? 'Index rebuild completed with failures.' : 'Index rebuild finished.')
+    const detail = response.message || (failed > 0 ? t('settings.indexRebuildCompletedWithFailures') : t('settings.indexRebuildFinished'))
     toast.add({
       severity: failed > 0 ? 'warn' : 'success',
-      summary: failed > 0 ? 'Index rebuild needs attention' : 'Index rebuild finished',
-      detail: `${detail} Provider: ${response.provider.active_provider}. Rebuilt: ${rebuilt}, failed: ${failed}.`,
+      summary: failed > 0 ? t('settings.indexRebuildNeedsAttention') : t('settings.indexRebuildFinished'),
+      detail: t('settings.indexRebuildDetail', { detail, provider: response.provider.active_provider, rebuilt, failed }),
       life: 4000,
     })
     await loadIndexStatus()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Index rebuild failed', detail: apiError?.message || 'Request failed.', life: 3500 })
+    toast.add({ severity: 'error', summary: t('settings.indexRebuildFailed'), detail: apiError?.message || t('common.requestFailed'), life: 3500 })
   } finally {
     rebuildingIndex.value = false
   }

@@ -317,8 +317,8 @@ The verification scripts reuse the existing CI-equivalent Python gate (`scripts/
 ### Backend Checks
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\check_python_version.py
 .\.venv\Scripts\python.exe scripts\check_text_encoding.py
+.\.venv\Scripts\python.exe scripts\check_python_version.py
 .\.venv\Scripts\python.exe scripts\audit_python.py
 .\.venv\Scripts\python.exe scripts\safe_compile.py -q .
 .\.venv\Scripts\python.exe -m ruff check backend scripts
@@ -329,9 +329,11 @@ The verification scripts reuse the existing CI-equivalent Python gate (`scripts/
 .\.venv\Scripts\python.exe scripts\check_version_consistency.py
 ```
 
-Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md) and `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
+Python `>=3.11,<3.12` is the supported backend test runtime. Do not use Python 3.13 for this project; dependency constraints and CI are pinned to Python 3.11. Run `python scripts/check_python_version.py` before backend checks; see [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md) and `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
 
 If dependency installation fails with a `TOMLDecodeError` at line 1 column 1, run `python scripts/check_text_encoding.py` first. The encoding gate checks repository text files, including `.txt`, `requirements.txt`, TOML, Vue, TypeScript, JSON, YAML, and env templates, and fails on UTF-8 BOM or invalid UTF-8 before pip/npm setup can hide the source file problem.
+
+If pip reports that the Python version is not supported, switch to Python 3.11 and rerun `python scripts/check_python_version.py` before installing dependencies.
 
 Single-command backend + frontend + release + smoke verification:
 
@@ -349,18 +351,21 @@ Also available:
 ```bash
 cd frontend
 npm ci
+# npm install is acceptable for local development when you intentionally update dependencies.
 npm audit --omit=dev --audit-level=high
 npm run lint
 npm run typecheck
-npm run test:run
+npm run test
 npm run build
-npx playwright install chromium
-npm run test:e2e
+npx playwright install --with-deps chromium
+npm run test:e2e:ci
 ```
 
 Use `npm ci` for local verification and CI; `frontend/package-lock.json` is the dependency source of truth. Core frontend tooling versions are pinned in `frontend/package.json` to reduce lockfile regeneration drift.
 
 Use Node `20.19.0` from `.nvmrc` for frontend lint/test/build to match CI.
+
+If Playwright browser installation fails locally, rerun `npx playwright install --with-deps chromium` from `frontend` after confirming network access and OS package permissions. In CI the install and smoke steps have explicit timeouts, and the smoke remains lightweight instead of being removed from the gate.
 
 ## CI
 

@@ -1,28 +1,28 @@
 <template>
   <Card>
     <template #title>
-      Global search
+      {{ t('search.title') }}
     </template>
     <template #subtitle>
-      Keyword + filters across knowledge, logbook, documents, photos, prompts, and AutoTest runs.
+      {{ t('search.subtitle') }}
     </template>
     <template #content>
       <div class="stack-md">
         <div class="row">
           <InputText
             v-model="query"
-            placeholder="Keyword..."
+            :placeholder="t('search.keyword')"
             class="grow"
             @keyup.enter="runSearch"
           />
           <Button
-            label="Search"
+            :label="t('search.search')"
             icon="pi pi-search"
             :loading="loading"
             @click="runSearch"
           />
           <Button
-            label="Clear"
+            :label="t('search.clear')"
             outlined
             severity="secondary"
             :disabled="loading"
@@ -36,7 +36,7 @@
             :options="typeOptions"
             option-label="label"
             option-value="value"
-            placeholder="Types"
+            :placeholder="t('search.types')"
             display="chip"
             class="types"
           />
@@ -45,12 +45,12 @@
             :options="statusOptions"
             option-label="label"
             option-value="value"
-            placeholder="Status"
+            :placeholder="t('common.status')"
             class="status"
           />
           <InputText
             v-model="tag"
-            placeholder="Tag contains..."
+            :placeholder="t('search.tagContains')"
             class="tag"
           />
         </div>
@@ -58,12 +58,12 @@
         <div class="row">
           <InputText
             v-model="dateFrom"
-            placeholder="Date from (YYYY-MM-DD)"
+            :placeholder="t('search.dateFrom')"
             class="date"
           />
           <InputText
             v-model="dateTo"
-            placeholder="Date to (YYYY-MM-DD)"
+            :placeholder="t('search.dateTo')"
             class="date"
           />
           <Dropdown
@@ -71,7 +71,7 @@
             :options="limitOptions"
             option-label="label"
             option-value="value"
-            placeholder="Limit"
+            :placeholder="t('search.limit')"
             class="limit"
           />
         </div>
@@ -85,26 +85,26 @@
         >
           <Column
             field="item_type"
-            header="Type"
+            :header="t('common.type')"
           />
           <Column
             field="title"
-            header="Title"
+            :header="t('common.title')"
           />
           <Column
             field="status"
-            header="Status"
+            :header="t('common.status')"
           />
           <Column
             field="updated_at"
-            header="Updated"
+            :header="t('common.updated')"
           />
-          <Column header="Item">
+          <Column :header="t('common.item')">
             <template #body="slotProps">
               <code>{{ slotProps.data.item_id }}</code>
             </template>
           </Column>
-          <Column header="Actions">
+          <Column :header="t('common.actions')">
             <template #body="slotProps">
               <div class="actions-inline">
                 <Button
@@ -134,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
@@ -146,6 +146,7 @@ import MultiSelect from 'primevue/multiselect'
 
 import { get } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { t } from '../i18n'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import type { ItemSummary, ResolveItemsResponse } from '../types'
 
@@ -163,26 +164,26 @@ const dateFrom = ref('')
 const dateTo = ref('')
 const limit = ref(200)
 
-const typeOptions = [
-  { label: 'Knowledge', value: 'knowledge' },
-  { label: 'Logbook', value: 'logbook' },
-  { label: 'Documents', value: 'document' },
-  { label: 'Photos', value: 'photo' },
-  { label: 'Prompts', value: 'prompt' },
-  { label: 'AutoTest runs', value: 'autotest_run' },
-]
+const typeOptions = computed(() => [
+  { label: t('search.knowledge'), value: 'knowledge' },
+  { label: t('search.logbook'), value: 'logbook' },
+  { label: t('search.documents'), value: 'document' },
+  { label: t('search.photos'), value: 'photo' },
+  { label: t('workspace.prompts'), value: 'prompt' },
+  { label: t('search.autotestRuns'), value: 'autotest_run' },
+])
 
-const statusOptions = [
-  { label: 'Any', value: '' },
-  { label: 'Draft', value: 'draft' },
-  { label: 'Reviewed', value: 'reviewed' },
-  { label: 'Verified', value: 'verified' },
-  { label: 'Archived', value: 'archived' },
-  { label: 'Queued', value: 'queued' },
-  { label: 'Running', value: 'running' },
-  { label: 'Passed', value: 'passed' },
-  { label: 'Failed', value: 'failed' },
-]
+const statusOptions = computed(() => [
+  { label: t('search.any'), value: '' },
+  { label: t('common.draft'), value: 'draft' },
+  { label: t('common.reviewed'), value: 'reviewed' },
+  { label: t('common.verified'), value: 'verified' },
+  { label: t('common.archivedStatus'), value: 'archived' },
+  { label: t('common.queued'), value: 'queued' },
+  { label: t('common.running'), value: 'running' },
+  { label: t('common.passed'), value: 'passed' },
+  { label: t('common.failed'), value: 'failed' },
+])
 
 const limitOptions = [
   { label: '50', value: 50 },
@@ -216,7 +217,7 @@ function copyId(item: ItemSummary) {
     return
   }
   navigator.clipboard?.writeText(value)
-  toast.add({ severity: 'success', summary: 'Copied', detail: value, life: 1500 })
+  toast.add({ severity: 'success', summary: t('common.copied'), detail: value, life: 1500 })
 }
 
 async function runSearch() {
@@ -237,7 +238,7 @@ async function runSearch() {
   } catch (error: unknown) {
     results.value = []
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Search failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('search.searchFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   } finally {
     loading.value = false
   }

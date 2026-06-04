@@ -81,6 +81,66 @@ describe('frontend smoke flows', () => {
     expect(apiMocks.get).toHaveBeenCalled()
   })
 
+  it('logout clears token, current user, and workspace store state', async () => {
+    const auth = await import('../src/auth')
+    const { useWorkspaceStore } = await import('../src/workspace-store')
+
+    apiMocks.post.mockImplementation(async (path: string) => {
+      if (path === apiPaths.auth.login) {
+        return { access_token: 'token-1', token_type: 'bearer' }
+      }
+      throw new Error(`Unexpected POST ${path}`)
+    })
+    apiMocks.get.mockImplementation(async (path: string) => {
+      if (path === apiPaths.auth.me) {
+        return { user_id: 'owner', role: 'owner', display_name: 'Owner' }
+      }
+      if (path === apiPaths.docs.list) {
+        return [
+          {
+            id: 'doc-1',
+            filename: 'demo.md',
+            category: 'guide',
+            tags: 'docs',
+            status: 'reviewed',
+            uploaded_at: '2026-05-01T00:00:00Z',
+            updated_at: '2026-05-01T00:00:00Z',
+            file_size: 12,
+            uploaded_by: 'owner',
+            index_status: 'indexed',
+            index_error: '',
+            indexed_at: '2026-05-01T00:00:00Z',
+          },
+        ]
+      }
+      throw new Error(`Unexpected GET ${path}`)
+    })
+
+    const wrapper = mount(App, { global: { stubs: PrimeStubs } })
+    const vm = wrapper.vm as unknown as {
+      currentUser: { user_id: string }
+      loginForm: { user_id: string; password: string }
+      login: () => Promise<void>
+      logout: () => void
+    }
+    vm.loginForm.user_id = 'owner'
+    vm.loginForm.password = 'OwnerPass123!'
+    await vm.login()
+
+    const store = useWorkspaceStore()
+    await store.refreshDocuments({ force: true })
+    expect(store.state.lists.documents).toHaveLength(1)
+
+    vm.logout()
+    await flushUi()
+
+    expect(auth.clearToken).toHaveBeenCalled()
+    expect(vm.currentUser.user_id).toBe('')
+    expect(store.state.lists.documents).toEqual([])
+    expect(store.state.status.documents).toBe('idle')
+    expect(wrapper.text()).toContain('登入')
+  })
+
   it('renders system status/dashboard data', async () => {
     apiMocks.get.mockImplementation(async (path: string) => {
       if (path === apiPaths.dashboard.health) {
@@ -125,6 +185,7 @@ describe('frontend smoke flows', () => {
   })
 
   it('loads settings including the index provider status', async () => {
+    setLocale('en')
     apiMocks.get.mockImplementation(async (path: string) => {
       if (path === apiPaths.settings.llm) {
         return {

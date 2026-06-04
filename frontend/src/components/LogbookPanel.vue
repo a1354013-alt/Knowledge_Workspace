@@ -388,14 +388,14 @@ async function saveEntry() {
     related_item_ids: Array.isArray(form.value.related_item_ids) ? form.value.related_item_ids : [],
   }
   if (!payload.title || !payload.problem || !payload.solution) {
-    toast.add({ severity: 'warn', summary: 'Missing fields', detail: 'Title, problem, and solution are required.', life: 3500 })
+    toast.add({ severity: 'warn', summary: t('common.missingFields'), detail: t('logbook.requiredFields'), life: 3500 })
     return
   }
 
   saving.value = true
   try {
     await post<MessageResponse, LogbookEntryCreateRequest>(apiPaths.logbook.list, payload)
-    toast.add({ severity: 'success', summary: 'Saved', detail: 'Logbook entry indexed.', life: 3000 })
+    toast.add({ severity: 'success', summary: t('common.saved'), detail: t('logbook.entryIndexed'), life: 3000 })
     resetForm()
     await loadEntries()
   } catch (error: unknown) {
@@ -407,13 +407,13 @@ async function saveEntry() {
 }
 
 async function deleteEntry(item: LogbookEntryResponse) {
-  if (!(await confirmDanger({ header: 'Delete logbook entry', message: `Delete "${item.title}"?`, acceptLabel: 'Delete' }))) {
+  if (!(await confirmDanger({ header: t('logbook.deleteEntry'), message: t('logbook.deleteEntryMessage', { title: item.title }), acceptLabel: t('prompts.deleteAccept') }))) {
     return
   }
   try {
     await del<MessageResponse>(apiPaths.logbook.detail(item.id))
     await loadEntries()
-    toast.add({ severity: 'success', summary: 'Deleted', detail: 'Entry removed.', life: 3000 })
+    toast.add({ severity: 'success', summary: t('common.deleted'), detail: t('logbook.entryRemoved'), life: 3000 })
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: t('common.deleteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
@@ -426,9 +426,9 @@ async function promoteEntry(item: LogbookEntryResponse) {
   }
   if (
     !(await confirmDanger({
-      header: 'Promote logbook entry',
-      message: `Promote "${item.title}" to a verified knowledge entry?`,
-      acceptLabel: 'Promote',
+      header: t('logbook.promoteEntry'),
+      message: t('logbook.promoteEntryMessage', { title: item.title }),
+      acceptLabel: t('logbook.promote'),
     }))
   ) {
     return
@@ -436,7 +436,7 @@ async function promoteEntry(item: LogbookEntryResponse) {
   try {
     const response = await post<PromoteToKnowledgeResponse>(apiPaths.logbook.promote(item.id))
     await loadEntries()
-    toast.add({ severity: 'success', summary: 'Promoted', detail: `Knowledge entry: ${response.knowledge_entry_id}`, life: 4500 })
+    toast.add({ severity: 'success', summary: t('logbook.promoted'), detail: t('logbook.promotedDetail', { id: response.knowledge_entry_id }), life: 4500 })
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: t('common.promoteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })

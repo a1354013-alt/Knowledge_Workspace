@@ -2,10 +2,10 @@
   <div class="grid">
     <Card>
       <template #title>
-        Documents
+        {{ t('docsPhotos.documentsTitle') }}
       </template>
       <template #subtitle>
-        Upload and tag engineering docs. Indexing happens immediately for your workspace.
+        {{ t('docsPhotos.documentsSubtitle') }}
       </template>
       <template #content>
         <div class="stack-md">
@@ -32,7 +32,7 @@
               @change="onDocSelected"
             >
             <Button
-              label="Choose Document"
+              :label="t('docsPhotos.chooseDocument')"
               icon="pi pi-upload"
               outlined
               @click="openDocPicker"
@@ -45,20 +45,20 @@
 
           <InputText
             v-model="docCategory"
-            placeholder="Category (optional)"
+            :placeholder="t('docsPhotos.categoryOptional')"
           />
           <InputText
             v-model="docTags"
-            placeholder="Tags (comma separated, optional)"
+            :placeholder="t('docsPhotos.tagsOptional')"
           />
           <div class="row">
             <Button
-              label="Upload"
+              :label="t('common.upload')"
               :loading="uploadingDoc"
               @click="uploadDoc"
             />
             <Button
-              label="Refresh"
+              :label="t('common.refresh')"
               outlined
               icon="pi pi-refresh"
               :loading="loadingDocs"
@@ -68,7 +68,7 @@
 
           <InputText
             v-model="docFilterText"
-            placeholder="Filter docs (filename/tags)"
+            :placeholder="t('docsPhotos.filterDocs')"
           />
 
           <DataTable
@@ -80,24 +80,24 @@
           >
             <Column
               field="filename"
-              header="File"
+              :header="t('common.file')"
             />
             <Column
               field="category"
-              header="Category"
+              :header="t('common.category')"
             />
             <Column
               field="tags"
-              header="Tags"
+              :header="t('common.tags')"
             />
             <Column
               field="status"
-              header="Status"
+              :header="t('common.status')"
             />
-            <Column header="Index">
+            <Column :header="t('common.index')">
               <template #body="slotProps">
                 <div class="index-cell">
-                  <strong>{{ slotProps.data.index_status || 'pending' }}</strong>
+                  <strong>{{ slotProps.data.index_status || t('common.pending') }}</strong>
                   <span
                     v-if="slotProps.data.index_error"
                     class="muted"
@@ -105,11 +105,11 @@
                   <span
                     v-else-if="slotProps.data.index_status === 'excluded'"
                     class="muted"
-                  >Archived items are excluded from active indexing work.</span>
+                  >{{ t('docsPhotos.archivedExcluded') }}</span>
                 </div>
               </template>
             </Column>
-            <Column header="Actions">
+            <Column :header="t('common.actions')">
               <template #body="slotProps">
                 <div class="actions-inline">
                   <Button
@@ -170,10 +170,10 @@
 
     <Card>
       <template #title>
-        Photos / Images
+        {{ t('docsPhotos.photosTitle') }}
       </template>
       <template #subtitle>
-        Upload images, add tags/description. OCR is optional and safe-by-default.
+        {{ t('docsPhotos.photosSubtitle') }}
       </template>
       <template #content>
         <div class="stack-md">
@@ -193,7 +193,7 @@
               @change="onPhotoSelected"
             >
             <Button
-              label="Choose Image"
+              :label="t('docsPhotos.chooseImage')"
               icon="pi pi-image"
               outlined
               @click="openPhotoPicker"
@@ -206,21 +206,21 @@
 
           <InputText
             v-model="photoTags"
-            placeholder="Tags (comma separated, optional)"
+            :placeholder="t('docsPhotos.tagsOptional')"
           />
           <Textarea
             v-model="photoDescription"
             rows="2"
-            placeholder="Description (optional)"
+            :placeholder="t('docsPhotos.descriptionOptional')"
           />
           <div class="row">
             <Button
-              label="Upload"
+              :label="t('common.upload')"
               :loading="uploadingPhoto"
               @click="uploadPhoto"
             />
             <Button
-              label="Refresh"
+              :label="t('common.refresh')"
               outlined
               icon="pi pi-refresh"
               :loading="loadingPhotos"
@@ -237,21 +237,21 @@
           >
             <Column
               field="filename"
-              header="File"
+              :header="t('common.file')"
             />
             <Column
               field="tags"
-              header="Tags"
+              :header="t('common.tags')"
             />
             <Column
               field="description"
-              header="Description"
+              :header="t('common.description')"
             />
-            <Column header="OCR">
+            <Column :header="t('docsPhotos.ocr')">
               <template #body="slotProps">
                 <Tag
                   :severity="slotProps.data.ocr_status === 'completed' ? 'success' : slotProps.data.ocr_status === 'pending' ? 'info' : 'warn'"
-                  :value="slotProps.data.ocr_status || 'pending'"
+                  :value="slotProps.data.ocr_status || t('common.pending')"
                 />
                 <small
                   v-if="slotProps.data.ocr_error"
@@ -261,9 +261,9 @@
             </Column>
             <Column
               field="created_at"
-              header="Created"
+              :header="t('common.created')"
             />
-            <Column header="Actions">
+            <Column :header="t('common.actions')">
               <template #body="slotProps">
                 <div class="actions-inline">
                   <Button
@@ -308,7 +308,7 @@
   <Dialog
     v-model:visible="docEditorVisible"
     modal
-    header="Edit document"
+    :header="t('docsPhotos.editDocument')"
     :style="{ width: 'min(720px, 95vw)' }"
   >
     <div class="stack-md">
@@ -317,28 +317,28 @@
       </div>
       <InputText
         v-model="docEditor.category"
-        placeholder="Category"
+        :placeholder="t('common.category')"
       />
       <InputText
         v-model="docEditor.tags"
-        placeholder="Tags"
+        :placeholder="t('common.tags')"
       />
       <Dropdown
         v-model="docEditor.status"
         :options="statusOptions"
         option-label="label"
         option-value="value"
-        placeholder="Status"
+        :placeholder="t('common.status')"
       />
       <div class="row">
         <Button
-          label="Save"
+          :label="t('common.save')"
           icon="pi pi-save"
           :loading="docEditorSaving"
           @click="saveDocEditor"
         />
         <Button
-          label="Close"
+          :label="t('common.close')"
           outlined
           severity="secondary"
           :disabled="docEditorSaving"
@@ -351,7 +351,7 @@
   <Dialog
     v-model:visible="photoEditorVisible"
     modal
-    header="Edit photo"
+    :header="t('docsPhotos.editPhoto')"
     :style="{ width: 'min(720px, 95vw)' }"
   >
     <div class="stack-md">
@@ -360,29 +360,29 @@
       </div>
       <InputText
         v-model="photoEditor.tags"
-        placeholder="Tags"
+        :placeholder="t('common.tags')"
       />
       <Textarea
         v-model="photoEditor.description"
         rows="2"
-        placeholder="Description"
+        :placeholder="t('common.description')"
       />
       <Dropdown
         v-model="photoEditor.status"
         :options="statusOptions"
         option-label="label"
         option-value="value"
-        placeholder="Status"
+        :placeholder="t('common.status')"
       />
       <div class="row">
         <Button
-          label="Save"
+          :label="t('common.save')"
           icon="pi pi-save"
           :loading="photoEditorSaving"
           @click="savePhotoEditor"
         />
         <Button
-          label="Close"
+          :label="t('common.close')"
           outlined
           severity="secondary"
           :disabled="photoEditorSaving"
@@ -457,12 +457,12 @@ const photoEditorVisible = ref(false)
 const photoEditorSaving = ref(false)
 const photoEditor = ref<Pick<PhotoResponse, 'id' | 'tags' | 'description' | 'status'>>({ id: '', tags: '', description: '', status: 'reviewed' })
 
-const statusOptions = [
-  { label: 'Draft', value: 'draft' },
-  { label: 'Reviewed', value: 'reviewed' },
-  { label: 'Verified', value: 'verified' },
-  { label: 'Archived', value: 'archived' },
-]
+const statusOptions = computed(() => [
+  { label: t('common.draft'), value: 'draft' },
+  { label: t('common.reviewed'), value: 'reviewed' },
+  { label: t('common.verified'), value: 'verified' },
+  { label: t('common.archivedStatus'), value: 'archived' },
+])
 
 const filteredDocuments = computed(() => {
   const query = String(docFilterText.value || '').trim().toLowerCase()
@@ -484,16 +484,16 @@ const searchStatusMessage = computed(() => {
   const mode = indexStatus.value?.provider?.index_mode
   if (mode === 'real_semantic_embedding') {
     const provider = indexStatus.value?.provider.active_provider
-    return provider === 'ollama' ? 'Ollama semantic vector search is enabled.' : 'Real semantic vector search is enabled.'
+    return provider === 'ollama' ? t('docsPhotos.semanticOllamaEnabled') : t('docsPhotos.semanticEnabled')
   }
   if (mode === 'demo_hash_embedding') {
-    return 'Demo hash embeddings are enabled. This is deterministic fallback indexing, not production semantic search.'
+    return t('docsPhotos.demoHashEnabled')
   }
   if (mode === 'full_text_only') {
-    return 'Semantic indexing is not enabled; documents are available through full-text search.'
+    return t('docsPhotos.fullTextOnly')
   }
   if (mode === 'vector_degraded') {
-    return 'Semantic indexing is unavailable right now; full-text search fallback is active.'
+    return t('docsPhotos.vectorDegraded')
   }
   return ''
 })
@@ -538,7 +538,7 @@ async function loadDocuments() {
 
 async function uploadDoc() {
   if (!selectedDoc.value) {
-    toast.add({ severity: 'warn', summary: 'No file selected', detail: 'Choose a document to upload.', life: 3000 })
+    toast.add({ severity: 'warn', summary: t('docsPhotos.noFileSelected'), detail: t('docsPhotos.chooseDocumentToUpload'), life: 3000 })
     return
   }
 
@@ -554,8 +554,8 @@ async function uploadDoc() {
     const degraded = response.vector_index_status === 'degraded' || response.vector_index_status === 'disabled'
     toast.add({
       severity: degraded ? 'warn' : 'success',
-      summary: degraded ? 'Uploaded with full-text fallback' : 'Uploaded',
-      detail: response.user_message || response.message || 'Document uploaded.',
+      summary: degraded ? t('docsPhotos.uploadedWithFullTextFallback') : t('common.uploaded'),
+      detail: response.user_message || response.message || t('docsPhotos.documentUploaded'),
       life: 3500,
     })
     selectedDoc.value = null
@@ -594,7 +594,7 @@ async function loadPhotos() {
 
 async function uploadPhoto() {
   if (!selectedPhoto.value) {
-    toast.add({ severity: 'warn', summary: 'No file selected', detail: 'Choose an image to upload.', life: 3000 })
+    toast.add({ severity: 'warn', summary: t('docsPhotos.noFileSelected'), detail: t('docsPhotos.chooseImageToUpload'), life: 3000 })
     return
   }
 
@@ -610,8 +610,8 @@ async function uploadPhoto() {
     const ocrDegraded = response.ocr_status === 'failed' || response.ocr_status === 'unavailable'
     toast.add({
       severity: ocrDegraded ? 'warn' : 'success',
-      summary: ocrDegraded ? 'Uploaded; OCR unavailable' : 'Uploaded',
-      detail: response.message || 'Image saved.',
+      summary: ocrDegraded ? t('docsPhotos.uploadedOcrUnavailable') : t('common.uploaded'),
+      detail: response.message || t('docsPhotos.imageSaved'),
       life: 3500,
     })
     selectedPhoto.value = null
@@ -655,7 +655,7 @@ async function previewDocument(doc: DocumentResponse) {
     await previewDocumentFile(doc)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Preview failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.previewFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -667,7 +667,7 @@ async function downloadDocument(doc: DocumentResponse) {
     await downloadDocumentFile(doc)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Download failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.downloadFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -696,7 +696,7 @@ async function saveDocEditor() {
       status: docEditor.value.status || 'reviewed',
     }
     await patch<MessageResponse, DocumentUpdateRequest>(apiPaths.docs.detail(docEditor.value.id), payload)
-    toast.add({ severity: 'success', summary: 'Saved', detail: 'Document updated.', life: 2500 })
+    toast.add({ severity: 'success', summary: t('common.saved'), detail: t('docsPhotos.documentUpdated'), life: 2500 })
     docEditorVisible.value = false
     await loadDocuments()
   } catch (error: unknown) {
@@ -711,12 +711,12 @@ async function archiveDocument(doc: DocumentResponse) {
   if (!doc?.id) {
     return
   }
-  if (!(await confirmDanger({ header: 'Archive document', message: `Archive "${doc.filename}"?`, acceptLabel: 'Archive' }))) {
+  if (!(await confirmDanger({ header: t('docsPhotos.archiveDocument'), message: t('docsPhotos.archiveDocumentMessage', { filename: doc.filename }), acceptLabel: t('docsPhotos.archive') }))) {
     return
   }
   try {
     await patch<MessageResponse, DocumentUpdateRequest>(apiPaths.docs.detail(doc.id), { status: 'archived' })
-    toast.add({ severity: 'success', summary: 'Archived', detail: 'Document archived.', life: 2500 })
+    toast.add({ severity: 'success', summary: t('common.archived'), detail: t('docsPhotos.documentArchived'), life: 2500 })
     await loadDocuments()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
@@ -728,12 +728,12 @@ async function deleteDocument(doc: DocumentResponse) {
   if (!doc?.id) {
     return
   }
-  if (!(await confirmDanger({ header: 'Delete document', message: `Delete "${doc.filename}"?`, acceptLabel: 'Delete' }))) {
+  if (!(await confirmDanger({ header: t('docsPhotos.deleteDocument'), message: t('docsPhotos.deleteDocumentMessage', { filename: doc.filename }), acceptLabel: t('prompts.deleteAccept') }))) {
     return
   }
   try {
     await del<MessageResponse>(apiPaths.docs.detail(doc.id))
-    toast.add({ severity: 'success', summary: 'Deleted', detail: 'Document deleted.', life: 2500 })
+    toast.add({ severity: 'success', summary: t('common.deleted'), detail: t('docsPhotos.documentDeleted'), life: 2500 })
     await loadDocuments()
     if (selectedRelatedItemId.value === `document:${doc.id}`) {
       selectedRelatedItemId.value = ''
@@ -753,20 +753,20 @@ async function rebuildDocumentIndex(doc: DocumentResponse) {
     const failed = response.failed ?? 0
     const rebuilt = response.rebuilt ?? 0
     const item = response.items?.[0]
-    const detail = response.message || (failed > 0 ? 'Document index rebuild failed.' : 'Document index rebuilt.')
+    const detail = response.message || (failed > 0 ? t('docsPhotos.rebuildDocumentFailed') : t('docsPhotos.rebuildDocumentDone'))
     toast.add({
       severity: failed > 0 ? 'warn' : 'success',
-      summary: failed > 0 ? 'Index rebuild needs attention' : 'Index rebuilt',
+      summary: failed > 0 ? t('docsPhotos.rebuildNeedsAttention') : t('docsPhotos.indexRebuilt'),
       detail:
         item?.error && failed > 0
           ? `${detail} ${item.error}`
-          : `${detail} Provider: ${response.provider.active_provider}. Rebuilt: ${rebuilt}, failed: ${failed}.`,
+          : t('docsPhotos.rebuildDetail', { detail, provider: response.provider.active_provider, rebuilt, failed }),
       life: 4000,
     })
     await loadDocuments()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Index rebuild failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('settings.indexRebuildFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -778,7 +778,7 @@ async function previewPhoto(photo: PhotoResponse) {
     await previewPhotoFile(photo)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Preview failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.previewFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -790,7 +790,7 @@ async function downloadPhoto(photo: PhotoResponse) {
     await downloadPhotoFile(photo)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Download failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.downloadFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -819,7 +819,7 @@ async function savePhotoEditor() {
       status: photoEditor.value.status || 'reviewed',
     }
     await patch<MessageResponse, PhotoUpdateRequest>(apiPaths.photos.detail(photoEditor.value.id), payload)
-    toast.add({ severity: 'success', summary: 'Saved', detail: 'Photo updated.', life: 2500 })
+    toast.add({ severity: 'success', summary: t('common.saved'), detail: t('docsPhotos.photoUpdated'), life: 2500 })
     photoEditorVisible.value = false
     await loadPhotos()
   } catch (error: unknown) {
@@ -834,12 +834,12 @@ async function deletePhoto(photo: PhotoResponse) {
   if (!photo?.id) {
     return
   }
-  if (!(await confirmDanger({ header: 'Delete photo', message: `Delete "${photo.filename}"?`, acceptLabel: 'Delete' }))) {
+  if (!(await confirmDanger({ header: t('docsPhotos.deletePhoto'), message: t('docsPhotos.deletePhotoMessage', { filename: photo.filename }), acceptLabel: t('prompts.deleteAccept') }))) {
     return
   }
   try {
     await del<MessageResponse>(apiPaths.photos.detail(photo.id))
-    toast.add({ severity: 'success', summary: 'Deleted', detail: 'Photo deleted.', life: 2500 })
+    toast.add({ severity: 'success', summary: t('common.deleted'), detail: t('docsPhotos.photoDeleted'), life: 2500 })
     await loadPhotos()
     if (selectedRelatedItemId.value === `photo:${photo.id}`) {
       selectedRelatedItemId.value = ''

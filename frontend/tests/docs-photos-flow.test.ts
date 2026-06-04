@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 import DocsPhotosPanel from '../src/components/DocsPhotosPanel.vue'
+import { setLocale } from '../src/i18n'
 import { PrimeStubs } from './stubs'
 
 const toastAdd = vi.fn()
@@ -33,6 +34,7 @@ vi.mock('../src/services/downloads', () => ({
 
 describe('DocsPhotosPanel flows', () => {
   it('updates document metadata via PATCH', async () => {
+    setLocale('en')
     toastAdd.mockReset()
     mocks.get.mockResolvedValueOnce([]).mockResolvedValueOnce([])
     mocks.patch.mockResolvedValueOnce({ message: 'ok' })
@@ -55,6 +57,7 @@ describe('DocsPhotosPanel flows', () => {
   })
 
   it('deletes photo via DELETE', async () => {
+    setLocale('en')
     toastAdd.mockReset()
     mocks.get.mockResolvedValueOnce([]).mockResolvedValueOnce([])
     mocks.del.mockResolvedValueOnce({ message: 'deleted' })
@@ -66,6 +69,7 @@ describe('DocsPhotosPanel flows', () => {
   })
 
   it('shows a warning toast when document index rebuild reports failures', async () => {
+    setLocale('en')
     toastAdd.mockReset()
     mocks.get.mockResolvedValue([])
     mocks.post.mockResolvedValueOnce({
@@ -96,6 +100,7 @@ describe('DocsPhotosPanel flows', () => {
   })
 
   it('shows a success toast when document index rebuild fully succeeds', async () => {
+    setLocale('en')
     toastAdd.mockReset()
     mocks.get.mockResolvedValue([])
     mocks.post.mockResolvedValueOnce({
@@ -125,6 +130,7 @@ describe('DocsPhotosPanel flows', () => {
   })
 
   it('shows degraded upload as a warning instead of an error', async () => {
+    setLocale('en')
     toastAdd.mockReset()
     mocks.get.mockResolvedValue([])
     mocks.post.mockResolvedValueOnce({

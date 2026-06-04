@@ -58,9 +58,65 @@ async function mockApi(page: Page) {
       })
       return
     }
+    if (path === '/api/index/status') {
+      await route.fulfill({
+        json: {
+          provider: {
+            configured_provider: 'demo_hash',
+            active_provider: 'demo-fallback',
+            status: 'degraded',
+            index_mode: 'demo_hash_embedding',
+            demo_mode: true,
+            semantic_search_ready: false,
+            message: 'Demo fallback active',
+            details: [],
+          },
+          summary: {
+            document: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+            knowledge: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+            logbook: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+            photo: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+            prompt: { total: 0, pending: 0, indexed: 0, failed: 0, unavailable: 0, excluded: 0 },
+          },
+          failed_items: [],
+        },
+      })
+      return
+    }
+    if (path === '/api/settings/llm') {
+      await route.fulfill({
+        json: {
+          primary_provider: 'ollama',
+          active_provider: 'none',
+          model: 'llama3.1',
+          base_url: 'http://localhost:11434',
+          primary_healthy: false,
+          fallback_enabled: true,
+          llm_ready_for_generation: false,
+          error_message: '',
+        },
+      })
+      return
+    }
+    if (path === '/api/settings/ocr') {
+      await route.fulfill({ json: { enabled: false, available: false, tesseract_cmd: '', tesseract_version: '', details: '' } })
+      return
+    }
+    if (path === '/api/meta/templates') {
+      await route.fulfill({ json: { templates: [] } })
+      return
+    }
 
     await route.fulfill({ status: 404, json: { detail: `Unhandled smoke route: ${path}` } })
   })
+}
+
+async function expectBodyDoesNotScroll(page: Page) {
+  const bodyScrolls = await page.evaluate(() => {
+    const root = document.scrollingElement
+    return root ? root.scrollHeight > root.clientHeight : false
+  })
+  expect(bodyScrolls).toBe(false)
 }
 
 test('login, navigate, refresh, switch locale, reload, and logout', async ({ page }) => {
@@ -74,21 +130,23 @@ test('login, navigate, refresh, switch locale, reload, and logout', async ({ pag
 
   await expect(page.getByRole('heading', { name: '個人 AI 知識工作區' })).toBeVisible()
   await expect(page.getByText('擁有者: Owner')).toBeVisible()
+  await expectBodyDoesNotScroll(page)
 
   await page.getByRole('button', { name: '文件與照片' }).click()
-  await expect(page.getByText('Documents')).toBeVisible()
+  await expect(page.getByText('文件', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: /Refresh|重新整理/ }).first().click()
+  await expectBodyDoesNotScroll(page)
 
   await page.getByLabel('語言').selectOption('en')
   await expect(page.getByRole('button', { name: 'Documents & Photos' })).toBeVisible()
-  await page.getByRole('button', { name: 'Auto Test' }).click()
-  await expect(page.getByText('Safe simulation mode is active').first()).toBeVisible()
 
-  const bodyScrolls = await page.evaluate(() => {
-    const root = document.scrollingElement
-    return root ? root.scrollHeight > root.clientHeight : false
-  })
-  expect(bodyScrolls).toBe(false)
+  for (const tab of ['Health', 'Activity', 'Search', 'Knowledge Base', 'Problem Logbook', 'Documents & Photos', 'Auto Test', 'Prompts', 'Settings']) {
+    await page.getByRole('button', { name: tab }).click()
+    if (tab === 'Auto Test') {
+      await expect(page.getByText('Safe simulation mode is active').first()).toBeVisible()
+    }
+    await expectBodyDoesNotScroll(page)
+  }
 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Personal AI Knowledge Workspace' })).toBeVisible()
