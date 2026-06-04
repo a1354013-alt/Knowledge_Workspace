@@ -1,6 +1,7 @@
 import { computed, reactive } from 'vue'
 import { get } from './api'
 import { apiPaths } from './api/endpoints'
+import { t } from './i18n'
 import type {
   AutoTestRunListItemResponse,
   DocumentResponse,
@@ -91,7 +92,7 @@ function nowMs() {
 
 function ensureArrayResponse<T>(value: unknown, label: string): T[] {
   if (!Array.isArray(value)) {
-    throw new Error(`${label} API returned an invalid payload. Expected an array.`)
+    throw new Error(t('common.invalidPayload', { label }))
   }
   return value as T[]
 }
@@ -111,8 +112,8 @@ function hasCachedData(value: readonly unknown[]) {
 }
 
 function buildLoadErrorMessage(label: string, err: unknown, hasPreviousData: boolean) {
-  const message = (err as { message?: string })?.message || 'Request failed.'
-  return hasPreviousData ? `${label} reload failed. Showing the last successful data. ${message}` : message
+  const message = (err as { message?: string })?.message || t('common.requestFailed')
+  return hasPreviousData ? t('common.reloadFailedWithCache', { label, message }) : message
 }
 
 let singleton: WorkspaceStore | null = null
@@ -151,42 +152,48 @@ export function useWorkspaceStore(): WorkspaceStore {
   }
 
   async function refreshDocuments(opts?: { force?: boolean }) {
-    await refreshOne('documents', 'Documents', async () => ensureArrayResponse<DocumentResponse>(await get(apiPaths.docs.list), 'Documents'), opts)
+    const label = t('workspace.documents')
+    await refreshOne('documents', label, async () => ensureArrayResponse<DocumentResponse>(await get(apiPaths.docs.list), label), opts)
   }
 
   async function refreshPhotos(opts?: { force?: boolean }) {
-    await refreshOne('photos', 'Photos', async () => ensureArrayResponse<PhotoResponse>(await get(apiPaths.photos.list), 'Photos'), opts)
+    const label = t('workspace.photos')
+    await refreshOne('photos', label, async () => ensureArrayResponse<PhotoResponse>(await get(apiPaths.photos.list), label), opts)
   }
 
   async function refreshKnowledgeEntries(opts?: { force?: boolean }) {
+    const label = t('workspace.knowledgeEntries')
     await refreshOne(
       'knowledgeEntries',
-      'Knowledge entries',
-      async () => ensureArrayResponse<KnowledgeEntryResponse>(await get(apiPaths.knowledge.list), 'Knowledge entries'),
+      label,
+      async () => ensureArrayResponse<KnowledgeEntryResponse>(await get(apiPaths.knowledge.list), label),
       opts
     )
   }
 
   async function refreshLogbookEntries(opts?: { force?: boolean }) {
+    const label = t('workspace.logbookEntries')
     await refreshOne(
       'logbookEntries',
-      'Logbook entries',
-      async () => ensureArrayResponse<LogbookEntryResponse>(await get(apiPaths.logbook.list), 'Logbook entries'),
+      label,
+      async () => ensureArrayResponse<LogbookEntryResponse>(await get(apiPaths.logbook.list), label),
       opts
     )
   }
 
   async function refreshAutotestRuns(opts?: { force?: boolean }) {
+    const label = t('workspace.autotestRuns')
     await refreshOne(
       'autotestRuns',
-      'AutoTest runs',
-      async () => ensureArrayResponse<AutoTestRunListItemResponse>(await get(apiPaths.autotest.listRuns), 'AutoTest runs'),
+      label,
+      async () => ensureArrayResponse<AutoTestRunListItemResponse>(await get(apiPaths.autotest.listRuns), label),
       opts
     )
   }
 
   async function refreshPrompts(opts?: { force?: boolean }) {
-    await refreshOne('prompts', 'Prompts', async () => ensureArrayResponse<SavedPromptResponse>(await get(apiPaths.prompts.list), 'Prompts'), opts)
+    const label = t('workspace.prompts')
+    await refreshOne('prompts', label, async () => ensureArrayResponse<SavedPromptResponse>(await get(apiPaths.prompts.list), label), opts)
   }
 
   async function refreshAll(opts?: { force?: boolean }) {

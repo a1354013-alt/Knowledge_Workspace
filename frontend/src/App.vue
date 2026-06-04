@@ -292,7 +292,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .app-shell {
-  height: 100dvh;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -309,6 +310,7 @@ onBeforeUnmount(() => {
   overflow: auto;
   display: grid;
   place-items: center;
+  padding-block: 8px;
 }
 
 .login-card {
@@ -318,6 +320,7 @@ onBeforeUnmount(() => {
 .workspace-shell {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -333,6 +336,7 @@ onBeforeUnmount(() => {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(12px);
+  min-width: 0;
 }
 
 .topbar h1,
@@ -340,9 +344,20 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
+.topbar h1 {
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  line-height: 1.2;
+}
+
+.topbar p {
+  overflow-wrap: anywhere;
+}
+
 .toolbar-actions {
+  flex: 0 0 auto;
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 
 .main-grid {
@@ -363,9 +378,11 @@ onBeforeUnmount(() => {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(12px);
+  min-width: 0;
 }
 
 .tab-chip {
+  min-height: 42px;
   border: 1px solid rgba(38, 63, 103, 0.12);
   background: rgba(255, 255, 255, 0.92);
   color: #1f2f46;
@@ -374,6 +391,8 @@ onBeforeUnmount(() => {
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  white-space: normal;
+  overflow-wrap: anywhere;
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
@@ -451,6 +470,7 @@ onBeforeUnmount(() => {
   .toolbar-actions {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
   }
 }
 

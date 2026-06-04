@@ -23,7 +23,7 @@ describe('workspace-store', () => {
     await store.refreshKnowledgeEntries({ force: true })
 
     expect(store.state.status.knowledgeEntries).toBe('error')
-    expect(store.state.error.knowledgeEntries).toContain('invalid payload')
+    expect(store.state.error.knowledgeEntries).toContain('回傳格式無效')
     expect(store.state.lists.knowledgeEntries).toEqual([])
   })
 
@@ -54,7 +54,7 @@ describe('workspace-store', () => {
     await store.refreshDocuments({ force: true })
 
     expect(store.state.status.documents).toBe('error')
-    expect(store.state.error.documents).toContain('Showing the last successful data')
+    expect(store.state.error.documents).toContain('正在顯示上次成功載入的資料')
     expect(store.state.lists.documents).toHaveLength(1)
     expect(store.state.lists.documents[0]?.id).toBe('doc-1')
   })

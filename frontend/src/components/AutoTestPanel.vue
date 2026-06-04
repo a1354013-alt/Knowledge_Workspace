@@ -496,7 +496,7 @@ async function promoteProblem() {
     await loadRuns()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Promote failed', detail: apiError?.message || 'Request failed.', life: 5000 })
+    toast.add({ severity: 'error', summary: t('common.promoteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 5000 })
   }
 }
 

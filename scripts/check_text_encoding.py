@@ -5,6 +5,7 @@ from pathlib import Path
 
 TEXT_SUFFIXES = {
     ".md",
+    ".txt",
     ".py",
     ".ts",
     ".tsx",

@@ -3,6 +3,7 @@ import { useToast } from 'primevue/usetoast'
 
 import { patch, post } from '../../api'
 import { apiPaths } from '../../api/endpoints'
+import { t } from '../../i18n'
 import { confirmDanger } from '../../services/confirm'
 import { useWorkspaceStore } from '../../workspace-store'
 import type {
@@ -185,7 +186,7 @@ export function useKnowledgeEntries() {
       await loadRecent()
     } catch (error: unknown) {
       const apiError = error as { message?: string }
-      toast.add({ severity: 'error', summary: 'Save failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+      toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
     } finally {
       saving.value = false
     }
@@ -201,8 +202,8 @@ export function useKnowledgeEntries() {
       const apiError = error as { message?: string }
       toast.add({
         severity: recent.value.length ? 'warn' : 'error',
-        summary: 'Load failed',
-        detail: apiError?.message || store.state.error.knowledgeEntries || 'Request failed.',
+        summary: t('workspace.knowledgeReloadFailed'),
+        detail: apiError?.message || store.state.error.knowledgeEntries || t('common.requestFailed'),
         life: 3500,
       })
     } finally {
@@ -290,7 +291,7 @@ export function useKnowledgeEntries() {
       selectedRelatedItemId.value = `knowledge:${editor.value.id}`
     } catch (error: unknown) {
       const apiError = error as { message?: string }
-      toast.add({ severity: 'error', summary: 'Save failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+      toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
     } finally {
       editorSaving.value = false
     }
@@ -318,7 +319,7 @@ export function useKnowledgeEntries() {
       }
     } catch (error: unknown) {
       const apiError = error as { message?: string }
-      toast.add({ severity: 'error', summary: 'Archive failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+      toast.add({ severity: 'error', summary: t('common.archiveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
     }
   }
 

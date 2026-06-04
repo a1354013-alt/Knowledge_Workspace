@@ -331,6 +331,8 @@ The verification scripts reuse the existing CI-equivalent Python gate (`scripts/
 
 Python 3.11.x is the supported backend test runtime. Python 3.12/3.13 are not officially supported until dependency constraints are updated. Run `python scripts/check_python_version.py` before backend checks; see [docs/LOCAL_BACKEND_VERIFY.md](docs/LOCAL_BACKEND_VERIFY.md) and `docs/LOCAL_TESTING.md` for the reproducible local flow. CI additionally uses `python scripts/run_backend_tests.py` so backend pytest must both pass and return to the shell.
 
+If dependency installation fails with a `TOMLDecodeError` at line 1 column 1, run `python scripts/check_text_encoding.py` first. The encoding gate checks repository text files, including `.txt`, `requirements.txt`, TOML, Vue, TypeScript, JSON, YAML, and env templates, and fails on UTF-8 BOM or invalid UTF-8 before pip/npm setup can hide the source file problem.
+
 Single-command backend + frontend + release + smoke verification:
 
 ```powershell
@@ -352,6 +354,8 @@ npm run lint
 npm run typecheck
 npm run test:run
 npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
 
 Use `npm ci` for local verification and CI; `frontend/package-lock.json` is the dependency source of truth. Core frontend tooling versions are pinned in `frontend/package.json` to reduce lockfile regeneration drift.
@@ -362,27 +366,30 @@ Use Node `20.19.0` from `.nvmrc` for frontend lint/test/build to match CI.
 
 CI lives in [.github/workflows/ci.yml](.github/workflows/ci.yml) and currently runs:
 
-1. backend dependency install on Python `3.11`
-2. `python scripts/check_python_version.py`
-3. `python scripts/check_text_encoding.py`
-4. `python scripts/audit_python.py`
-5. `python scripts/safe_compile.py -q .`
-6. `python -m ruff check backend scripts`
-7. `python scripts/run_backend_tests.py`
-8. `python scripts/export_openapi.py --check`
-9. `python scripts/generate_api_types.py --check`
-10. Git checkouts also run `git diff --exit-code -- docs/openapi.json frontend/src/api/generated/api-types.ts`; source zip environments skip this Git-only check
-11. `python scripts/check_version_consistency.py`
-12. `python scripts/check_index_consistency.py`
-13. frontend `npm ci`
-14. frontend `npm audit --omit=dev --audit-level=high`
-15. frontend `npm run lint`
-16. frontend `npm run typecheck`
-17. frontend `npm run test:run`
-18. frontend `npm run build`
-19. `python scripts/package_release.py`
-20. `python scripts/verify_release.py dist/knowledge-workspace-*.zip`
-21. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
+1. repo hygiene
+2. `python scripts/check_text_encoding.py`
+3. backend dependency install on Python `3.11`
+4. `python scripts/check_python_version.py`
+5. `python scripts/audit_python.py`
+6. `python scripts/safe_compile.py -q .`
+7. `python -m ruff check backend scripts`
+8. `python scripts/run_backend_tests.py`
+9. `python scripts/export_openapi.py`
+10. `python scripts/generate_api_types.py --check`
+11. Git checkouts run `git diff --exit-code docs/openapi.json frontend/src/api/generated/api-types.ts`; source zip environments skip this Git-only check
+12. `python scripts/check_version_consistency.py`
+13. `python scripts/check_index_consistency.py`
+14. frontend `npm ci`
+15. frontend `npm audit --omit=dev --audit-level=high`
+16. frontend `npm run lint`
+17. frontend `npm run typecheck`
+18. frontend `npm run test:run`
+19. frontend `npm run build`
+20. `npx playwright install --with-deps chromium`
+21. frontend `npm run test:e2e:ci`
+22. `python scripts/package_release.py`
+23. `python scripts/verify_release.py knowledge_workspace_release.zip`
+24. backend startup plus `python scripts/smoke_check.py --password "OwnerPass123!"`
 
 `python scripts/verify_all.py` is the repo-root local equivalent for the full CI gate, including frontend, `python scripts/check_index_consistency.py`, release zip verification, and smoke.
 
@@ -558,4 +565,3 @@ See [docs/PORTFOLIO_CASE_STUDY.md](docs/PORTFOLIO_CASE_STUDY.md) for:
 - major bug fixes
 - dashboard contract design
 - interview demo script
-

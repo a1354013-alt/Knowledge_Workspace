@@ -410,6 +410,7 @@ import { del, get, patch, post } from '../api'
 import { apiPaths } from '../api/endpoints'
 import { confirmDanger } from '../services/confirm'
 import { downloadDocumentFile, downloadPhotoFile, previewDocumentFile, previewPhotoFile } from '../services/downloads'
+import { t } from '../i18n'
 import { useWorkspaceStore } from '../workspace-store'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import type {
@@ -526,8 +527,8 @@ async function loadDocuments() {
     const apiError = error as { message?: string }
     toast.add({
       severity: documents.value.length ? 'warn' : 'error',
-      summary: 'Documents reload failed',
-      detail: apiError?.message || store.state.error.documents || 'Request failed.',
+      summary: t('workspace.documentsReloadFailed'),
+      detail: apiError?.message || store.state.error.documents || t('common.requestFailed'),
       life: 4000,
     })
   } finally {
@@ -566,7 +567,7 @@ async function uploadDoc() {
     await loadDocuments()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Upload failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.uploadFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   } finally {
     uploadingDoc.value = false
   }
@@ -582,8 +583,8 @@ async function loadPhotos() {
     const apiError = error as { message?: string }
     toast.add({
       severity: photos.value.length ? 'warn' : 'error',
-      summary: 'Photos reload failed',
-      detail: apiError?.message || store.state.error.photos || 'Request failed.',
+      summary: t('workspace.photosReloadFailed'),
+      detail: apiError?.message || store.state.error.photos || t('common.requestFailed'),
       life: 4000,
     })
   } finally {
@@ -622,7 +623,7 @@ async function uploadPhoto() {
     await loadPhotos()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Upload failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.uploadFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   } finally {
     uploadingPhoto.value = false
   }
@@ -700,7 +701,7 @@ async function saveDocEditor() {
     await loadDocuments()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Save failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   } finally {
     docEditorSaving.value = false
   }
@@ -719,7 +720,7 @@ async function archiveDocument(doc: DocumentResponse) {
     await loadDocuments()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Archive failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.archiveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -739,7 +740,7 @@ async function deleteDocument(doc: DocumentResponse) {
     }
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Delete failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.deleteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -823,7 +824,7 @@ async function savePhotoEditor() {
     await loadPhotos()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Save failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   } finally {
     photoEditorSaving.value = false
   }
@@ -845,7 +846,7 @@ async function deletePhoto(photo: PhotoResponse) {
     }
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Delete failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.deleteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 </script>

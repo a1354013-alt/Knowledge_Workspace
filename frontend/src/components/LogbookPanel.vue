@@ -276,6 +276,7 @@ import Textarea from 'primevue/textarea'
 
 import { del, patch, post } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { t } from '../i18n'
 import { confirmDanger } from '../services/confirm'
 import { useWorkspaceStore } from '../workspace-store'
 import type {
@@ -365,8 +366,8 @@ async function loadEntries() {
     const apiError = error as { message?: string }
     toast.add({
       severity: entries.value.length ? 'warn' : 'error',
-      summary: 'Load failed',
-      detail: apiError?.message || store.state.error.logbookEntries || 'Request failed.',
+      summary: t('workspace.logbookReloadFailed'),
+      detail: apiError?.message || store.state.error.logbookEntries || t('common.requestFailed'),
       life: 3500,
     })
   } finally {
@@ -399,7 +400,7 @@ async function saveEntry() {
     await loadEntries()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Save failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   } finally {
     saving.value = false
   }
@@ -415,7 +416,7 @@ async function deleteEntry(item: LogbookEntryResponse) {
     toast.add({ severity: 'success', summary: 'Deleted', detail: 'Entry removed.', life: 3000 })
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Delete failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.deleteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -438,7 +439,7 @@ async function promoteEntry(item: LogbookEntryResponse) {
     toast.add({ severity: 'success', summary: 'Promoted', detail: `Knowledge entry: ${response.knowledge_entry_id}`, life: 4500 })
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Promote failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.promoteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -552,7 +553,7 @@ async function saveEditor() {
     selectedRelatedItemId.value = `logbook:${editor.value.id}`
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Save failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   } finally {
     editorSaving.value = false
   }

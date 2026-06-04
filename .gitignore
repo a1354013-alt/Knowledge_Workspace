@@ -51,6 +51,8 @@ dist/
 frontend/dist/
 frontend/.vite/
 frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
 
 # Backend runtime data
 .chroma/
