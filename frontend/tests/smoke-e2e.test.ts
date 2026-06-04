@@ -5,6 +5,7 @@ import App from '../src/App.vue'
 import GlobalSearchPanel from '../src/components/GlobalSearchPanel.vue'
 import SettingsPanel from '../src/components/SettingsPanel.vue'
 import { apiPaths } from '../src/api/endpoints'
+import { setLocale } from '../src/i18n'
 import { PrimeStubs } from './stubs'
 
 const toastAdd = vi.fn()
@@ -49,6 +50,7 @@ async function flushUi() {
 describe('frontend smoke flows', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    setLocale('zh-TW')
     authState.token = ''
   })
 
@@ -67,7 +69,7 @@ describe('frontend smoke flows', () => {
     })
 
     const wrapper = mount(App, { global: { stubs: PrimeStubs } })
-    expect(wrapper.text()).toContain('Personal AI Knowledge Workspace for Engineers')
+    expect(wrapper.text()).toContain('工程師的個人 AI 知識工作區')
 
     const vm = wrapper.vm as unknown as { loginForm: { user_id: string; password: string }; login: () => Promise<void> }
     vm.loginForm.user_id = 'owner'

@@ -1,123 +1,142 @@
 <template>
-  <div class="grid">
-    <Card>
-      <template #title>
-        Saved prompts
-      </template>
-      <template #subtitle>
-        Reusable prompts for recurring engineering workflows (debugging, reviews, postmortems).
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <p
-            v-if="loadMessage"
-            class="inline-status"
-            :class="{ 'inline-status-warning': showReloadWarning }"
-          >
-            {{ loadMessage }}
-          </p>
-          <div class="row">
-            <Button
-              label="Refresh"
-              outlined
-              icon="pi pi-refresh"
+  <div class="page-content prompts-page">
+    <header class="page-header">
+      <h2>{{ t('prompts.pageTitle') }}</h2>
+      <p>{{ t('prompts.pageSubtitle') }}</p>
+    </header>
+
+    <div class="grid">
+      <Card>
+        <template #title>
+          {{ t('prompts.savedPrompts') }}
+        </template>
+        <template #subtitle>
+          {{ t('prompts.savedSubtitle') }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <p
+              v-if="loadMessage"
+              class="inline-status"
+              :class="{ 'inline-status-warning': showReloadWarning }"
+            >
+              {{ loadMessage }}
+            </p>
+            <div class="row">
+              <Button
+                :label="t('common.refresh')"
+                outlined
+                icon="pi pi-refresh"
+                :loading="loading"
+                @click="loadPrompts"
+              />
+            </div>
+            <InputText
+              v-model="filterText"
+              :placeholder="t('prompts.filterPlaceholder')"
+            />
+            <DataTable
+              :value="filteredPrompts"
               :loading="loading"
-              @click="loadPrompts"
-            />
-          </div>
-          <InputText
-            v-model="filterText"
-            placeholder="Filter by title/tags"
-          />
-          <DataTable
-            :value="filteredPrompts"
-            :loading="loading"
-            data-key="id"
-            size="small"
-            responsive-layout="scroll"
-          >
-            <Column
-              field="title"
-              header="Title"
-            />
-            <Column
-              field="tags"
-              header="Tags"
-            />
-            <Column
-              field="updated_at"
-              header="Updated"
-            />
-            <Column header="Actions">
-              <template #body="slotProps">
-                <div class="actions-inline">
-                  <Button
-                    icon="pi pi-copy"
-                    text
-                    @click="copyPrompt(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-sitemap"
-                    text
-                    severity="secondary"
-                    @click="selectForRelated(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-trash"
-                    text
-                    severity="danger"
-                    @click="deletePrompt(slotProps.data)"
-                  />
+              data-key="id"
+              size="small"
+              responsive-layout="scroll"
+            >
+              <Column
+                field="title"
+                :header="t('common.title')"
+              />
+              <Column
+                field="tags"
+                :header="t('common.tags')"
+              />
+              <Column
+                field="updated_at"
+                :header="t('common.updated')"
+              />
+              <Column :header="t('common.actions')">
+                <template #body="slotProps">
+                  <div class="actions-inline">
+                    <Button
+                      icon="pi pi-copy"
+                      text
+                      @click="copyPrompt(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-sitemap"
+                      text
+                      severity="secondary"
+                      @click="selectForRelated(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-trash"
+                      text
+                      severity="danger"
+                      @click="deletePrompt(slotProps.data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+              <template #empty>
+                <div class="empty-state">
+                  <strong>{{ t('prompts.emptyTitle') }}</strong>
+                  <p>{{ t('prompts.emptyIntro') }}</p>
+                  <ul>
+                    <li>{{ t('prompts.emptyCodeReview') }}</li>
+                    <li>{{ t('prompts.emptyLogAnalysis') }}</li>
+                    <li>{{ t('prompts.emptyPrDescription') }}</li>
+                    <li>{{ t('prompts.emptyTestDebug') }}</li>
+                  </ul>
                 </div>
               </template>
-            </Column>
-          </DataTable>
+            </DataTable>
 
-          <RelatedItemsPanel
-            v-if="selectedRelatedItemId"
-            :item-id="selectedRelatedItemId"
-          />
-        </div>
-      </template>
-    </Card>
-
-    <Card>
-      <template #title>
-        Create prompt
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <InputText
-            v-model="form.title"
-            placeholder="Title"
-          />
-          <Textarea
-            v-model="form.content"
-            rows="10"
-            placeholder="Prompt content"
-          />
-          <InputText
-            v-model="form.tags"
-            placeholder="Tags (comma separated)"
-          />
-          <div class="row">
-            <Button
-              label="Save"
-              icon="pi pi-save"
-              :loading="saving"
-              @click="savePrompt"
-            />
-            <Button
-              label="Reset"
-              outlined
-              severity="secondary"
-              :disabled="saving"
-              @click="resetForm"
+            <RelatedItemsPanel
+              v-if="selectedRelatedItemId"
+              :item-id="selectedRelatedItemId"
             />
           </div>
-        </div>
-      </template>
-    </Card>
+        </template>
+      </Card>
+
+      <Card>
+        <template #title>
+          {{ t('prompts.createPrompt') }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <InputText
+              v-model="form.title"
+              :placeholder="t('common.title')"
+            />
+            <Textarea
+              v-model="form.content"
+              rows="10"
+              :placeholder="t('prompts.content')"
+            />
+            <InputText
+              v-model="form.tags"
+              :placeholder="t('prompts.tagsPlaceholder')"
+            />
+            <div class="row">
+              <Button
+                :label="t('common.save')"
+                icon="pi pi-save"
+                :loading="saving"
+                @click="savePrompt"
+              />
+              <Button
+                :label="t('common.reset')"
+                outlined
+                severity="secondary"
+                :disabled="saving"
+                @click="resetForm"
+              />
+            </div>
+          </div>
+        </template>
+      </Card>
+    </div>
   </div>
 </template>
 
@@ -133,6 +152,7 @@ import Textarea from 'primevue/textarea'
 
 import { del, post } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { t } from '../i18n'
 import { confirmDanger } from '../services/confirm'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import { useWorkspaceStore } from '../workspace-store'
@@ -180,8 +200,8 @@ async function loadPrompts() {
     const apiError = error as { message?: string }
     toast.add({
       severity: prompts.value.length ? 'warn' : 'error',
-      summary: 'Prompts reload failed',
-      detail: apiError?.message || store.state.error.prompts || 'Request failed.',
+      summary: t('prompts.reloadFailed'),
+      detail: apiError?.message || store.state.error.prompts || t('common.requestFailed'),
       life: 4000,
     })
   } finally {
@@ -196,7 +216,7 @@ async function savePrompt() {
     tags: String(form.value.tags || '').trim(),
   }
   if (!payload.title || !payload.content) {
-    toast.add({ severity: 'warn', summary: 'Missing fields', detail: 'Title and content are required.', life: 3500 })
+    toast.add({ severity: 'warn', summary: t('auth.missingFields'), detail: t('prompts.missingDetail'), life: 3500 })
     return
   }
 
@@ -205,14 +225,14 @@ async function savePrompt() {
     const response = await post<SavedPromptResponse, SavedPromptCreateRequest>(apiPaths.prompts.list, payload)
     const indexingUnavailable = response.index_status === 'unavailable'
     const detail = response.index_status === 'failed' || indexingUnavailable
-      ? response.index_error || (indexingUnavailable ? 'Prompt saved, but the vector index is unavailable.' : 'Prompt saved, but indexing failed.')
-      : 'Prompt saved.'
-    toast.add({ severity: response.index_status === 'failed' || indexingUnavailable ? 'warn' : 'success', summary: 'Saved', detail, life: 3500 })
+      ? response.index_error || (indexingUnavailable ? t('prompts.savedIndexUnavailable') : t('prompts.savedIndexFailed'))
+      : t('prompts.savedDetail')
+    toast.add({ severity: response.index_status === 'failed' || indexingUnavailable ? 'warn' : 'success', summary: t('common.saved'), detail, life: 3500 })
     resetForm()
     await loadPrompts()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Save failed', detail: apiError?.message || 'Request failed.', life: 4500 })
+    toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4500 })
   } finally {
     saving.value = false
   }
@@ -222,16 +242,16 @@ async function deletePrompt(item: SavedPromptResponse) {
   if (!item?.id) {
     return
   }
-  if (!(await confirmDanger({ header: 'Delete prompt', message: `Delete "${item.title}"?`, acceptLabel: 'Delete' }))) {
+  if (!(await confirmDanger({ header: t('prompts.deletePrompt'), message: t('prompts.deleteMessage', { title: item.title }), acceptLabel: t('prompts.deleteAccept') }))) {
     return
   }
   try {
     await del<MessageResponse>(apiPaths.prompts.detail(item.id))
     await loadPrompts()
-    toast.add({ severity: 'success', summary: 'Deleted', detail: 'Prompt removed.', life: 3000 })
+    toast.add({ severity: 'success', summary: t('prompts.deleted'), detail: t('prompts.deletedDetail'), life: 3000 })
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Delete failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('prompts.deleteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -242,9 +262,9 @@ async function copyPrompt(item: SavedPromptResponse) {
   }
   try {
     await navigator.clipboard.writeText(text)
-    toast.add({ severity: 'success', summary: 'Copied', detail: 'Prompt copied to clipboard.', life: 2000 })
+    toast.add({ severity: 'success', summary: t('prompts.copied'), detail: t('prompts.copiedDetail'), life: 2000 })
   } catch {
-    toast.add({ severity: 'warn', summary: 'Copy failed', detail: 'Clipboard permission denied.', life: 2500 })
+    toast.add({ severity: 'warn', summary: t('prompts.copyFailed'), detail: t('prompts.clipboardDenied'), life: 2500 })
   }
 }
 
@@ -259,6 +279,35 @@ onMounted(loadPrompts)
 </script>
 
 <style scoped>
+.page-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.prompts-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page-header {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.page-header h2,
+.page-header p {
+  margin: 0;
+}
+
+.page-header p {
+  margin-top: 6px;
+  color: #51606f;
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1.25fr 0.75fr;
@@ -291,6 +340,28 @@ onMounted(loadPrompts)
 
 .inline-status-warning {
   font-weight: 600;
+}
+
+.empty-state {
+  padding: 18px;
+  color: #51606f;
+  line-height: 1.6;
+}
+
+.empty-state strong {
+  display: block;
+  color: #1f2f46;
+  margin-bottom: 4px;
+}
+
+.empty-state p,
+.empty-state ul {
+  margin: 0;
+}
+
+.empty-state ul {
+  padding-left: 20px;
+  margin-top: 6px;
 }
 
 @media (max-width: 1080px) {
