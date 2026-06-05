@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 import LogbookPanel from '../src/components/LogbookPanel.vue'
+import { setLocale } from '../src/i18n'
 import { PrimeStubs } from './stubs'
 
 vi.mock('primevue/usetoast', () => ({
@@ -62,5 +63,20 @@ describe('LogbookPanel flows', () => {
     await vm.promoteEntry({ id: 'l1', title: 'T' })
 
     expect(mocks.post).toHaveBeenCalledWith('/api/logbook/entries/l1/promote-to-knowledge')
+  })
+
+  it('updates option labels when locale changes', async () => {
+    setLocale('en')
+    const wrapper = mount(LogbookPanel, { global: { stubs: PrimeStubs } })
+    const vm = wrapper.vm as any
+
+    expect(vm.statusOptions[0].label).toBe('Draft')
+
+    setLocale('zh-TW')
+    await wrapper.vm.$nextTick()
+
+    expect(vm.statusOptions[0].label).not.toBe('Draft')
+    expect(vm.statusOptions[0].label).not.toBe('common.draft')
+    setLocale('en')
   })
 })

@@ -1,7 +1,7 @@
 <template>
   <Card>
     <template #title>
-      Recent notes
+      {{ t('knowledge.recentNotes') }}
     </template>
     <template #content>
       <div class="stack-md">
@@ -13,7 +13,7 @@
           {{ loadMessage }}
         </p>
         <Button
-          label="Refresh"
+          :label="t('common.refresh')"
           outlined
           icon="pi pi-refresh"
           :loading="loadingRecent"
@@ -21,7 +21,7 @@
         />
         <InputText
           :model-value="filterText"
-          placeholder="Filter recent (title/tags/status)"
+          :placeholder="t('knowledge.filterRecent')"
           @update:model-value="emitFilterText"
         />
         <DataTable
@@ -33,29 +33,29 @@
         >
           <Column
             field="title"
-            header="Title"
+            :header="t('common.title')"
           />
           <Column
             field="tags"
-            header="Tags"
+            :header="t('common.tags')"
           />
           <Column
             field="source_type"
-            header="Source"
+            :header="t('common.source')"
           />
           <Column
             field="source_ref"
-            header="Source ref"
+            :header="t('common.sourceRef')"
           />
           <Column
             field="status"
-            header="Status"
+            :header="t('common.status')"
           />
           <Column
             field="updated_at"
-            header="Updated"
+            :header="t('common.updated')"
           />
-          <Column header="Actions">
+          <Column :header="t('common.actions')">
             <template #body="slotProps">
               <div class="actions-inline">
                 <Button
@@ -97,6 +97,7 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 
+import { t } from '../../i18n'
 import type { KnowledgeEntryResponse } from '../../types'
 import RelatedItemsPanel from '../RelatedItemsPanel.vue'
 

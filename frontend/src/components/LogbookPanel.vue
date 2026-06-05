@@ -8,91 +8,18 @@
         {{ t('logbook.pageSubtitle') }}
       </template>
       <template #content>
-        <div class="stack-md">
-          <p
-            v-if="loadMessage"
-            class="inline-status"
-            :class="{ 'inline-status-warning': showReloadWarning }"
-          >
-            {{ loadMessage }}
-          </p>
-          <div class="row">
-            <Button
-              :label="t('common.refresh')"
-              outlined
-              icon="pi pi-refresh"
-              :loading="loading"
-              @click="loadEntries"
-            />
-          </div>
-          <DataTable
-            :value="entries"
-            :loading="loading"
-            data-key="id"
-            size="small"
-            responsive-layout="scroll"
-          >
-            <Column
-              field="title"
-              :header="t('common.title')"
-            />
-            <Column
-              field="tags"
-              :header="t('common.tags')"
-            />
-            <Column
-              field="source_type"
-              :header="t('common.source')"
-            />
-            <Column
-              field="source_ref"
-              :header="t('common.sourceRef')"
-            />
-            <Column
-              field="status"
-              :header="t('common.status')"
-            />
-            <Column
-              field="updated_at"
-              :header="t('common.updated')"
-            />
-            <Column :header="t('common.actions')">
-              <template #body="slotProps">
-                <div class="actions-inline">
-                  <Button
-                    icon="pi pi-pencil"
-                    text
-                    severity="secondary"
-                    @click="openEditor(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-sitemap"
-                    text
-                    severity="secondary"
-                    @click="selectForRelated(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-check"
-                    text
-                    severity="success"
-                    @click="promoteEntry(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-trash"
-                    text
-                    severity="danger"
-                    @click="deleteEntry(slotProps.data)"
-                  />
-                </div>
-              </template>
-            </Column>
-          </DataTable>
-
-          <RelatedItemsPanel
-            v-if="selectedRelatedItemId"
-            :item-id="selectedRelatedItemId"
-          />
-        </div>
+        <LogbookEntryList
+          :entries="entries"
+          :load-message="loadMessage"
+          :loading="loading"
+          :selected-related-item-id="selectedRelatedItemId"
+          :show-reload-warning="showReloadWarning"
+          @refresh="loadEntries"
+          @edit="openEditor"
+          @select-related="selectForRelated"
+          @promote="promoteEntry"
+          @delete="deleteEntry"
+        />
       </template>
     </Card>
 
@@ -168,395 +95,72 @@
     </Card>
   </div>
 
-  <Dialog
-    v-model:visible="editorVisible"
-    modal
-    :header="t('logbook.editEntry')"
-    :style="{ width: 'min(920px, 95vw)' }"
-  >
-    <div class="stack-md">
-      <InputText
-        v-model="editor.title"
-        :placeholder="t('common.title')"
-      />
-      <Textarea
-        v-model="editor.problem"
-        rows="3"
-        :placeholder="t('common.problem')"
-      />
-      <Textarea
-        v-model="editor.root_cause"
-        rows="3"
-        :placeholder="t('common.rootCause')"
-      />
-      <Textarea
-        v-model="editor.solution"
-        rows="4"
-        :placeholder="t('common.solution')"
-      />
-      <InputText
-        v-model="editor.tags"
-        :placeholder="t('common.tags')"
-      />
-      <div class="row">
-        <Dropdown
-          v-model="editor.status"
-          :options="statusOptions"
-          option-label="label"
-          option-value="value"
-          :placeholder="t('common.status')"
-        />
-        <Dropdown
-          v-model="editor.source_type"
-          :options="sourceTypes"
-          option-label="label"
-          option-value="value"
-          :placeholder="t('common.sourceType')"
-        />
-      </div>
-      <InputText
-        v-model="editor.source_ref"
-        :placeholder="t('logbook.sourceRefOptional')"
-      />
-      <Chips
-        v-model="editor.related_item_ids"
-        separator=","
-        :placeholder="t('logbook.relatedItemIds')"
-      />
-
-      <div class="row">
-        <Dropdown
-          v-model="pickerSelected"
-          :options="pickerOptions"
-          option-label="label"
-          option-value="value"
-          :placeholder="t('logbook.addRelatedItem')"
-          class="picker"
-        />
-        <Button
-          :label="t('common.add')"
-          icon="pi pi-plus"
-          outlined
-          :disabled="!pickerSelected"
-          @click="addPickedRelated"
-        />
-      </div>
-
-      <div class="row">
-        <Button
-          :label="t('common.saveChanges')"
-          icon="pi pi-save"
-          :loading="editorSaving"
-          @click="saveEditor"
-        />
-        <Button
-          :label="t('common.close')"
-          outlined
-          severity="secondary"
-          :disabled="editorSaving"
-          @click="editorVisible = false"
-        />
-      </div>
-    </div>
-  </Dialog>
+  <LogbookEntryEditorDialog
+    :visible="editorVisible"
+    :editor="editor"
+    :editor-saving="editorSaving"
+    :picker-options="pickerOptions"
+    :picker-selected="pickerSelected"
+    :source-types="sourceTypes"
+    :status-options="statusOptions"
+    @update:editor="updateEditor"
+    @update:picker-selected="updatePickerSelected"
+    @update:visible="updateEditorVisible"
+    @add-related="addPickedRelated"
+    @save="saveEditor"
+  />
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Chips from 'primevue/chips'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
-import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
-import { del, patch, post } from '../api'
-import { apiPaths } from '../api/endpoints'
 import { t } from '../i18n'
-import { confirmDanger } from '../services/confirm'
-import { useWorkspaceStore } from '../workspace-store'
-import type {
-  AutoTestRunListItemResponse,
-  DocumentResponse,
-  KnowledgeEntryResponse,
-  LogbookEntryCreateRequest,
-  LogbookEntryResponse,
-  LogbookEntryUpdateRequest,
-  MessageResponse,
-  PhotoResponse,
-  PromoteToKnowledgeResponse,
-  SavedPromptResponse,
-} from '../types'
-import RelatedItemsPanel from './RelatedItemsPanel.vue'
+import type { LogbookEntryCreateRequest } from '../types'
+import LogbookEntryEditorDialog from './logbook/LogbookEntryEditorDialog.vue'
+import LogbookEntryList from './logbook/LogbookEntryList.vue'
+import { useLogbookEntries } from './logbook/useLogbookEntries'
 
-const toast = useToast()
+const {
+  addPickedRelated,
+  deleteEntry,
+  editor,
+  editorSaving,
+  editorVisible,
+  entries,
+  form,
+  loadEntries,
+  loadMessage,
+  loading,
+  openEditor,
+  pickerOptions,
+  pickerSelected,
+  promoteEntry,
+  resetForm,
+  saveEditor,
+  saveEntry,
+  saving,
+  selectForRelated,
+  selectedRelatedItemId,
+  showReloadWarning,
+  sourceTypes,
+  statusOptions,
+} = useLogbookEntries()
 
-const loading = ref(false)
-const saving = ref(false)
-const entries = ref<LogbookEntryResponse[]>([])
-const store = useWorkspaceStore()
-
-const selectedRelatedItemId = ref('')
-
-const editorVisible = ref(false)
-const editorSaving = ref(false)
-type LogbookEditorModel = LogbookEntryCreateRequest & { id: string }
-const editor = ref<LogbookEditorModel>(createBlankEditor())
-
-const pickerSelected = ref('')
-const documents = ref<DocumentResponse[]>([])
-const photos = ref<PhotoResponse[]>([])
-const prompts = ref<SavedPromptResponse[]>([])
-const autotestRuns = ref<AutoTestRunListItemResponse[]>([])
-const knowledgeEntries = ref<KnowledgeEntryResponse[]>([])
-const logbookEntries = ref<LogbookEntryResponse[]>([])
-
-const pickerOptions = computedPickerOptions()
-
-const sourceTypes = [
-  { label: t('knowledge.sourceManual'), value: 'manual' },
-  { label: t('knowledge.sourceDocumentDerived'), value: 'document-derived' },
-  { label: t('knowledge.sourceAutotestDerived'), value: 'autotest-derived' },
-]
-
-const statusOptions = [
-  { label: t('common.draft'), value: 'draft' },
-  { label: t('common.reviewed'), value: 'reviewed' },
-  { label: t('common.verified'), value: 'verified' },
-  { label: t('common.archivedStatus'), value: 'archived' },
-]
-
-const form = ref<LogbookEntryCreateRequest>(createBlankForm())
-
-function createBlankForm(): LogbookEntryCreateRequest {
-  return {
-    title: '',
-    problem: '',
-    root_cause: '',
-    solution: '',
-    tags: '',
-    status: 'draft',
-    source_type: 'manual',
-    source_ref: '',
-    related_item_ids: [],
-  }
+function updateEditor(value: LogbookEntryCreateRequest & { id: string }) {
+  editor.value = value
 }
 
-function createBlankEditor(): LogbookEditorModel {
-  return { ...createBlankForm(), id: '' }
+function updatePickerSelected(value: string) {
+  pickerSelected.value = value
 }
 
-function resetForm() {
-  form.value = createBlankForm()
-}
-const loadMessage = computed(() => store.state.error.logbookEntries || '')
-const showReloadWarning = computed(() => store.state.status.logbookEntries === 'error' && entries.value.length > 0)
-
-async function loadEntries() {
-  loading.value = true
-  try {
-    await store.refreshLogbookEntries({ force: true })
-    entries.value = store.state.lists.logbookEntries || []
-  } catch (error: unknown) {
-    entries.value = store.state.lists.logbookEntries || []
-    const apiError = error as { message?: string }
-    toast.add({
-      severity: entries.value.length ? 'warn' : 'error',
-      summary: t('workspace.logbookReloadFailed'),
-      detail: apiError?.message || store.state.error.logbookEntries || t('common.requestFailed'),
-      life: 3500,
-    })
-  } finally {
-    loading.value = false
-  }
-}
-
-async function saveEntry() {
-  const payload: LogbookEntryCreateRequest = {
-    title: String(form.value.title || '').trim(),
-    problem: String(form.value.problem || '').trim(),
-    root_cause: String(form.value.root_cause || '').trim(),
-    solution: String(form.value.solution || '').trim(),
-    tags: String(form.value.tags || '').trim(),
-    source_type: form.value.source_type || 'manual',
-    status: form.value.status || 'draft',
-    source_ref: String(form.value.source_ref || '').trim(),
-    related_item_ids: Array.isArray(form.value.related_item_ids) ? form.value.related_item_ids : [],
-  }
-  if (!payload.title || !payload.problem || !payload.solution) {
-    toast.add({ severity: 'warn', summary: t('common.missingFields'), detail: t('logbook.requiredFields'), life: 3500 })
-    return
-  }
-
-  saving.value = true
-  try {
-    await post<MessageResponse, LogbookEntryCreateRequest>(apiPaths.logbook.list, payload)
-    toast.add({ severity: 'success', summary: t('common.saved'), detail: t('logbook.entryIndexed'), life: 3000 })
-    resetForm()
-    await loadEntries()
-  } catch (error: unknown) {
-    const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
-  } finally {
-    saving.value = false
-  }
-}
-
-async function deleteEntry(item: LogbookEntryResponse) {
-  if (!(await confirmDanger({ header: t('logbook.deleteEntry'), message: t('logbook.deleteEntryMessage', { title: item.title }), acceptLabel: t('prompts.deleteAccept') }))) {
-    return
-  }
-  try {
-    await del<MessageResponse>(apiPaths.logbook.detail(item.id))
-    await loadEntries()
-    toast.add({ severity: 'success', summary: t('common.deleted'), detail: t('logbook.entryRemoved'), life: 3000 })
-  } catch (error: unknown) {
-    const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: t('common.deleteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
-  }
-}
-
-async function promoteEntry(item: LogbookEntryResponse) {
-  if (!item?.id) {
-    return
-  }
-  if (
-    !(await confirmDanger({
-      header: t('logbook.promoteEntry'),
-      message: t('logbook.promoteEntryMessage', { title: item.title }),
-      acceptLabel: t('logbook.promote'),
-    }))
-  ) {
-    return
-  }
-  try {
-    const response = await post<PromoteToKnowledgeResponse>(apiPaths.logbook.promote(item.id))
-    await loadEntries()
-    toast.add({ severity: 'success', summary: t('logbook.promoted'), detail: t('logbook.promotedDetail', { id: response.knowledge_entry_id }), life: 4500 })
-  } catch (error: unknown) {
-    const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: t('common.promoteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
-  }
-}
-
-onMounted(loadEntries)
-
-function selectForRelated(item: LogbookEntryResponse) {
-  if (!item?.id) {
-    return
-  }
-  selectedRelatedItemId.value = `logbook:${item.id}`
-}
-
-function openEditor(item: LogbookEntryResponse) {
-  if (!item?.id) {
-    return
-  }
-  editor.value = {
-    id: item.id,
-    title: item.title || '',
-    problem: item.problem || '',
-    root_cause: item.root_cause || '',
-    solution: item.solution || '',
-    tags: item.tags || '',
-    status: item.status || 'draft',
-    source_type: item.source_type || 'manual',
-    source_ref: item.source_ref || '',
-    related_item_ids: Array.isArray(item.related_item_ids) ? [...item.related_item_ids] : [],
-  }
-  pickerSelected.value = ''
-  editorVisible.value = true
-  loadPickers()
-}
-
-async function loadPickers() {
-  try {
-    await store.refreshAll()
-    documents.value = store.state.lists.documents || []
-    photos.value = store.state.lists.photos || []
-    autotestRuns.value = store.state.lists.autotestRuns || []
-    prompts.value = store.state.lists.prompts || []
-    knowledgeEntries.value = store.state.lists.knowledgeEntries || []
-    logbookEntries.value = store.state.lists.logbookEntries || []
-  } catch {
-    // ignore
-  }
-}
-
-function computedPickerOptions() {
-  return computed(() => {
-    const docOptions = documents.value.map((doc) => ({
-      label: `${t('activity.document')}: ${doc.filename}`,
-      value: `document:${doc.id}`,
-    }))
-    const photoOptions = photos.value.map((photo) => ({
-      label: `${t('activity.photo')}: ${photo.filename}`,
-      value: `photo:${photo.id}`,
-    }))
-    const promptOptions = prompts.value.map((prompt) => ({
-      label: `${t('activity.prompt')}: ${prompt.title}`,
-      value: `prompt:${prompt.id}`,
-    }))
-    const runOptions = autotestRuns.value.map((run) => ({
-      label: `AutoTest: ${run.project_name || run.id}`,
-      value: `autotest_run:${run.id}`,
-    }))
-    const knowledgeOptions = knowledgeEntries.value.map((entry) => ({
-      label: `${t('activity.knowledge')}: ${entry.title || entry.id}`,
-      value: `knowledge:${entry.id}`,
-    }))
-    const logbookOptions = logbookEntries.value.map((entry) => ({
-      label: `${t('activity.logbook')}: ${entry.title || entry.id}`,
-      value: `logbook:${entry.id}`,
-    }))
-    return [...docOptions, ...photoOptions, ...runOptions, ...promptOptions, ...knowledgeOptions, ...logbookOptions]
-  })
-}
-
-function addPickedRelated() {
-  const value = String(pickerSelected.value || '').trim()
-  if (!value) {
-    return
-  }
-  const existing = new Set((editor.value.related_item_ids || []).map((v) => String(v)))
-  if (!existing.has(value)) {
-    editor.value.related_item_ids = [...(editor.value.related_item_ids || []), value]
-  }
-  pickerSelected.value = ''
-}
-
-async function saveEditor() {
-  if (!editor.value?.id) {
-    return
-  }
-  const payload: LogbookEntryUpdateRequest = {
-    title: String(editor.value.title || '').trim(),
-    problem: String(editor.value.problem || '').trim(),
-    root_cause: String(editor.value.root_cause || '').trim(),
-    solution: String(editor.value.solution || '').trim(),
-    tags: String(editor.value.tags || '').trim(),
-    status: editor.value.status || 'draft',
-    source_type: editor.value.source_type || 'manual',
-    source_ref: String(editor.value.source_ref || '').trim(),
-    related_item_ids: Array.isArray(editor.value.related_item_ids) ? editor.value.related_item_ids : [],
-  }
-  editorSaving.value = true
-  try {
-    await patch<MessageResponse, LogbookEntryUpdateRequest>(apiPaths.logbook.detail(editor.value.id), payload)
-    toast.add({ severity: 'success', summary: t('common.saved'), detail: t('logbook.entryUpdated'), life: 2500 })
-    editorVisible.value = false
-    await loadEntries()
-    selectedRelatedItemId.value = `logbook:${editor.value.id}`
-  } catch (error: unknown) {
-    const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
-  } finally {
-    editorSaving.value = false
-  }
+function updateEditorVisible(value: boolean) {
+  editorVisible.value = value
 }
 </script>
 
@@ -578,25 +182,6 @@ async function saveEditor() {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-}
-
-.actions-inline {
-  display: flex;
-  gap: 6px;
-}
-
-.inline-status {
-  margin: 0;
-  color: #b45309;
-  font-size: 13px;
-}
-
-.inline-status-warning {
-  font-weight: 600;
-}
-
-.picker {
-  min-width: min(520px, 100%);
 }
 
 @media (max-width: 1080px) {

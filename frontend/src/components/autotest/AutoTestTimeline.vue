@@ -2,9 +2,9 @@
   <div class="result-box">
     <div class="timeline-header">
       <div>
-        <h3>Run timeline</h3>
+        <h3>{{ t('autotest.timelineTitle') }}</h3>
         <p class="muted">
-          Uploaded to report generation, with a safe fallback for older runs that have sparse metadata.
+          {{ t('autotest.timelineSubtitle') }}
         </p>
       </div>
     </div>
@@ -55,7 +55,7 @@
       v-else
       class="timeline-empty"
     >
-      No timeline is available for this run yet.
+      {{ t('autotest.timelineEmpty') }}
     </div>
   </div>
 </template>
@@ -64,6 +64,7 @@
 import { computed } from 'vue'
 
 import type { AutoTestRunResponse, AutoTestTimelineItemResponse } from '../../types'
+import { t } from '../../i18n'
 import AutoTestStatusBadge from './AutoTestStatusBadge.vue'
 
 const props = defineProps<{
@@ -72,13 +73,13 @@ const props = defineProps<{
 
 const allowedTimelineStatuses = new Set(['pending', 'running', 'success', 'failed', 'skipped'])
 const fallbackTimelineKeys = [
-  ['uploaded', 'Uploaded'],
-  ['extracted', 'Extracted'],
-  ['detected_stack', 'Detected stack'],
-  ['prepared_environment', 'Installed dependencies / Prepared environment'],
-  ['ran_tests', 'Ran tests'],
-  ['generated_report', 'Generated report'],
-  ['failed_reason', 'Failed reason'],
+  ['uploaded', 'autotest.timelineUploaded'],
+  ['extracted', 'autotest.timelineExtracted'],
+  ['detected_stack', 'autotest.timelineDetectedStack'],
+  ['prepared_environment', 'autotest.timelinePreparedEnvironment'],
+  ['ran_tests', 'autotest.timelineRanTests'],
+  ['generated_report', 'autotest.timelineGeneratedReport'],
+  ['failed_reason', 'autotest.failedReason'],
 ] as const
 
 const timelineItems = computed<AutoTestTimelineItemResponse[]>(() => buildTimeline(props.run))
@@ -132,7 +133,9 @@ function buildTimeline(run: AutoTestRunResponse | null): AutoTestTimelineItemRes
   }
 
   const failedMessage = run.summary || run.suggestion || null
-  return fallbackTimelineKeys.map(([key, label]) => ({
+  return fallbackTimelineKeys.map(([key, labelKey]) => {
+    const label = t(labelKey)
+    return {
     key,
     label,
     name: label,
@@ -161,7 +164,8 @@ function buildTimeline(run: AutoTestRunResponse | null): AutoTestTimelineItemRes
           : key === 'generated_report' && run.summary
             ? run.summary
             : null,
-  }))
+    }
+  })
 }
 </script>
 

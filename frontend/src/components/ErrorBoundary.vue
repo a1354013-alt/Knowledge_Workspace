@@ -6,18 +6,18 @@
     <div class="error-content">
       <i class="pi pi-exclamation-triangle error-icon" />
       <h2 class="error-title">
-        Something went wrong
+        {{ t('errorBoundary.title') }}
       </h2>
       <p class="error-message">
         {{ errorMessage }}
       </p>
       <Button
-        label="Try Again"
+        :label="t('errorBoundary.tryAgain')"
         icon="pi pi-refresh"
         @click="retry"
       />
       <Button
-        label="Go Home"
+        :label="t('errorBoundary.goHome')"
         icon="pi pi-home"
         severity="secondary"
         @click="goHome"
@@ -30,6 +30,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import Button from 'primevue/button'
+
+import { t } from '../i18n'
 
 interface Props {
   retryCount?: number
@@ -47,7 +49,7 @@ const emit = defineEmits<{
 }>()
 
 const hasError = ref(false)
-const errorMessage = ref('An unexpected error occurred.')
+const errorMessage = ref(t('errorBoundary.unexpected'))
 
 // Listen for global error events
 function handleError(error: ErrorEvent | PromiseRejectionEvent) {
@@ -58,7 +60,7 @@ function handleError(error: ErrorEvent | PromiseRejectionEvent) {
   } else if ('reason' in error) {
     errorMessage.value = String(error.reason)
   } else {
-    errorMessage.value = 'An unexpected error occurred.'
+    errorMessage.value = t('errorBoundary.unexpected')
   }
   
   emit('error', new Error(errorMessage.value))
@@ -69,7 +71,7 @@ function retry() {
     hasError.value = false
     emit('retry')
   } else {
-    errorMessage.value = 'Max retries reached. Please refresh the page.'
+    errorMessage.value = t('errorBoundary.maxRetries')
   }
 }
 

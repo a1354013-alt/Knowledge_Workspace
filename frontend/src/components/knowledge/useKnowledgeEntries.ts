@@ -87,15 +87,15 @@ export function useKnowledgeEntries() {
 
   const pickerOptions = computed(() => {
     const docOptions = documents.value.map((doc) => ({
-      label: `Document: ${doc.filename}`,
+      label: `${t('activity.document')}: ${doc.filename}`,
       value: `document:${doc.id}`,
     }))
     const photoOptions = photos.value.map((photo) => ({
-      label: `Photo: ${photo.filename}`,
+      label: `${t('activity.photo')}: ${photo.filename}`,
       value: `photo:${photo.id}`,
     }))
     const promptOptions = prompts.value.map((prompt) => ({
-      label: `Prompt: ${prompt.title}`,
+      label: `${t('activity.prompt')}: ${prompt.title}`,
       value: `prompt:${prompt.id}`,
     }))
     const runOptions = autotestRuns.value.map((run) => ({
@@ -103,11 +103,11 @@ export function useKnowledgeEntries() {
       value: `autotest_run:${run.id}`,
     }))
     const knowledgeOptions = knowledgeEntries.value.map((knowledgeEntry) => ({
-      label: `Knowledge: ${knowledgeEntry.title || knowledgeEntry.id}`,
+      label: `${t('activity.knowledge')}: ${knowledgeEntry.title || knowledgeEntry.id}`,
       value: `knowledge:${knowledgeEntry.id}`,
     }))
     const logbookOptions = logbookEntries.value.map((logbookEntry) => ({
-      label: `Logbook: ${logbookEntry.title || logbookEntry.id}`,
+      label: `${t('activity.logbook')}: ${logbookEntry.title || logbookEntry.id}`,
       value: `logbook:${logbookEntry.id}`,
     }))
     return [...docOptions, ...photoOptions, ...runOptions, ...promptOptions, ...knowledgeOptions, ...logbookOptions]

@@ -1,28 +1,28 @@
 <template>
   <Card>
     <template #title>
-      Ask your knowledge
+      {{ t('knowledge.askTitle') }}
     </template>
     <template #subtitle>
-      Search across your documents, knowledge notes, logbook entries, and image metadata.
+      {{ t('knowledge.askSubtitle') }}
     </template>
     <template #content>
       <div class="stack-md">
         <Textarea
           :model-value="question"
           rows="5"
-          placeholder="e.g. Delphi CRLF build fail, nginx 502 after deploy, or a known workaround"
+          :placeholder="t('knowledge.askPlaceholder')"
           @update:model-value="$emit('update:question', $event)"
         />
         <div class="row">
           <Button
-            label="Ask"
+            :label="t('knowledge.ask')"
             icon="pi pi-send"
             :loading="asking"
             @click="$emit('submit')"
           />
           <Button
-            label="Clear"
+            :label="t('search.clear')"
             outlined
             severity="secondary"
             :disabled="asking"
@@ -34,7 +34,7 @@
           v-if="answer"
           class="result-box"
         >
-          <h3>Answer</h3>
+          <h3>{{ t('knowledge.answer') }}</h3>
           <p class="answer">
             {{ answer }}
           </p>
@@ -42,7 +42,7 @@
             v-if="sources.length"
             class="stack-sm"
           >
-            <h4>Sources</h4>
+            <h4>{{ t('knowledge.sources') }}</h4>
             <article
               v-for="(source, index) in sources"
               :key="index"
@@ -68,6 +68,7 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Textarea from 'primevue/textarea'
 
+import { t } from '../../i18n'
 import type { Source } from '../../types'
 
 defineProps<{
@@ -85,11 +86,11 @@ defineEmits<{
 
 function formatSourceType(value: Source['source_type']): string {
   const labels: Record<Source['source_type'], string> = {
-    knowledge: 'Knowledge',
-    logbook: 'Logbook',
-    prompt: 'Prompt',
-    document: 'Document',
-    photo: 'Photo',
+    knowledge: t('activity.knowledge'),
+    logbook: t('activity.logbook'),
+    prompt: t('activity.prompt'),
+    document: t('activity.document'),
+    photo: t('activity.photo'),
   }
   return labels[value] || value
 }
