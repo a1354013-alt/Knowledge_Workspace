@@ -14,6 +14,13 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
+## API Base
+
+- Local dev may set `VITE_API_BASE=http://127.0.0.1:8000`; the repo VS Code F5 task does this.
+- Without `VITE_API_BASE`, the app calls same-origin `/api`. Vite proxies `/api` to the local backend during dev.
+- Same-origin production deploys should leave `VITE_API_BASE` unset and route `/api` to FastAPI.
+- Static hosting on another origin must set `VITE_API_BASE` at build time to the public backend URL.
+
 ## Architecture
 
 - `src/api.ts`: single API entrypoint (axios client + typed helpers returning `data`)

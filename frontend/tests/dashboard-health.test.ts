@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 import { adaptDashboardHealth } from '../src/adapters/dashboard'
 import ProjectHealthDashboard from '../src/components/ProjectHealthDashboard.vue'
+import { setLocale } from '../src/i18n'
 import { PrimeStubs } from './stubs'
 
 const mocks = vi.hoisted(() => ({
@@ -14,6 +15,10 @@ vi.mock('../src/api', () => ({
 }))
 
 describe('ProjectHealthDashboard', () => {
+  beforeEach(() => {
+    setLocale('en')
+  })
+
   it('adapts optional generated fields into the dashboard view model', () => {
     const adapted = adaptDashboardHealth({
       knowledge: { total: 1, by_status: { draft: 1, broken: 'bad' } as unknown as Record<string, number> },

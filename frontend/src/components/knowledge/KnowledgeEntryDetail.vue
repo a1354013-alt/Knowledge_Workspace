@@ -1,45 +1,45 @@
 <template>
   <Card>
     <template #title>
-      Quick add (Knowledge note)
+      {{ t('knowledge.quickAddTitle') }}
     </template>
     <template #subtitle>
-      Manually capture a problem / root cause / solution so it becomes searchable.
+      {{ t('knowledge.quickAddSubtitle') }}
     </template>
     <template #content>
       <div class="stack-md">
         <InputText
           :model-value="entry.title"
-          placeholder="Title (short)"
+          :placeholder="t('knowledge.titleShort')"
           @update:model-value="updateField('title', $event)"
         />
         <Textarea
           :model-value="entry.problem"
           rows="3"
-          placeholder="Problem"
+          :placeholder="t('common.problem')"
           @update:model-value="updateField('problem', $event)"
         />
         <Textarea
           :model-value="entry.root_cause"
           rows="3"
-          placeholder="Root cause"
+          :placeholder="t('common.rootCause')"
           @update:model-value="updateField('root_cause', $event)"
         />
         <Textarea
           :model-value="entry.solution"
           rows="4"
-          placeholder="Solution (steps, commands, links)"
+          :placeholder="t('knowledge.solutionDetailed')"
           @update:model-value="updateField('solution', $event)"
         />
         <InputText
           :model-value="entry.tags"
-          placeholder="Tags (comma separated)"
+          :placeholder="t('prompts.tagsPlaceholder')"
           @update:model-value="updateField('tags', $event)"
         />
         <Textarea
           :model-value="entry.notes"
           rows="2"
-          placeholder="Notes (optional)"
+          :placeholder="t('knowledge.notesOptional')"
           @update:model-value="updateField('notes', $event)"
         />
         <div class="row">
@@ -48,7 +48,7 @@
             :options="statusOptions"
             option-label="label"
             option-value="value"
-            placeholder="Status"
+            :placeholder="t('common.status')"
             @update:model-value="updateField('status', $event)"
           />
           <Dropdown
@@ -56,30 +56,30 @@
             :options="sourceTypes"
             option-label="label"
             option-value="value"
-            placeholder="Source type"
+            :placeholder="t('common.sourceType')"
             @update:model-value="updateField('source_type', $event)"
           />
         </div>
         <InputText
           :model-value="entry.source_ref"
-          placeholder="Source ref (optional, e.g. document:..., autotest_run:...)"
+          :placeholder="t('knowledge.sourceRefFull')"
           @update:model-value="updateField('source_ref', $event)"
         />
         <Chips
           :model-value="entry.related_item_ids"
           separator=","
-          placeholder="Related item IDs (comma-separated, e.g. document:..., photo:..., prompt:...)"
+          :placeholder="t('knowledge.relatedItemIdsFull')"
           @update:model-value="updateField('related_item_ids', $event)"
         />
         <div class="row">
           <Button
-            label="Save"
+            :label="t('common.save')"
             icon="pi pi-save"
             :loading="saving"
             @click="$emit('save')"
           />
           <Button
-            label="Reset"
+            :label="t('common.reset')"
             outlined
             severity="secondary"
             :disabled="saving"
@@ -99,6 +99,7 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
+import { t } from '../../i18n'
 import type { KnowledgeEntryCreateRequest } from '../../types'
 
 const props = defineProps<{

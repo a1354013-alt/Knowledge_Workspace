@@ -2,10 +2,10 @@
   <div class="grid">
     <Card>
       <template #title>
-        Project Health Dashboard
+        {{ t('health.title') }}
       </template>
       <template #subtitle>
-        System-wide metrics and recent activity overview
+        {{ t('health.subtitle') }}
       </template>
       <template #content>
         <div class="stack-lg">
@@ -14,7 +14,7 @@
             class="loading-state"
           >
             <div class="spinner" />
-            <p>Loading dashboard metrics...</p>
+            <p>{{ t('health.loadingMetrics') }}</p>
           </div>
 
           <div
@@ -25,7 +25,7 @@
               {{ error }}
             </p>
             <Button
-              label="Retry"
+              :label="t('health.retry')"
               icon="pi pi-refresh"
               @click="loadDashboard"
             />
@@ -35,7 +35,7 @@
             v-else-if="!data"
             class="empty-state"
           >
-            <p>No data available yet. Start by uploading documents or creating knowledge entries.</p>
+            <p>{{ t('health.noData') }}</p>
           </div>
 
           <div
@@ -66,6 +66,7 @@ import HealthRefreshPanel from './health/HealthRefreshPanel.vue'
 import HealthStatusSections from './health/HealthStatusSections.vue'
 import HealthSummaryCards from './health/HealthSummaryCards.vue'
 import { useProjectHealth } from './health/useProjectHealth'
+import { t } from '../i18n'
 
 const { data, error, loading, loadDashboard } = useProjectHealth()
 </script>

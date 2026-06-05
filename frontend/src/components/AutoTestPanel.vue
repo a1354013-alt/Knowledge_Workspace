@@ -115,7 +115,7 @@
 
       <Card v-if="selectedRun">
         <template #title>
-          Run details
+          {{ t('autotest.detailsTitle') }}
         </template>
         <template #subtitle>
           {{ selectedRun.id }}
@@ -123,56 +123,56 @@
         <template #content>
           <div class="stack-md">
             <div class="result-box">
-              <h3>Execution</h3>
+              <h3>{{ t('autotest.execution') }}</h3>
               <p class="muted">
-                Mode: {{ selectedRunMode }}
+                {{ t('autotest.mode') }}: {{ selectedRunMode }}
               </p>
               <p
                 v-if="selectedRunRunnerMode === 'local_trusted'"
                 class="warning-text"
               >
-                Local trusted mode executes commands from uploaded projects on this host. Use only with trusted local projects.
+                {{ t('autotest.localTrustedRunWarning') }}
               </p>
               <p
                 v-if="selectedRunRunnerMode === 'docker_sandbox'"
                 class="muted"
               >
-                Docker sandbox mode uses container limits and network is disabled unless configured.
+                {{ t('autotest.dockerRunWarning') }}
               </p>
               <p
                 v-if="selectedRunIsGitHubIntakeOnly"
                 class="muted"
               >
-                GitHub analyze is currently intake-only registration. This run is not queued for clone/test execution.
+                {{ t('autotest.githubIntakeOnly') }}
               </p>
               <p class="muted">
-                Failed reason: {{ selectedRun.failed_reason || '-' }}
+                {{ t('autotest.failedReason') }}: {{ selectedRun.failed_reason || '-' }}
               </p>
               <p class="muted">
-                Project type detected: {{ selectedRun.project_type_detected || selectedRun.project_type || '-' }}
+                {{ t('autotest.projectTypeDetected') }}: {{ selectedRun.project_type_detected || selectedRun.project_type || '-' }}
               </p>
               <p class="muted">
-                Working directory: {{ selectedRun.working_directory || '-' }}
+                {{ t('autotest.workingDirectory') }}: {{ selectedRun.working_directory || '-' }}
               </p>
             </div>
 
             <div class="result-box">
-              <h3>Summary</h3>
+              <h3>{{ t('autotest.summary') }}</h3>
               <pre class="mono">{{ selectedRun.summary || '-' }}</pre>
             </div>
 
             <div class="result-box">
-              <h3>Reports</h3>
+              <h3>{{ t('autotest.reports') }}</h3>
               <div class="row">
                 <Button
-                  label="Download Markdown Report"
+                  :label="t('autotest.downloadMarkdownReport')"
                   icon="pi pi-download"
                   :disabled="!canExportSelectedRun"
                   :loading="downloadingFormat === 'md'"
                   @click="downloadReport('md')"
                 />
                 <Button
-                  label="Download HTML Report"
+                  :label="t('autotest.downloadHtmlReport')"
                   icon="pi pi-download"
                   outlined
                   :disabled="!canExportSelectedRun"
@@ -180,7 +180,7 @@
                   @click="downloadReport('html')"
                 />
                 <Button
-                  label="Copy AI Fix Prompt"
+                  :label="t('autotest.copyAiFixPrompt')"
                   icon="pi pi-copy"
                   outlined
                   :disabled="!canCopyAiPrompt"
@@ -198,7 +198,7 @@
               v-if="selectedRun.suggestion"
               class="result-box"
             >
-              <h3>Fix suggestion</h3>
+              <h3>{{ t('autotest.fixSuggestion') }}</h3>
               <pre class="mono">{{ selectedRun.suggestion }}</pre>
             </div>
 
@@ -206,19 +206,19 @@
               v-if="selectedRun.problem_entry_id || selectedRun.solution_entry_id"
               class="result-box"
             >
-              <h3>Knowledge capture</h3>
+              <h3>{{ t('autotest.knowledgeCapture') }}</h3>
               <p class="muted">
-                Problem draft: {{ selectedRun.problem_entry_id || '-' }}
+                {{ t('autotest.problemDraft') }}: {{ selectedRun.problem_entry_id || '-' }}
               </p>
               <p class="muted">
-                Solution entry: {{ selectedRun.solution_entry_id || '-' }}
+                {{ t('autotest.solutionEntry') }}: {{ selectedRun.solution_entry_id || '-' }}
               </p>
               <div
                 v-if="selectedRun.problem_entry_id && !selectedRun.solution_entry_id"
                 class="row"
               >
                 <Button
-                  label="Promote problem to verified solution"
+                  :label="t('autotest.promoteProblemToVerifiedSolution')"
                   icon="pi pi-check"
                   @click="promoteProblem"
                 />
@@ -229,7 +229,7 @@
               v-if="selectedRun.prompt_output"
               class="result-box"
             >
-              <h3>Prompt output (for Codex/Copilot)</h3>
+              <h3>{{ t('autotest.promptOutput') }}</h3>
               <pre class="mono">{{ selectedRun.prompt_output }}</pre>
             </div>
 
@@ -237,7 +237,7 @@
               v-if="selectedRun.steps?.length"
               class="result-box"
             >
-              <h3>Steps</h3>
+              <h3>{{ t('autotest.steps') }}</h3>
               <article
                 v-for="step in selectedRun.steps"
                 :key="step.step_id"
@@ -342,15 +342,15 @@ const aiFixPromptText = computed(() => {
 const canCopyAiPrompt = computed(() => canExportSelectedRun.value && !!aiFixPromptText.value)
 const reportActionHint = computed(() => {
   if (!selectedRun.value) {
-    return 'Select a run to export reports or copy the generated AI fix prompt.'
+    return t('autotest.selectRunReportHint')
   }
   if (!canExportSelectedRun.value) {
-    return `Run status is ${selectedRun.value.status}. Reports unlock after the run reaches passed or failed.`
+    return t('autotest.reportsLocked', { status: selectedRun.value.status })
   }
   if (!canCopyAiPrompt.value) {
-    return 'Report downloads are ready. AI fix prompt copy unlocks when the backend generated a suggestion or prompt output.'
+    return t('autotest.copyPromptLocked')
   }
-  return 'Exports use deterministic filenames and include the current run detail report.'
+  return t('autotest.exportsReady')
 })
 const runsLoadMessage = computed(() => store.state.error.autotestRuns || '')
 const showRunsReloadWarning = computed(() => store.state.status.autotestRuns === 'error' && runs.value.length > 0)
@@ -406,7 +406,7 @@ async function pollAutoTestRun(runId: string) {
     }
     await sleep(AUTO_TEST_POLL_INTERVAL_MS)
   }
-  throw new Error('AutoTest execution timed out while waiting for the async job to finish.')
+  throw new Error(t('autotest.asyncTimeout'))
 }
 
 async function loadRuns() {
@@ -444,7 +444,7 @@ async function runAutoTest() {
     toast.add({
       severity: 'info',
       summary: t('autotest.runQueued'),
-      detail: response.summary || `AutoTest job ${response.id} started.`,
+      detail: response.summary || t('autotest.jobStarted', { id: response.id }),
       life: 3000,
     })
     selectedZip.value = null
@@ -453,7 +453,7 @@ async function runAutoTest() {
     }
     await loadRuns()
     const completed = isTerminalRunStatus(response.status) ? response : await pollAutoTestRun(response.id)
-    toast.add({ severity: 'success', summary: t('autotest.runCompleted'), detail: completed.status || 'Done.', life: 3000 })
+    toast.add({ severity: 'success', summary: t('autotest.runCompleted'), detail: completed.status || t('autotest.done'), life: 3000 })
   } catch (error: unknown) {
     toast.add({ severity: 'error', summary: t('autotest.runFailed'), detail: autoTestRunErrorMessage(error), life: 6000 })
   } finally {
@@ -480,16 +480,16 @@ async function promoteProblem() {
   }
   if (
     !(await confirmDanger({
-      header: 'Promote AutoTest problem',
-      message: 'Promote this AutoTest problem draft to a verified knowledge entry?',
-      acceptLabel: 'Promote',
+      header: t('autotest.promoteProblemHeader'),
+      message: t('autotest.promoteProblemMessage'),
+      acceptLabel: t('logbook.promote'),
     }))
   ) {
     return
   }
   try {
     const response = await promoteAutoTestProblem(entryId)
-    toast.add({ severity: 'success', summary: 'Promoted', detail: `Knowledge entry: ${response.knowledge_entry_id}`, life: 4500 })
+    toast.add({ severity: 'success', summary: t('logbook.promoted'), detail: t('logbook.promotedDetail', { id: response.knowledge_entry_id }), life: 4500 })
     if (selectedRun.value?.id) {
       selectedRun.value = await getAutoTestRun(selectedRun.value.id)
     }
@@ -509,7 +509,7 @@ async function downloadReport(format: AutoTestExportFormat) {
     await downloadAutoTestReport(selectedRun.value.id, format)
     toast.add({
       severity: 'success',
-      summary: 'Report downloaded',
+      summary: t('autotest.reportDownloaded'),
       detail: `autotest-report-${selectedRun.value.id}.${format}`,
       life: 3000,
     })
@@ -517,8 +517,8 @@ async function downloadReport(format: AutoTestExportFormat) {
     const apiError = error as { message?: string }
     toast.add({
       severity: 'error',
-      summary: 'Report download failed',
-      detail: apiError?.message || 'Unable to download report.',
+      summary: t('autotest.reportDownloadFailed'),
+      detail: apiError?.message || t('autotest.reportDownloadUnable'),
       life: 5000,
     })
   } finally {
@@ -532,13 +532,13 @@ async function copyAiFixPrompt() {
   }
   try {
     await navigator.clipboard.writeText(aiFixPromptText.value)
-    toast.add({ severity: 'success', summary: 'Prompt copied', detail: 'AI fix prompt copied to clipboard.', life: 3000 })
+    toast.add({ severity: 'success', summary: t('autotest.promptCopied'), detail: t('autotest.promptCopiedDetail'), life: 3000 })
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({
       severity: 'error',
-      summary: 'Copy failed',
-      detail: apiError?.message || 'Unable to copy AI fix prompt.',
+      summary: t('autotest.copyFailed'),
+      detail: apiError?.message || t('autotest.copyPromptUnable'),
       life: 5000,
     })
   }

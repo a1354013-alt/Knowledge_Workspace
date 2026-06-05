@@ -2,16 +2,16 @@
   <div class="grid">
     <Card>
       <template #title>
-        Recent activity
+        {{ t('activity.title') }}
       </template>
       <template #subtitle>
-        A traceable timeline across knowledge, logbook, documents, photos, prompts, and AutoTest runs.
+        {{ t('activity.subtitle') }}
       </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
             <Button
-              label="Refresh"
+              :label="t('common.refresh')"
               outlined
               icon="pi pi-refresh"
               :loading="loading"
@@ -19,7 +19,7 @@
             />
             <InputText
               v-model="filterText"
-              placeholder="Filter (title/type/status/source)"
+              :placeholder="t('activity.filterPlaceholder')"
               class="filter"
             />
           </div>
@@ -34,25 +34,25 @@
           >
             <Column
               field="kind"
-              header="Type"
+              :header="t('common.type')"
             />
             <Column
               field="title"
-              header="Title"
+              :header="t('common.title')"
             />
             <Column
               field="status"
-              header="Status"
+              :header="t('common.status')"
             />
             <Column
               field="source"
-              header="Source"
+              :header="t('common.source')"
             />
             <Column
               field="when"
-              header="When"
+              :header="t('common.when')"
             />
-            <Column header="Item">
+            <Column :header="t('common.item')">
               <template #body="slotProps">
                 <code>{{ slotProps.data.item_id }}</code>
               </template>
@@ -78,6 +78,7 @@ import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
+import { t } from '../i18n'
 import { useWorkspaceStore } from '../workspace-store'
 
 const store = useWorkspaceStore()
@@ -123,8 +124,8 @@ async function load() {
 
   for (const entry of knowledgeEntries || []) {
     mapped.push({
-      kind: 'Knowledge',
-      title: entry.title || entry.problem?.slice?.(0, 80) || 'Knowledge entry',
+      kind: t('activity.knowledge'),
+      title: entry.title || entry.problem?.slice?.(0, 80) || t('activity.knowledgeEntry'),
       status: entry.status || '',
       source: `${entry.source_type || ''}`.trim(),
       when: normalizeWhen(entry.updated_at || entry.created_at),
@@ -133,8 +134,8 @@ async function load() {
   }
   for (const entry of logbookEntries || []) {
     mapped.push({
-      kind: 'Logbook',
-      title: entry.title || entry.problem?.slice?.(0, 80) || 'Logbook entry',
+      kind: t('activity.logbook'),
+      title: entry.title || entry.problem?.slice?.(0, 80) || t('activity.logbookEntry'),
       status: entry.status || '',
       source: `${entry.source_type || ''}`.trim(),
       when: normalizeWhen(entry.updated_at || entry.created_at),
@@ -143,40 +144,40 @@ async function load() {
   }
   for (const doc of documents || []) {
     mapped.push({
-      kind: 'Document',
-      title: doc.filename || 'Document',
+      kind: t('activity.document'),
+      title: doc.filename || t('activity.document'),
       status: doc.status || '',
-      source: 'upload',
+      source: t('activity.upload'),
       when: normalizeWhen(doc.updated_at || doc.uploaded_at),
       item_id: `document:${doc.id}`,
     })
   }
   for (const photo of photos || []) {
     mapped.push({
-      kind: 'Photo',
-      title: photo.filename || 'Photo',
+      kind: t('activity.photo'),
+      title: photo.filename || t('activity.photo'),
       status: photo.status || '',
-      source: 'upload',
+      source: t('activity.upload'),
       when: normalizeWhen(photo.updated_at || photo.created_at),
       item_id: `photo:${photo.id}`,
     })
   }
   for (const run of autotestRuns || []) {
     mapped.push({
-      kind: 'AutoTest',
+      kind: t('activity.autotest'),
       title: run.project_name || run.id,
       status: run.status || '',
-      source: 'upload',
+      source: t('activity.upload'),
       when: normalizeWhen(run.created_at),
       item_id: `autotest_run:${run.id}`,
     })
   }
   for (const prompt of prompts || []) {
     mapped.push({
-      kind: 'Prompt',
-      title: prompt.title || 'Prompt',
-      status: 'saved',
-      source: 'manual',
+      kind: t('activity.prompt'),
+      title: prompt.title || t('activity.prompt'),
+      status: t('activity.saved'),
+      source: t('activity.manual'),
       when: normalizeWhen(prompt.updated_at || prompt.created_at),
       item_id: `prompt:${prompt.id}`,
     })

@@ -49,4 +49,16 @@ describe('i18n message catalog', () => {
       }
     }
   })
+
+  it('switches primary navigation and form labels without leaking key names', () => {
+    setLocale('en')
+    expect(t('nav.logbook')).toBe('Problem Logbook')
+    expect(t('common.problem')).toBe('Problem')
+    expect(t('autotest.reports')).toBe('Reports')
+
+    setLocale('zh-TW')
+    expect(t('nav.logbook')).not.toBe('nav.logbook')
+    expect(t('common.problem')).not.toBe('common.problem')
+    expect(t('autotest.reports')).not.toBe('autotest.reports')
+  })
 })

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -14,6 +15,7 @@ from app.models import (
     IndexStatusResponse,
     IndexStatusSummaryItem,
 )
+from app.repositories.repository_utils import normalize_index_status
 from app.search_content import (
     build_document_search_text,
     build_knowledge_search_text,
@@ -28,9 +30,9 @@ from app.vector_db import (
     get_embedding_provider_descriptor,
 )
 
-# Local demo scan limit for index rebuild / consistency checks.
-# Keep this centralized so the scan size is explicit and easy to tune.
-INDEX_SCAN_LIMIT = 500
+INDEX_SCAN_BATCH_SIZE = 200
+
+
 def _is_excluded_row(row: dict[str, Any]) -> bool:
     return int(row.get("is_active", 1)) != 1 or str(row.get("status", "")).strip().lower() == "archived"
 
@@ -69,6 +71,100 @@ class IndexTarget:
     error: str
     indexed_at: str
     updated_at: str
+
+
+def _normalize_kb_row(row: Any, *, workflow_status_key: str | None = "status") -> dict[str, Any]:
+    data = dict(row)
+    data["index_status"] = normalize_index_status(
+        data.get("index_status"),
+        is_active=data.get("is_active", 1),
+        workflow_status=data.get(workflow_status_key, "") if workflow_status_key else "",
+    )
+    return data
+
+
+def _iter_knowledge_rows(user_id: str, *, batch_size: int = INDEX_SCAN_BATCH_SIZE) -> Iterator[dict[str, Any]]:
+    last_id = ""
+    while True:
+        with db._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM knowledge_entries
+                WHERE created_by = ? AND entry_id > ?
+                ORDER BY entry_id ASC
+                LIMIT ?
+                """,
+                (user_id, last_id, int(batch_size)),
+            ).fetchall()
+        if not rows:
+            break
+        for row in rows:
+            data = _normalize_kb_row(row)
+            last_id = str(data["entry_id"])
+            yield data
+
+
+def _iter_logbook_rows(user_id: str, *, batch_size: int = INDEX_SCAN_BATCH_SIZE) -> Iterator[dict[str, Any]]:
+    last_id = ""
+    while True:
+        with db._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM logbook_entries
+                WHERE created_by = ? AND entry_id > ?
+                ORDER BY entry_id ASC
+                LIMIT ?
+                """,
+                (user_id, last_id, int(batch_size)),
+            ).fetchall()
+        if not rows:
+            break
+        for row in rows:
+            data = _normalize_kb_row(row)
+            last_id = str(data["entry_id"])
+            yield data
+
+
+def _iter_photo_rows(user_id: str, *, batch_size: int = INDEX_SCAN_BATCH_SIZE) -> Iterator[dict[str, Any]]:
+    last_id = ""
+    while True:
+        with db._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM photos
+                WHERE uploaded_by = ? AND photo_id > ?
+                ORDER BY photo_id ASC
+                LIMIT ?
+                """,
+                (user_id, last_id, int(batch_size)),
+            ).fetchall()
+        if not rows:
+            break
+        for row in rows:
+            data = _normalize_kb_row(row)
+            last_id = str(data["photo_id"])
+            yield data
+
+
+def _iter_prompt_rows(user_id: str, *, batch_size: int = INDEX_SCAN_BATCH_SIZE) -> Iterator[dict[str, Any]]:
+    last_id = ""
+    while True:
+        with db._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM saved_prompts
+                WHERE created_by = ? AND prompt_id > ?
+                ORDER BY prompt_id ASC
+                LIMIT ?
+                """,
+                (user_id, last_id, int(batch_size)),
+            ).fetchall()
+        if not rows:
+            break
+        for row in rows:
+            data = _normalize_kb_row(row, workflow_status_key=None)
+            last_id = str(data["prompt_id"])
+            yield data
 
 
 def _document_target(row: dict[str, Any]) -> IndexTarget:
@@ -435,19 +531,19 @@ def get_index_status(current_user: dict[str, Any]) -> IndexStatusResponse:
     documents = [_document_target(row) for row in db.list_documents(user_id=user_id, include_archived=True)]
     knowledge = [
         _kb_target("knowledge", row, id_key="entry_id", title_key="title")
-        for row in db.list_knowledge_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
+        for row in _iter_knowledge_rows(user_id)
     ]
     logbook = [
         _kb_target("logbook", row, id_key="entry_id", title_key="title")
-        for row in db.list_logbook_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
+        for row in _iter_logbook_rows(user_id)
     ]
     photos = [
         _kb_target("photo", row, id_key="photo_id", title_key="filename")
-        for row in db.list_photos(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
+        for row in _iter_photo_rows(user_id)
     ]
     prompts = [
         _kb_target("prompt", row, id_key="prompt_id", title_key="title")
-        for row in db.list_saved_prompts(user_id=user_id, limit=INDEX_SCAN_LIMIT, include_inactive=True)
+        for row in _iter_prompt_rows(user_id)
     ]
 
     grouped = {
@@ -508,17 +604,16 @@ def rebuild_all_indexes(current_user: dict[str, Any]) -> IndexRebuildResponse:
 
 def rebuild_single_item_type(current_user: dict[str, Any], item_type: IndexItemType) -> IndexRebuildResponse:
     user_id = str(current_user["sub"])
-    rows: list[dict[str, Any]]
     if item_type == "document":
         rows = db.list_documents(user_id=user_id, include_archived=True)
     elif item_type == "knowledge":
-        rows = db.list_knowledge_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
+        rows = _iter_knowledge_rows(user_id)
     elif item_type == "logbook":
-        rows = db.list_logbook_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
+        rows = _iter_logbook_rows(user_id)
     elif item_type == "photo":
-        rows = db.list_photos(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT)
+        rows = _iter_photo_rows(user_id)
     else:
-        rows = db.list_saved_prompts(user_id=user_id, limit=INDEX_SCAN_LIMIT, include_inactive=True)
+        rows = _iter_prompt_rows(user_id)
 
     result_items: list[IndexStatusItemResponse] = []
     rebuilt = 0
@@ -633,16 +728,16 @@ def get_index_consistency_report(*, owner_user_id: str | None = None) -> list[di
         for document in db.list_documents(user_id=user_id, include_archived=True):
             item_id = f"document:{document['doc_id']}"
             report.extend(_check_row_consistency("document", item_id, document))
-        for entry in db.list_knowledge_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT):
+        for entry in _iter_knowledge_rows(user_id):
             item_id = f"knowledge:{entry['entry_id']}"
             report.extend(_check_row_consistency("knowledge", item_id, entry))
-        for entry in db.list_logbook_entries(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT):
+        for entry in _iter_logbook_rows(user_id):
             item_id = f"logbook:{entry['entry_id']}"
             report.extend(_check_row_consistency("logbook", item_id, entry))
-        for photo in db.list_photos(user_id=user_id, include_archived=True, limit=INDEX_SCAN_LIMIT):
+        for photo in _iter_photo_rows(user_id):
             item_id = f"photo:{photo['photo_id']}"
             report.extend(_check_row_consistency("photo", item_id, photo))
-        for prompt in db.list_saved_prompts(user_id=user_id, limit=INDEX_SCAN_LIMIT, include_inactive=True):
+        for prompt in _iter_prompt_rows(user_id):
             item_id = f"prompt:{prompt['prompt_id']}"
             report.extend(_check_row_consistency("prompt", item_id, prompt))
     report.extend(

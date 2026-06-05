@@ -2,6 +2,151 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+
+def _seed_many_index_rows(db, *, count: int = 520, user_id: str = "owner") -> None:
+    for index in range(count):
+        suffix = f"{index:04d}"
+        assert db.add_knowledge_entry(
+            entry_id=f"bulk-knowledge-{suffix}",
+            title=f"Knowledge {suffix}",
+            status="reviewed",
+            problem="Problem",
+            root_cause="",
+            solution="Solution",
+            tags="bulk",
+            notes="",
+            created_by=user_id,
+        )
+        assert db.add_logbook_entry(
+            entry_id=f"bulk-logbook-{suffix}",
+            title=f"Logbook {suffix}",
+            status="reviewed",
+            run_id="",
+            problem="Problem",
+            root_cause="",
+            solution="Solution",
+            tags="bulk",
+            source_type="manual",
+            created_by=user_id,
+        )
+        assert db.add_photo(
+            photo_id=f"bulk-photo-{suffix}",
+            filename=f"photo-{suffix}.png",
+            saved_filename=f"photo-{suffix}.png",
+            tags="bulk",
+            description="Photo",
+            ocr_text="",
+            file_size=1,
+            uploaded_by=user_id,
+        )
+        assert db.add_saved_prompt(
+            prompt_id=f"bulk-prompt-{suffix}",
+            title=f"Prompt {suffix}",
+            content="Prompt body",
+            tags="bulk",
+            created_by=user_id,
+        )
+
+
+def _seed_many_index_rows_for_type(db, item_type: str, *, count: int = 520, user_id: str = "owner") -> None:
+    for index in range(count):
+        suffix = f"{index:04d}"
+        if item_type == "knowledge":
+            assert db.add_knowledge_entry(
+                entry_id=f"rebuild-knowledge-{suffix}",
+                title=f"Knowledge {suffix}",
+                status="reviewed",
+                problem="Problem",
+                root_cause="",
+                solution="Solution",
+                tags="bulk",
+                notes="",
+                created_by=user_id,
+            )
+        elif item_type == "logbook":
+            assert db.add_logbook_entry(
+                entry_id=f"rebuild-logbook-{suffix}",
+                title=f"Logbook {suffix}",
+                status="reviewed",
+                run_id="",
+                problem="Problem",
+                root_cause="",
+                solution="Solution",
+                tags="bulk",
+                source_type="manual",
+                created_by=user_id,
+            )
+        elif item_type == "photo":
+            assert db.add_photo(
+                photo_id=f"rebuild-photo-{suffix}",
+                filename=f"photo-{suffix}.png",
+                saved_filename=f"photo-{suffix}.png",
+                tags="bulk",
+                description="Photo",
+                ocr_text="",
+                file_size=1,
+                uploaded_by=user_id,
+            )
+        else:
+            assert db.add_saved_prompt(
+                prompt_id=f"rebuild-prompt-{suffix}",
+                title=f"Prompt {suffix}",
+                content="Prompt body",
+                tags="bulk",
+                created_by=user_id,
+            )
+
+
+def test_index_status_scans_all_kb_item_types_beyond_500(app_module, client, auth_headers):
+    _seed_many_index_rows(app_module.db, count=520)
+
+    response = client.get("/api/index/status", headers=auth_headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+
+    assert payload["summary"]["knowledge"]["total"] == 520
+    assert payload["summary"]["logbook"]["total"] == 520
+    assert payload["summary"]["photo"]["total"] == 520
+    assert payload["summary"]["prompt"]["total"] == 520
+    failed_ids = {(item["item_type"], item["item_id"]) for item in payload["failed_items"]}
+    assert ("knowledge", "bulk-knowledge-0519") in failed_ids
+    assert ("logbook", "bulk-logbook-0519") in failed_ids
+    assert ("photo", "bulk-photo-0519") in failed_ids
+    assert ("prompt", "bulk-prompt-0519") in failed_ids
+
+
+@pytest.mark.parametrize(
+    ("item_type", "sync_name", "expected_id"),
+    [
+        ("knowledge", "sync_knowledge_entry_index", "rebuild-knowledge-0519"),
+        ("logbook", "sync_logbook_entry_index", "rebuild-logbook-0519"),
+        ("photo", "sync_photo_index", "rebuild-photo-0519"),
+        ("prompt", "sync_prompt_index", "rebuild-prompt-0519"),
+    ],
+)
+def test_rebuild_single_item_type_processes_rows_beyond_500(
+    app_module, monkeypatch, item_type, sync_name, expected_id
+):
+    from app.services import indexing_service
+
+    _seed_many_index_rows_for_type(app_module.db, item_type, count=520)
+    processed: list[str] = []
+
+    def record_rebuild(row):
+        id_key = "photo_id" if item_type == "photo" else "prompt_id" if item_type == "prompt" else "entry_id"
+        processed.append(str(row[id_key]))
+
+    monkeypatch.setattr(indexing_service, sync_name, record_rebuild)
+
+    response = indexing_service.rebuild_single_item_type({"sub": "owner"}, item_type)
+
+    assert response.rebuilt == 520
+    assert response.failed == 0
+    assert len(processed) == 520
+    assert expected_id in processed
+    assert response.items[-1].item_id == expected_id
 
 def test_index_status_reports_provider_and_failed_items(app_module, client, auth_headers, monkeypatch):
     uploads_dir = Path(app_module.legacy_main.UPLOAD_DIR)

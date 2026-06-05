@@ -9,7 +9,7 @@ import { clearToken, getToken, notifyUnauthorized } from './auth'
 import { API_TIMEOUT_MS, apiPaths } from './api/endpoints'
 import type { ApiError } from './types'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE || ''
 export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean }
 
 export const apiClient: AxiosInstance = axios.create({

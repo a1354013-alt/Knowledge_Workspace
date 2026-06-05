@@ -2,10 +2,10 @@
   <div class="grid">
     <Card>
       <template #title>
-        Engineering troubleshooting logbook
+        {{ t('logbook.pageTitle') }}
       </template>
       <template #subtitle>
-        First-class module for problems you solved. Fully searchable via Knowledge Base.
+        {{ t('logbook.pageSubtitle') }}
       </template>
       <template #content>
         <div class="stack-md">
@@ -18,7 +18,7 @@
           </p>
           <div class="row">
             <Button
-              label="Refresh"
+              :label="t('common.refresh')"
               outlined
               icon="pi pi-refresh"
               :loading="loading"
@@ -34,29 +34,29 @@
           >
             <Column
               field="title"
-              header="Title"
+              :header="t('common.title')"
             />
             <Column
               field="tags"
-              header="Tags"
+              :header="t('common.tags')"
             />
             <Column
               field="source_type"
-              header="Source"
+              :header="t('common.source')"
             />
             <Column
               field="source_ref"
-              header="Source ref"
+              :header="t('common.sourceRef')"
             />
             <Column
               field="status"
-              header="Status"
+              :header="t('common.status')"
             />
             <Column
               field="updated_at"
-              header="Updated"
+              :header="t('common.updated')"
             />
-            <Column header="Actions">
+            <Column :header="t('common.actions')">
               <template #body="slotProps">
                 <div class="actions-inline">
                   <Button
@@ -98,65 +98,65 @@
 
     <Card>
       <template #title>
-        Add entry
+        {{ t('logbook.addEntry') }}
       </template>
       <template #content>
         <div class="stack-md">
           <InputText
             v-model="form.title"
-            placeholder="Title"
+            :placeholder="t('common.title')"
           />
           <Textarea
             v-model="form.problem"
             rows="3"
-            placeholder="Problem"
+            :placeholder="t('common.problem')"
           />
           <Textarea
             v-model="form.root_cause"
             rows="3"
-            placeholder="Root cause"
+            :placeholder="t('common.rootCause')"
           />
           <Textarea
             v-model="form.solution"
             rows="4"
-            placeholder="Solution"
+            :placeholder="t('common.solution')"
           />
           <InputText
             v-model="form.tags"
-            placeholder="Tags (comma separated)"
+            :placeholder="t('prompts.tagsPlaceholder')"
           />
           <Dropdown
             v-model="form.status"
             :options="statusOptions"
             option-label="label"
             option-value="value"
-            placeholder="Status"
+            :placeholder="t('common.status')"
           />
           <Dropdown
             v-model="form.source_type"
             :options="sourceTypes"
             option-label="label"
             option-value="value"
-            placeholder="Source type"
+            :placeholder="t('common.sourceType')"
           />
           <InputText
             v-model="form.source_ref"
-            placeholder="Source ref (optional, e.g. doc:..., autotest_run:...)"
+            :placeholder="t('knowledge.sourceRefFull')"
           />
           <Chips
             v-model="form.related_item_ids"
             separator=","
-            placeholder="Related item IDs (comma-separated, e.g. document:..., photo:..., prompt:...)"
+            :placeholder="t('knowledge.relatedItemIdsFull')"
           />
           <div class="row">
             <Button
-              label="Save"
+              :label="t('common.save')"
               icon="pi pi-save"
               :loading="saving"
               @click="saveEntry"
             />
             <Button
-              label="Reset"
+              :label="t('common.reset')"
               outlined
               severity="secondary"
               :disabled="saving"
@@ -171,32 +171,32 @@
   <Dialog
     v-model:visible="editorVisible"
     modal
-    header="Edit logbook entry"
+    :header="t('logbook.editEntry')"
     :style="{ width: 'min(920px, 95vw)' }"
   >
     <div class="stack-md">
       <InputText
         v-model="editor.title"
-        placeholder="Title"
+        :placeholder="t('common.title')"
       />
       <Textarea
         v-model="editor.problem"
         rows="3"
-        placeholder="Problem"
+        :placeholder="t('common.problem')"
       />
       <Textarea
         v-model="editor.root_cause"
         rows="3"
-        placeholder="Root cause"
+        :placeholder="t('common.rootCause')"
       />
       <Textarea
         v-model="editor.solution"
         rows="4"
-        placeholder="Solution"
+        :placeholder="t('common.solution')"
       />
       <InputText
         v-model="editor.tags"
-        placeholder="Tags"
+        :placeholder="t('common.tags')"
       />
       <div class="row">
         <Dropdown
@@ -204,24 +204,24 @@
           :options="statusOptions"
           option-label="label"
           option-value="value"
-          placeholder="Status"
+          :placeholder="t('common.status')"
         />
         <Dropdown
           v-model="editor.source_type"
           :options="sourceTypes"
           option-label="label"
           option-value="value"
-          placeholder="Source type"
+          :placeholder="t('common.sourceType')"
         />
       </div>
       <InputText
         v-model="editor.source_ref"
-        placeholder="Source ref (optional)"
+        :placeholder="t('logbook.sourceRefOptional')"
       />
       <Chips
         v-model="editor.related_item_ids"
         separator=","
-        placeholder="Related item IDs (comma-separated)"
+        :placeholder="t('logbook.relatedItemIds')"
       />
 
       <div class="row">
@@ -230,11 +230,11 @@
           :options="pickerOptions"
           option-label="label"
           option-value="value"
-          placeholder="Add related item..."
+          :placeholder="t('logbook.addRelatedItem')"
           class="picker"
         />
         <Button
-          label="Add"
+          :label="t('common.add')"
           icon="pi pi-plus"
           outlined
           :disabled="!pickerSelected"
@@ -244,13 +244,13 @@
 
       <div class="row">
         <Button
-          label="Save changes"
+          :label="t('common.saveChanges')"
           icon="pi pi-save"
           :loading="editorSaving"
           @click="saveEditor"
         />
         <Button
-          label="Close"
+          :label="t('common.close')"
           outlined
           severity="secondary"
           :disabled="editorSaving"
@@ -318,16 +318,16 @@ const logbookEntries = ref<LogbookEntryResponse[]>([])
 const pickerOptions = computedPickerOptions()
 
 const sourceTypes = [
-  { label: 'Manual', value: 'manual' },
-  { label: 'Document-derived', value: 'document-derived' },
-  { label: 'AutoTest-derived', value: 'autotest-derived' },
+  { label: t('knowledge.sourceManual'), value: 'manual' },
+  { label: t('knowledge.sourceDocumentDerived'), value: 'document-derived' },
+  { label: t('knowledge.sourceAutotestDerived'), value: 'autotest-derived' },
 ]
 
 const statusOptions = [
-  { label: 'Draft', value: 'draft' },
-  { label: 'Reviewed', value: 'reviewed' },
-  { label: 'Verified', value: 'verified' },
-  { label: 'Archived', value: 'archived' },
+  { label: t('common.draft'), value: 'draft' },
+  { label: t('common.reviewed'), value: 'reviewed' },
+  { label: t('common.verified'), value: 'verified' },
+  { label: t('common.archivedStatus'), value: 'archived' },
 ]
 
 const form = ref<LogbookEntryCreateRequest>(createBlankForm())
@@ -490,15 +490,15 @@ async function loadPickers() {
 function computedPickerOptions() {
   return computed(() => {
     const docOptions = documents.value.map((doc) => ({
-      label: `Document: ${doc.filename}`,
+      label: `${t('activity.document')}: ${doc.filename}`,
       value: `document:${doc.id}`,
     }))
     const photoOptions = photos.value.map((photo) => ({
-      label: `Photo: ${photo.filename}`,
+      label: `${t('activity.photo')}: ${photo.filename}`,
       value: `photo:${photo.id}`,
     }))
     const promptOptions = prompts.value.map((prompt) => ({
-      label: `Prompt: ${prompt.title}`,
+      label: `${t('activity.prompt')}: ${prompt.title}`,
       value: `prompt:${prompt.id}`,
     }))
     const runOptions = autotestRuns.value.map((run) => ({
@@ -506,11 +506,11 @@ function computedPickerOptions() {
       value: `autotest_run:${run.id}`,
     }))
     const knowledgeOptions = knowledgeEntries.value.map((entry) => ({
-      label: `Knowledge: ${entry.title || entry.id}`,
+      label: `${t('activity.knowledge')}: ${entry.title || entry.id}`,
       value: `knowledge:${entry.id}`,
     }))
     const logbookOptions = logbookEntries.value.map((entry) => ({
-      label: `Logbook: ${entry.title || entry.id}`,
+      label: `${t('activity.logbook')}: ${entry.title || entry.id}`,
       value: `logbook:${entry.id}`,
     }))
     return [...docOptions, ...photoOptions, ...runOptions, ...promptOptions, ...knowledgeOptions, ...logbookOptions]
@@ -547,7 +547,7 @@ async function saveEditor() {
   editorSaving.value = true
   try {
     await patch<MessageResponse, LogbookEntryUpdateRequest>(apiPaths.logbook.detail(editor.value.id), payload)
-    toast.add({ severity: 'success', summary: 'Saved', detail: 'Logbook entry updated.', life: 2500 })
+    toast.add({ severity: 'success', summary: t('common.saved'), detail: t('logbook.entryUpdated'), life: 2500 })
     editorVisible.value = false
     await loadEntries()
     selectedRelatedItemId.value = `logbook:${editor.value.id}`

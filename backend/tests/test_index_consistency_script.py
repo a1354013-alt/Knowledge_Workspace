@@ -2,6 +2,77 @@ from __future__ import annotations
 
 import importlib
 
+import pytest
+
+
+def _seed_many_consistency_rows_for_type(db, item_type: str, *, count: int = 520, user_id: str = "owner") -> None:
+    for index in range(count):
+        suffix = f"{index:04d}"
+        if item_type == "knowledge":
+            assert db.add_knowledge_entry(
+                entry_id=f"consistency-knowledge-{suffix}",
+                title=f"Knowledge {suffix}",
+                status="reviewed",
+                problem="Problem",
+                root_cause="",
+                solution="Solution",
+                tags="bulk",
+                notes="",
+                created_by=user_id,
+            )
+        elif item_type == "logbook":
+            assert db.add_logbook_entry(
+                entry_id=f"consistency-logbook-{suffix}",
+                title=f"Logbook {suffix}",
+                status="reviewed",
+                run_id="",
+                problem="Problem",
+                root_cause="",
+                solution="Solution",
+                tags="bulk",
+                source_type="manual",
+                created_by=user_id,
+            )
+        elif item_type == "photo":
+            assert db.add_photo(
+                photo_id=f"consistency-photo-{suffix}",
+                filename=f"photo-{suffix}.png",
+                saved_filename=f"photo-{suffix}.png",
+                tags="bulk",
+                description="Photo",
+                ocr_text="",
+                file_size=1,
+                uploaded_by=user_id,
+            )
+        else:
+            assert db.add_saved_prompt(
+                prompt_id=f"consistency-prompt-{suffix}",
+                title=f"Prompt {suffix}",
+                content="Prompt body",
+                tags="bulk",
+                created_by=user_id,
+            )
+
+
+@pytest.mark.parametrize(
+    ("item_type", "expected_id"),
+    [
+        ("knowledge", "knowledge:consistency-knowledge-0519"),
+        ("logbook", "logbook:consistency-logbook-0519"),
+        ("photo", "photo:consistency-photo-0519"),
+        ("prompt", "prompt:consistency-prompt-0519"),
+    ],
+)
+def test_index_consistency_report_scans_rows_beyond_500(app_module, item_type, expected_id):
+    indexing_service = importlib.import_module("app.services.indexing_service")
+    _seed_many_consistency_rows_for_type(app_module.db, item_type, count=520)
+
+    report = indexing_service.get_index_consistency_report(owner_user_id="owner")
+
+    matching = [issue for issue in report if issue["item_type"] == item_type]
+    assert len(matching) == 520
+    assert any(issue["item_id"] == expected_id and issue["issue"] == "missing_search_content" for issue in matching)
+
 
 def test_index_consistency_report_detects_missing_search_content(app_module):
     indexing_service = importlib.import_module("app.services.indexing_service")

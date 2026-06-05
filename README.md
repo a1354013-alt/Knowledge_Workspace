@@ -239,6 +239,19 @@ Default development URLs:
 - API Docs: `http://127.0.0.1:8000/docs`
 - Frontend: `http://127.0.0.1:5173`
 
+Frontend API base behavior:
+
+- Local dev can use `VITE_API_BASE=http://127.0.0.1:8000`; the VS Code F5 frontend task sets this explicitly.
+- If `VITE_API_BASE` is not set, the frontend uses same-origin `/api`. Vite dev server proxies `/api` to `http://localhost:8000`, and production builds will call the same host that serves the frontend.
+- For same-origin deploys, leave `VITE_API_BASE` unset and route `/api` to the backend at the reverse proxy or platform layer.
+- For static hosting on a separate domain, set `VITE_API_BASE` at build time to the public backend origin, for example `VITE_API_BASE=https://api.example.com`. Do not rely on a localhost default in production.
+
+VS Code F5:
+
+- Use the compound launch profile `Knowledge Workspace: Full Stack Dev`.
+- F5 runs `bootstrap: dev`, starts FastAPI with `${workspaceFolder}\.venv\Scripts\python.exe`, starts Vite with `npm.cmd`, and opens Edge at `http://localhost:5173`.
+- The F5 frontend task sets `VITE_API_BASE=http://127.0.0.1:8000` so local demo startup remains explicit.
+
 ### Environment Files
 
 Bootstrap writes safe local defaults only when files are missing:
