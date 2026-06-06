@@ -1,14 +1,17 @@
 <template>
-  <div class="page-panel">
-    <div class="page-heading">
-      <h2>{{ t('generator.title') }}</h2>
-      <p>{{ t('generator.subtitle') }}</p>
-    </div>
+  <div class="page-content generator-page">
+    <header class="page-header">
+      <h2>{{ t('generator.pageTitle') }}</h2>
+      <p>{{ t('generator.pageSubtitle') }}</p>
+    </header>
 
     <div class="grid">
       <Card>
         <template #title>
-          {{ t('generator.panelTitle') }}
+          {{ t('generator.cardTitle') }}
+        </template>
+        <template #subtitle>
+          {{ t('generator.cardSubtitle') }}
         </template>
         <template #content>
           <div class="stack-md">
@@ -30,12 +33,21 @@
               />
             </div>
 
-            <EmptyStateBlock
-              v-if="!templates.length && !loadingTemplates"
-              icon="pi pi-file"
-              :title="t('generator.noTemplatesTitle')"
-              :description="t('generator.noTemplatesDescription')"
-            />
+            <div
+              v-if="showNoTemplates"
+              class="empty-state"
+            >
+              <strong>{{ t('generator.noTemplatesTitle') }}</strong>
+              <p>{{ t('generator.noTemplatesDetail') }}</p>
+            </div>
+
+            <div
+              v-else-if="!selectedTemplate"
+              class="empty-state"
+            >
+              <strong>{{ t('generator.selectPrompt') }}</strong>
+              <p>{{ t('generator.selectPromptDetail') }}</p>
+            </div>
 
             <div
               v-if="selectedTemplate && fields.length"
@@ -73,18 +85,11 @@
               />
             </div>
 
-            <EmptyStateBlock
-              v-if="templates.length && !selectedTemplate"
-              icon="pi pi-sparkles"
-              :title="t('generator.emptyTitle')"
-              :description="t('generator.emptyDescription')"
-            />
-
             <div
-              v-else-if="output"
+              v-if="output"
               class="result-box"
             >
-              <h3>{{ t('common.output') }}</h3>
+              <h3>{{ t('generator.output') }}</h3>
               <pre class="mono">{{ output }}</pre>
             </div>
           </div>
@@ -104,12 +109,10 @@ import Textarea from 'primevue/textarea'
 
 import { get, post } from '../api'
 import { apiPaths } from '../api/endpoints'
-import { useI18n } from '../i18n'
-import EmptyStateBlock from './common/EmptyStateBlock.vue'
+import { t } from '../i18n'
 import type { GenerateRequest, GenerateResponse, TemplateMetaItem, TemplatesMetaResponse } from '../types'
 
 const toast = useToast()
-const { t } = useI18n()
 
 const loadingTemplates = ref(false)
 const generating = ref(false)
@@ -124,6 +127,7 @@ const fields = computed(() => {
   const list = templateFieldsByType.value?.[selectedTemplate.value] || []
   return Array.isArray(list) ? list : []
 })
+const showNoTemplates = computed(() => !loadingTemplates.value && templates.value.length === 0)
 
 async function loadTemplates() {
   loadingTemplates.value = true
@@ -139,7 +143,7 @@ async function loadTemplates() {
     templates.value = []
     templateFieldsByType.value = {}
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Load failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('generator.loadFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   } finally {
     loadingTemplates.value = false
   }
@@ -158,12 +162,12 @@ async function generate() {
     const response = await post<GenerateResponse, GenerateRequest>(apiPaths.generator.generate, payload)
     output.value = response.content || ''
     if (!output.value) {
-      toast.add({ severity: 'warn', summary: t('common.output'), detail: t('generator.noOutput'), life: 3000 })
+      toast.add({ severity: 'warn', summary: t('generator.noOutput'), detail: t('generator.emptyOutput'), life: 3000 })
     }
   } catch (error: unknown) {
     output.value = ''
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Generate failed', detail: apiError?.message || 'Request failed.', life: 4500 })
+    toast.add({ severity: 'error', summary: t('generator.generateFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4500 })
   } finally {
     generating.value = false
   }
@@ -177,6 +181,35 @@ onMounted(loadTemplates)
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
+}
+
+.page-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.generator-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page-header {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.page-header h2,
+.page-header p {
+  margin: 0;
+}
+
+.page-header p {
+  margin-top: 6px;
+  color: #51606f;
 }
 
 .stack-md {
@@ -210,6 +243,24 @@ onMounted(loadTemplates)
   padding: 16px;
   border-radius: 14px;
   background: #f7fafc;
+}
+
+.empty-state {
+  padding: 16px;
+  border-radius: 14px;
+  background: #f7fafc;
+  color: #51606f;
+  line-height: 1.6;
+}
+
+.empty-state strong {
+  display: block;
+  color: #1f2f46;
+  margin-bottom: 4px;
+}
+
+.empty-state p {
+  margin: 0;
 }
 
 .mono {

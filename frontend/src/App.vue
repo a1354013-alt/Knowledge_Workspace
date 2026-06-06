@@ -9,10 +9,10 @@
     >
       <Card class="login-card">
         <template #title>
-          {{ t('common.appNameLong') }}
+          {{ t('app.title') }}
         </template>
         <template #subtitle>
-          {{ t('auth.subtitle') }}
+          {{ t('app.subtitle') }}
         </template>
         <template #content>
           <div class="stack-md">
@@ -59,7 +59,7 @@
               @click="login"
             />
             <p class="muted-text">
-              {{ t('auth.defaultProvider') }}
+              {{ t('app.providerHint') }}
             </p>
           </div>
         </template>
@@ -73,9 +73,9 @@
       <aside class="sidebar surface-card">
         <div class="sidebar-header">
           <p class="sidebar-eyebrow">
-            {{ t('common.appName') }}
+            {{ t('app.name') }}
           </p>
-          <h1>{{ t('common.appNameLong') }}</h1>
+          <h1>{{ t('app.title') }}</h1>
         </div>
 
         <nav
@@ -115,8 +115,8 @@
       <div class="workspace-main">
         <header class="topbar surface-card">
           <div class="topbar-copy">
-            <h2>{{ t('common.appName') }}</h2>
-            <p>{{ currentUser.display_name || t('common.owner') }}</p>
+            <h2>{{ t('app.name') }}</h2>
+            <p>{{ t('nav.owner') }}: {{ currentUser.display_name || '-' }}</p>
           </div>
           <div class="toolbar-actions">
             <div class="language-switch">
@@ -132,7 +132,7 @@
               </button>
             </div>
             <Button
-              :label="t('common.logout')"
+              :label="t('auth.logout')"
               severity="secondary"
               @click="logout()"
             />
@@ -147,7 +147,7 @@
             />
             <template #fallback>
               <div class="panel-loading">
-                {{ t('common.loading') }}
+                {{ t('app.loading') }}
               </div>
             </template>
           </Suspense>
@@ -256,7 +256,12 @@ async function login() {
     toast.add({ severity: 'success', summary: t('auth.signedIn'), detail: t('auth.workspaceReady'), life: 3000 })
   } catch (error: unknown) {
     const apiError = error as { message?: string; status?: number }
-    toast.add({ severity: 'error', summary: t('auth.loginFailed'), detail: apiError?.message || t('auth.invalidCredentials'), life: 4000 })
+    toast.add({
+      severity: 'error',
+      summary: t('auth.loginFailed'),
+      detail: apiError?.status === 401 ? t('auth.invalidCredentials') : apiError?.message || t('auth.loginFailed'),
+      life: 4000,
+    })
     if (apiError?.status === 401) {
       clearToken()
     }
@@ -319,7 +324,10 @@ watch(activeSection, (value) => {
 <style scoped>
 .app-shell {
   height: 100dvh;
+  min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   padding: 20px;
   background: radial-gradient(circle at top left, rgba(69, 138, 255, 0.22), transparent 52%),
     radial-gradient(circle at bottom right, rgba(0, 184, 148, 0.15), transparent 50%),
@@ -328,22 +336,21 @@ watch(activeSection, (value) => {
 }
 
 .login-shell {
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   place-items: center;
+  overflow: auto;
 }
 
 .login-card {
   width: min(520px, 100%);
 }
 
-.workspace-shell {
-}
-
 .workspace-layout {
   display: flex;
   gap: 18px;
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }

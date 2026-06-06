@@ -94,7 +94,11 @@ npm run lint
 npm run typecheck
 npm run test:run
 npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
+
+Use `python scripts/check_text_encoding.py` before dependency installation when a TOML or requirements parser fails at the first byte. The check rejects UTF-8 BOM and invalid UTF-8 in committed text files, including `.txt`, `requirements.txt`, and TOML files.
 
 ## Release packaging
 

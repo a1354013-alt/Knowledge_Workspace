@@ -41,6 +41,16 @@ npm run lint
 npm run typecheck
 npm run test:run
 npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+Use `npm ci` instead of `npm install` for verification. `npm install` is only for intentional dependency changes that must update `package-lock.json`.
+
+If pip or another parser reports `TOMLDecodeError` at line 1 column 1, check for a UTF-8 BOM before reinstalling dependencies:
+
+```powershell
+python scripts/check_text_encoding.py
 ```
 
 ## API contract

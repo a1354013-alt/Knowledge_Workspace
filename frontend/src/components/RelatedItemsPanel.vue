@@ -1,19 +1,19 @@
 <template>
   <Card>
     <template #title>
-      Related items
+      {{ t('related.title') }}
     </template>
     <template
       v-if="itemId"
       #subtitle
     >
-      Trace relationships for <code>{{ itemId }}</code>
+      {{ t('related.subtitle', { itemId }) }}
     </template>
     <template #content>
       <div class="stack-md">
         <div class="row">
           <Button
-            label="Refresh"
+            :label="t('common.refresh')"
             outlined
             icon="pi pi-refresh"
             :loading="loading"
@@ -23,7 +23,7 @@
           <span
             v-if="!itemId"
             class="muted"
-          >Select an item to view relationships.</span>
+          >{{ t('related.emptyPrompt') }}</span>
         </div>
 
         <DataTable
@@ -36,18 +36,18 @@
         >
           <Column
             field="created_at"
-            header="When"
+            :header="t('common.when')"
           />
           <Column
             field="link_type"
-            header="Type"
+            :header="t('common.type')"
           />
-          <Column header="Related item">
+          <Column :header="t('related.relatedItem')">
             <template #body="slotProps">
               <div class="stack-xs">
                 <strong>{{ slotProps.data?.other_item?.title || displayOtherId(slotProps.data) }}</strong>
                 <div class="muted">
-                  <span>{{ slotProps.data?.other_item?.item_type || 'unknown' }}</span>
+                  <span>{{ slotProps.data?.other_item?.item_type || t('common.unknown') }}</span>
                   <span class="sep">·</span>
                   <code>{{ displayOtherId(slotProps.data) }}</code>
                   <span
@@ -59,7 +59,7 @@
               </div>
             </template>
           </Column>
-          <Column header="Actions">
+          <Column :header="t('common.actions')">
             <template #body="slotProps">
               <div class="actions-inline">
                 <Button
@@ -101,6 +101,7 @@ import DataTable from 'primevue/datatable'
 
 import { get } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { t } from '../i18n'
 import { downloadRelatedItem, previewRelatedItem } from '../services/downloads'
 import type { ItemLinkResolved, ItemLinksResponse } from '../types'
 
@@ -136,7 +137,7 @@ async function load() {
   } catch (error: unknown) {
     links.value = []
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Load failed', detail: apiError?.message || 'Request failed.', life: 3500 })
+    toast.add({ severity: 'error', summary: t('common.loadFailed'), detail: apiError?.message || t('common.requestFailed'), life: 3500 })
   } finally {
     loading.value = false
   }
@@ -148,7 +149,7 @@ function copyOtherId(link: ItemLinkResolved) {
     return
   }
   navigator.clipboard?.writeText(value)
-  toast.add({ severity: 'success', summary: 'Copied', detail: value, life: 1500 })
+  toast.add({ severity: 'success', summary: t('common.copied'), detail: value, life: 1500 })
 }
 
 function isDownloadable(itemId: string | undefined) {
@@ -167,7 +168,7 @@ async function downloadRelated(itemId: string) {
     await downloadRelatedItem(itemId)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Download failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.downloadFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 
@@ -179,7 +180,7 @@ async function previewRelated(itemId: string) {
     await previewRelatedItem(itemId)
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Preview failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.previewFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
   }
 }
 

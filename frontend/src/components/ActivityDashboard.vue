@@ -1,10 +1,12 @@
 <template>
-  <div class="page-panel">
-    <div class="page-heading">
-      <h2>{{ t('activity.title') }}</h2>
-      <p>{{ t('activity.subtitle') }}</p>
-    </div>
+  <div class="grid">
     <Card>
+      <template #title>
+        {{ t('activity.title') }}
+      </template>
+      <template #subtitle>
+        {{ t('activity.subtitle') }}
+      </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
@@ -32,36 +34,29 @@
           >
             <Column
               field="kind"
-              :header="t('activity.headers.type')"
+              :header="t('common.type')"
             />
             <Column
               field="title"
-              :header="t('activity.headers.title')"
+              :header="t('common.title')"
             />
             <Column
               field="status"
-              :header="t('activity.headers.status')"
+              :header="t('common.status')"
             />
             <Column
               field="source"
-              :header="t('activity.headers.source')"
+              :header="t('common.source')"
             />
             <Column
               field="when"
-              :header="t('activity.headers.when')"
+              :header="t('common.when')"
             />
-            <Column :header="t('activity.headers.item')">
+            <Column :header="t('common.item')">
               <template #body="slotProps">
                 <code>{{ slotProps.data.item_id }}</code>
               </template>
             </Column>
-            <template #empty>
-              <EmptyStateBlock
-                icon="pi pi-history"
-                :title="t('activity.emptyTitle')"
-                :description="t('activity.emptyDescription')"
-              />
-            </template>
           </DataTable>
 
           <RelatedItemsPanel
@@ -83,12 +78,10 @@ import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
-import EmptyStateBlock from './common/EmptyStateBlock.vue'
-import { useI18n } from '../i18n'
+import { t } from '../i18n'
 import { useWorkspaceStore } from '../workspace-store'
 
 const store = useWorkspaceStore()
-const { t } = useI18n()
 const loading = computed(() => store.anyLoading.value)
 const filterText = ref('')
 
@@ -131,8 +124,8 @@ async function load() {
 
   for (const entry of knowledgeEntries || []) {
     mapped.push({
-      kind: t('activity.itemKinds.knowledge'),
-      title: entry.title || entry.problem?.slice?.(0, 80) || t('nav.knowledge'),
+      kind: t('activity.knowledge'),
+      title: entry.title || entry.problem?.slice?.(0, 80) || t('activity.knowledgeEntry'),
       status: entry.status || '',
       source: `${entry.source_type || ''}`.trim(),
       when: normalizeWhen(entry.updated_at || entry.created_at),
@@ -141,8 +134,8 @@ async function load() {
   }
   for (const entry of logbookEntries || []) {
     mapped.push({
-      kind: t('activity.itemKinds.logbook'),
-      title: entry.title || entry.problem?.slice?.(0, 80) || t('nav.logbook'),
+      kind: t('activity.logbook'),
+      title: entry.title || entry.problem?.slice?.(0, 80) || t('activity.logbookEntry'),
       status: entry.status || '',
       source: `${entry.source_type || ''}`.trim(),
       when: normalizeWhen(entry.updated_at || entry.created_at),
@@ -151,40 +144,40 @@ async function load() {
   }
   for (const doc of documents || []) {
     mapped.push({
-      kind: t('activity.itemKinds.document'),
-      title: doc.filename || t('docsPhotos.docsTitle'),
+      kind: t('activity.document'),
+      title: doc.filename || t('activity.document'),
       status: doc.status || '',
-      source: 'upload',
+      source: t('activity.upload'),
       when: normalizeWhen(doc.updated_at || doc.uploaded_at),
       item_id: `document:${doc.id}`,
     })
   }
   for (const photo of photos || []) {
     mapped.push({
-      kind: t('activity.itemKinds.photo'),
-      title: photo.filename || t('docsPhotos.photosTitle'),
+      kind: t('activity.photo'),
+      title: photo.filename || t('activity.photo'),
       status: photo.status || '',
-      source: 'upload',
+      source: t('activity.upload'),
       when: normalizeWhen(photo.updated_at || photo.created_at),
       item_id: `photo:${photo.id}`,
     })
   }
   for (const run of autotestRuns || []) {
     mapped.push({
-      kind: t('activity.itemKinds.autotest'),
+      kind: t('activity.autotest'),
       title: run.project_name || run.id,
       status: run.status || '',
-      source: 'upload',
+      source: t('activity.upload'),
       when: normalizeWhen(run.created_at),
       item_id: `autotest_run:${run.id}`,
     })
   }
   for (const prompt of prompts || []) {
     mapped.push({
-      kind: t('activity.itemKinds.prompt'),
-      title: prompt.title || t('nav.prompts'),
-      status: 'saved',
-      source: 'manual',
+      kind: t('activity.prompt'),
+      title: prompt.title || t('activity.prompt'),
+      status: t('activity.saved'),
+      source: t('activity.manual'),
       when: normalizeWhen(prompt.updated_at || prompt.created_at),
       item_id: `prompt:${prompt.id}`,
     })

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 import AutoTestPanel from '../src/components/AutoTestPanel.vue'
+import { setLocale } from '../src/i18n'
 import { PrimeStubs } from './stubs'
 
 const toastAdd = vi.fn()
@@ -16,6 +17,7 @@ const apiMocks = vi.hoisted(() => ({
 
 const autotestMocks = vi.hoisted(() => ({
   startAutoTest: vi.fn(),
+  getAutoTestCapabilities: vi.fn(),
   getAutoTestRun: vi.fn(),
   promoteAutoTestProblem: vi.fn(),
   downloadAutoTestReport: vi.fn(),
@@ -32,11 +34,23 @@ vi.mock('../src/autotest-api', () => autotestMocks)
 describe('AutoTestPanel flows', () => {
   beforeEach(() => {
     toastAdd.mockReset()
+    setLocale('en')
     apiMocks.get.mockReset()
     autotestMocks.startAutoTest.mockReset()
+    autotestMocks.getAutoTestCapabilities.mockReset()
     autotestMocks.getAutoTestRun.mockReset()
     autotestMocks.promoteAutoTestProblem.mockReset()
     autotestMocks.downloadAutoTestReport.mockReset()
+    autotestMocks.getAutoTestCapabilities.mockResolvedValue({
+      message: 'Disabled mode does not execute uploaded project commands.',
+      mode: 'simulated',
+      real_mode_available: false,
+      real_mode_enabled: false,
+      real_mode_requested: false,
+      runner_mode: 'disabled',
+      sandbox_backend: 'none',
+      sandbox_backend_ready: false,
+    })
     apiMocks.get.mockResolvedValue([])
     clipboardWrite.mockReset()
     clipboardWrite.mockResolvedValue(undefined)

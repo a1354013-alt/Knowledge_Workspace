@@ -1,6 +1,6 @@
 <template>
   <div class="autotest-block">
-    <h3>{{ t('dashboard.recentRuns.title') }}</h3>
+    <h3>{{ t('health.recentRunsTitle') }}</h3>
     <div
       v-if="runs.length > 0"
       class="recent-runs-table"
@@ -29,8 +29,8 @@
     >
       <EmptyStateBlock
         icon="pi pi-check-square"
-        :title="t('dashboard.recentRuns.emptyTitle')"
-        :description="t('dashboard.recentRuns.emptyDescription')"
+        :title="t('health.emptyRecentRunsTitle')"
+        :description="t('health.emptyRecentRunsDescription')"
       />
     </div>
   </div>

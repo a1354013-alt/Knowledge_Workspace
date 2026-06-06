@@ -1,6 +1,6 @@
 <template>
   <div class="activity-block">
-    <h3>{{ t('dashboard.recentActivity.title') }}</h3>
+    <h3>{{ t('health.lastSevenDays') }}</h3>
     <div class="activity-grid">
       <div
         v-for="item in activityItems"
@@ -35,7 +35,7 @@ import { computed } from 'vue'
 import Button from 'primevue/button'
 
 import type { DashboardHealthViewModel } from '../../adapters/dashboard'
-import { useI18n } from '../../i18n'
+import { t } from '../../i18n'
 
 const props = defineProps<{
   data: DashboardHealthViewModel
@@ -46,15 +46,13 @@ defineEmits<{
   refresh: []
 }>()
 
-const { t } = useI18n()
-
 const activityItems = computed(() => [
-  { label: t('dashboard.recentActivity.documentsAdded'), value: props.data.recent_activity.documents_added, className: '' },
-  { label: t('dashboard.recentActivity.knowledgeAdded'), value: props.data.recent_activity.knowledge_added, className: '' },
-  { label: t('dashboard.recentActivity.logbookAdded'), value: props.data.recent_activity.logbook_added, className: '' },
-  { label: t('dashboard.recentActivity.autotestRuns'), value: props.data.recent_activity.autotest_runs, className: '' },
-  { label: t('dashboard.recentActivity.autotestPassed'), value: props.data.recent_activity.autotest_passed, className: 'success' },
-  { label: t('dashboard.recentActivity.autotestFailed'), value: props.data.recent_activity.autotest_failed, className: 'error' },
+  { label: t('health.documentsAdded'), value: props.data.recent_activity.documents_added, className: '' },
+  { label: t('health.knowledgeAdded'), value: props.data.recent_activity.knowledge_added, className: '' },
+  { label: t('health.logbookAdded'), value: props.data.recent_activity.logbook_added, className: '' },
+  { label: t('health.autotestRuns'), value: props.data.recent_activity.autotest_runs, className: '' },
+  { label: t('health.autotestPassed'), value: props.data.recent_activity.autotest_passed, className: 'success' },
+  { label: t('health.autotestFailed'), value: props.data.recent_activity.autotest_failed, className: 'error' },
 ])
 </script>
 

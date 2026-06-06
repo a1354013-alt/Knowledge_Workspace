@@ -21,7 +21,7 @@
         />
         <InputText
           :model-value="filterText"
-          :placeholder="t('knowledge.recentFilter')"
+          :placeholder="t('knowledge.filterRecent')"
           @update:model-value="emitFilterText"
         />
         <DataTable
@@ -33,27 +33,27 @@
         >
           <Column
             field="title"
-            header="Title"
+            :header="t('common.title')"
           />
           <Column
             field="tags"
-            header="Tags"
+            :header="t('common.tags')"
           />
           <Column
             field="source_type"
-            header="Source"
+            :header="t('common.source')"
           />
           <Column
             field="source_ref"
-            header="Source ref"
+            :header="t('common.sourceRef')"
           />
           <Column
             field="status"
-            header="Status"
+            :header="t('common.status')"
           />
           <Column
             field="updated_at"
-            header="Updated"
+            :header="t('common.updated')"
           />
           <Column :header="t('common.actions')">
             <template #body="slotProps">
@@ -79,13 +79,6 @@
               </div>
             </template>
           </Column>
-          <template #empty>
-            <EmptyStateBlock
-              icon="pi pi-book"
-              :title="t('knowledge.emptyTitle')"
-              :description="t('knowledge.emptyDescription')"
-            />
-          </template>
         </DataTable>
 
         <RelatedItemsPanel
@@ -104,9 +97,8 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 
-import { useI18n } from '../../i18n'
+import { t } from '../../i18n'
 import type { KnowledgeEntryResponse } from '../../types'
-import EmptyStateBlock from '../common/EmptyStateBlock.vue'
 import RelatedItemsPanel from '../RelatedItemsPanel.vue'
 
 defineProps<{
@@ -125,8 +117,6 @@ const emit = defineEmits<{
   selectRelated: [value: KnowledgeEntryResponse]
   'update:filterText': [value: string]
 }>()
-
-const { t } = useI18n()
 
 function emitFilterText(value: string | undefined) {
   emit('update:filterText', value || '')

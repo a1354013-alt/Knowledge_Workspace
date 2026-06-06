@@ -16,13 +16,13 @@
         />
         <div class="row">
           <Button
-            :label="t('common.ask')"
+            :label="t('knowledge.ask')"
             icon="pi pi-send"
             :loading="asking"
             @click="$emit('submit')"
           />
           <Button
-            :label="t('common.clear')"
+            :label="t('search.clear')"
             outlined
             severity="secondary"
             :disabled="asking"
@@ -68,7 +68,7 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Textarea from 'primevue/textarea'
 
-import { useI18n } from '../../i18n'
+import { t } from '../../i18n'
 import type { Source } from '../../types'
 
 defineProps<{
@@ -84,15 +84,13 @@ defineEmits<{
   'update:question': [value: string]
 }>()
 
-const { t } = useI18n()
-
 function formatSourceType(value: Source['source_type']): string {
   const labels: Record<Source['source_type'], string> = {
-    knowledge: 'Knowledge',
-    logbook: 'Logbook',
-    prompt: 'Prompt',
-    document: 'Document',
-    photo: 'Photo',
+    knowledge: t('activity.knowledge'),
+    logbook: t('activity.logbook'),
+    prompt: t('activity.prompt'),
+    document: t('activity.document'),
+    photo: t('activity.photo'),
   }
   return labels[value] || value
 }

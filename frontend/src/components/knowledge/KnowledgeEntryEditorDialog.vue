@@ -2,43 +2,43 @@
   <Dialog
     :visible="visible"
     modal
-    header="Edit knowledge entry"
+    :header="t('knowledge.editEntry')"
     :style="{ width: 'min(920px, 95vw)' }"
     @update:visible="$emit('update:visible', $event)"
   >
     <div class="stack-md">
       <InputText
         :model-value="editor.title"
-        placeholder="Title"
+        :placeholder="t('common.title')"
         @update:model-value="updateField('title', $event)"
       />
       <Textarea
         :model-value="editor.problem"
         rows="3"
-        placeholder="Problem"
+        :placeholder="t('common.problem')"
         @update:model-value="updateField('problem', $event)"
       />
       <Textarea
         :model-value="editor.root_cause"
         rows="3"
-        placeholder="Root cause"
+        :placeholder="t('common.rootCause')"
         @update:model-value="updateField('root_cause', $event)"
       />
       <Textarea
         :model-value="editor.solution"
         rows="4"
-        placeholder="Solution"
+        :placeholder="t('common.solution')"
         @update:model-value="updateField('solution', $event)"
       />
       <InputText
         :model-value="editor.tags"
-        placeholder="Tags"
+        :placeholder="t('common.tags')"
         @update:model-value="updateField('tags', $event)"
       />
       <Textarea
         :model-value="editor.notes"
         rows="2"
-        placeholder="Notes"
+        :placeholder="t('common.notes')"
         @update:model-value="updateField('notes', $event)"
       />
       <div class="row">
@@ -47,7 +47,7 @@
           :options="statusOptions"
           option-label="label"
           option-value="value"
-          placeholder="Status"
+          :placeholder="t('common.status')"
           @update:model-value="updateField('status', $event)"
         />
         <Dropdown
@@ -55,19 +55,19 @@
           :options="sourceTypes"
           option-label="label"
           option-value="value"
-          placeholder="Source type"
+          :placeholder="t('common.sourceType')"
           @update:model-value="updateField('source_type', $event)"
         />
       </div>
       <InputText
         :model-value="editor.source_ref"
-        placeholder="Source ref (optional, e.g. document:..., autotest_run:...)"
+        :placeholder="t('knowledge.sourceRefFull')"
         @update:model-value="updateField('source_ref', $event)"
       />
       <Chips
         :model-value="editor.related_item_ids"
         separator=","
-        placeholder="Related item IDs (comma-separated)"
+        :placeholder="t('knowledge.relatedItemIds')"
         @update:model-value="updateField('related_item_ids', $event)"
       />
 
@@ -77,12 +77,12 @@
           :options="pickerOptions"
           option-label="label"
           option-value="value"
-          placeholder="Add related item..."
+          :placeholder="t('knowledge.addRelatedItem')"
           class="picker"
           @update:model-value="$emit('update:pickerSelected', $event)"
         />
         <Button
-          label="Add"
+          :label="t('common.add')"
           icon="pi pi-plus"
           outlined
           :disabled="!pickerSelected"
@@ -92,13 +92,13 @@
 
       <div class="row">
         <Button
-          label="Save changes"
+          :label="t('common.saveChanges')"
           icon="pi pi-save"
           :loading="editorSaving"
           @click="$emit('save')"
         />
         <Button
-          label="Close"
+          :label="t('common.close')"
           outlined
           severity="secondary"
           :disabled="editorSaving"
@@ -117,6 +117,7 @@ import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
+import { t } from '../../i18n'
 import type { KnowledgeEntryCreateRequest } from '../../types'
 
 type KnowledgeEditorModel = KnowledgeEntryCreateRequest & { id: string }

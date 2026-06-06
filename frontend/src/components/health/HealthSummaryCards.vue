@@ -2,7 +2,7 @@
   <div class="cards-row">
     <div class="summary-card">
       <div class="card-header">
-        <span class="card-label">{{ t('dashboard.metrics.knowledgeTotal') }}</span>
+        <span class="card-label">{{ t('health.knowledgeTotal') }}</span>
         <i class="pi pi-book" />
       </div>
       <div class="card-value">
@@ -21,40 +21,40 @@
 
     <div class="summary-card">
       <div class="card-header">
-        <span class="card-label">{{ t('dashboard.metrics.logbookResolutionRate') }}</span>
+        <span class="card-label">{{ t('health.logbookResolutionRate') }}</span>
         <i class="pi pi-list" />
       </div>
       <div class="card-value">
         {{ formatPercentage(data.logbook.resolution_rate) }}
       </div>
       <div class="card-detail">
-        {{ t('dashboard.metrics.withSolution', { solved: data.logbook.with_solution, total: data.logbook.total }) }}
+        {{ t('health.withSolution', { solved: data.logbook.with_solution, total: data.logbook.total }) }}
       </div>
     </div>
 
     <div class="summary-card">
       <div class="card-header">
-        <span class="card-label">{{ t('dashboard.metrics.autotestPassRate') }}</span>
+        <span class="card-label">{{ t('health.autotestPassRate') }}</span>
         <i class="pi pi-check-circle" />
       </div>
       <div class="card-value">
         {{ formatPercentage(data.autotest.pass_rate) }}
       </div>
       <div class="card-detail">
-        {{ t('dashboard.metrics.passed', { passed: data.autotest.passed, total: data.autotest.total_runs }) }}
+        {{ t('health.passedSummary', { passed: data.autotest.passed, total: data.autotest.total_runs }) }}
       </div>
     </div>
 
     <div class="summary-card">
       <div class="card-header">
-        <span class="card-label">{{ t('dashboard.metrics.documentIndexRate') }}</span>
+        <span class="card-label">{{ t('health.documentIndexRate') }}</span>
         <i class="pi pi-file" />
       </div>
       <div class="card-value">
         {{ formatPercentage(documentIndexRate) }}
       </div>
       <div class="card-detail">
-        {{ t('dashboard.metrics.indexed', { indexed: data.documents.indexed, total: data.documents.total }) }}
+        {{ t('health.indexedSummary', { indexed: data.documents.indexed, total: data.documents.total }) }}
       </div>
     </div>
   </div>

@@ -45,6 +45,9 @@ def test_wrapper_scripts_delegate_to_existing_modules():
     assert "from safe_compileall import main" in safe_compile
     assert "from verify_release_zip import main" in verify_release
     assert "UTF-8 BOM detected" in check_text_encoding
+    assert "SKIP_FILENAMES" in check_text_encoding
+    assert '"package-lock.json"' in check_text_encoding
+    assert '".env.example"' in check_text_encoding
 
 
 def test_export_openapi_check_runs_from_repo_root(tmp_path: Path):

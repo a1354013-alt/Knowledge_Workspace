@@ -1,0 +1,90 @@
+html,
+body,
+#app {
+<<<<<<< HEAD
+  height: 100%;
+  margin: 0;
+=======
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  min-height: 0;
+>>>>>>> 73c504053f9be15621bf36814ae5746e8fbe0f71
+}
+
+body {
+  overflow: hidden;
+<<<<<<< HEAD
+  font-family: 'Segoe UI', 'Noto Sans TC', sans-serif;
+  color: #16324a;
+  background: linear-gradient(140deg, #f7fbff 0%, #eef6ff 45%, #f1fffb 100%);
+=======
+>>>>>>> 73c504053f9be15621bf36814ae5746e8fbe0f71
+}
+
+* {
+  box-sizing: border-box;
+}
+<<<<<<< HEAD
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.page-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.page-heading h2 {
+  margin: 0;
+  font-size: clamp(1.1rem, 1rem + 0.4vw, 1.45rem);
+  color: #16324a;
+}
+
+.page-heading p {
+  margin: 0;
+  color: #567086;
+  line-height: 1.6;
+}
+
+.surface-card,
+.p-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 40px rgba(31, 76, 132, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+}
+
+.p-card .p-card-title,
+.p-card .p-card-subtitle {
+  line-height: 1.35;
+}
+
+.p-card .p-card-title {
+  font-size: 1.05rem;
+  color: #17324d;
+}
+
+.p-card .p-card-subtitle {
+  color: #5f7387;
+}
+
+.inline-muted {
+  margin: 0;
+  color: #5f7387;
+  font-size: 0.92rem;
+}
+=======
+>>>>>>> 73c504053f9be15621bf36814ae5746e8fbe0f71

@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 
 import AutoTestStatusBadge from '../src/components/autotest/AutoTestStatusBadge.vue'
 import AutoTestTimeline from '../src/components/autotest/AutoTestTimeline.vue'
+import { setLocale } from '../src/i18n'
 
 describe('AutoTest extracted components', () => {
   it('renders status badge classes from backend run statuses', () => {
@@ -15,6 +16,7 @@ describe('AutoTest extracted components', () => {
   })
 
   it('renders backend timeline events and falls back for sparse runs', () => {
+    setLocale('en')
     const wrapper = mount(AutoTestTimeline, {
       props: {
         run: {

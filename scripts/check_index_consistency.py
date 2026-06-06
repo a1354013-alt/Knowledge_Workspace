@@ -6,6 +6,8 @@ import os
 import sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True
+
 def _detect_root() -> Path:
     cwd = Path.cwd()
     if (cwd / "scripts").exists() and (cwd / "backend").exists():

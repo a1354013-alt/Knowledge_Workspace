@@ -20,6 +20,9 @@ jobs:
       - name: Repo hygiene
         run: python scripts/verify_repo_hygiene.py
 
+      - name: Text encoding check
+        run: python scripts/check_text_encoding.py
+
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
@@ -30,9 +33,6 @@ jobs:
 
       - name: Python dependency audit
         run: python scripts/audit_python.py
-
-      - name: Text encoding check
-        run: python scripts/check_text_encoding.py
 
       - name: Backend compile check
         run: python scripts/safe_compile.py -q .
@@ -108,6 +108,16 @@ jobs:
       - name: Frontend build
         working-directory: frontend
         run: npm run build
+
+      - name: Install Playwright browser
+        working-directory: frontend
+        timeout-minutes: 10
+        run: npx playwright install --with-deps chromium
+
+      - name: Frontend browser smoke
+        working-directory: frontend
+        timeout-minutes: 5
+        run: npm run test:e2e:ci
 
       - name: Package release zip
         run: python scripts/package_release.py ./knowledge_workspace_release.zip

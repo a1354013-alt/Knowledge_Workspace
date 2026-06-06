@@ -1,23 +1,31 @@
 <template>
-  <div class="page-panel">
-    <div class="page-heading">
-      <h2>{{ t('autotest.title') }}</h2>
-      <p>{{ t('autotest.subtitle') }}</p>
-    </div>
+  <div class="page-content autotest-page">
+    <header class="page-header">
+      <h2>{{ t('autotest.pageTitle') }}</h2>
+      <p>{{ t('autotest.pageSubtitle') }}</p>
+    </header>
 
     <div class="grid">
       <Card>
         <template #title>
           {{ t('autotest.runTitle') }}
         </template>
+        <template #subtitle>
+          {{ t('autotest.runSubtitle') }}
+        </template>
         <template #content>
           <div class="stack-md">
             <div class="warning-banner">
-              <strong>{{ runnerBannerTitle }}</strong>
-              <p>{{ t('autotest.safeModeDescription') }}</p>
-              <p>{{ runnerBannerBody }}</p>
-              <p>{{ t('autotest.simulatedFormat') }}</p>
-              <p>{{ t('autotest.dockerDisabled') }}</p>
+              <strong>{{ t('autotest.runner', { mode: runnerModeLabel }) }}</strong>
+              <p>{{ capabilitiesMessage }}</p>
+              <p>{{ t('autotest.simulatedIntro') }}</p>
+              <p>{{ t('autotest.simulatedRecords') }}</p>
+              <p v-if="capabilities?.safety_note">
+                {{ capabilities.safety_note }}
+              </p>
+              <p v-if="capabilities">
+                {{ t('autotest.dockerStatus', { status: capabilities.sandbox_backend_ready ? t('autotest.dockerReady') : t('autotest.dockerBlocked') }) }}
+              </p>
             </div>
             <div class="row">
               <input
@@ -55,7 +63,7 @@
               />
             </div>
             <p class="muted">
-              Tip: keep zips small; steps have timeouts. Results are stored as structured data for later search.
+              {{ t('autotest.tip') }}
             </p>
           </div>
         </template>
@@ -95,11 +103,10 @@
                 :header="t('common.created')"
               />
               <template #empty>
-                <EmptyStateBlock
-                  icon="pi pi-check-square"
-                  :title="t('autotest.emptyTitle')"
-                  :description="t('autotest.emptyDescription')"
-                />
+                <div class="empty-state">
+                  <strong>{{ t('autotest.emptyTitle') }}</strong>
+                  <p>{{ t('autotest.emptyBody') }}</p>
+                </div>
               </template>
             </DataTable>
           </div>
@@ -108,7 +115,7 @@
 
       <Card v-if="selectedRun">
         <template #title>
-          Run details
+          {{ t('autotest.detailsTitle') }}
         </template>
         <template #subtitle>
           {{ selectedRun.id }}
@@ -116,56 +123,56 @@
         <template #content>
           <div class="stack-md">
             <div class="result-box">
-              <h3>Execution</h3>
+              <h3>{{ t('autotest.execution') }}</h3>
               <p class="muted">
-                Mode: {{ selectedRunMode }}
+                {{ t('autotest.mode') }}: {{ selectedRunMode }}
               </p>
               <p
                 v-if="selectedRunRunnerMode === 'local_trusted'"
                 class="warning-text"
               >
-                Local trusted mode executes commands from uploaded projects on this host. Use only with trusted local projects.
+                {{ t('autotest.localTrustedRunWarning') }}
               </p>
               <p
                 v-if="selectedRunRunnerMode === 'docker_sandbox'"
                 class="muted"
               >
-                Docker sandbox mode uses container limits and network is disabled unless configured.
+                {{ t('autotest.dockerRunWarning') }}
               </p>
               <p
                 v-if="selectedRunIsGitHubIntakeOnly"
                 class="muted"
               >
-                GitHub analyze is currently intake-only registration. This run is not queued for clone/test execution.
+                {{ t('autotest.githubIntakeOnly') }}
               </p>
               <p class="muted">
-                Failed reason: {{ selectedRun.failed_reason || '-' }}
+                {{ t('autotest.failedReason') }}: {{ selectedRun.failed_reason || '-' }}
               </p>
               <p class="muted">
-                Project type detected: {{ selectedRun.project_type_detected || selectedRun.project_type || '-' }}
+                {{ t('autotest.projectTypeDetected') }}: {{ selectedRun.project_type_detected || selectedRun.project_type || '-' }}
               </p>
               <p class="muted">
-                Working directory: {{ selectedRun.working_directory || '-' }}
+                {{ t('autotest.workingDirectory') }}: {{ selectedRun.working_directory || '-' }}
               </p>
             </div>
 
             <div class="result-box">
-              <h3>Summary</h3>
+              <h3>{{ t('autotest.summary') }}</h3>
               <pre class="mono">{{ selectedRun.summary || '-' }}</pre>
             </div>
 
             <div class="result-box">
-              <h3>Reports</h3>
+              <h3>{{ t('autotest.reports') }}</h3>
               <div class="row">
                 <Button
-                  label="Download Markdown Report"
+                  :label="t('autotest.downloadMarkdownReport')"
                   icon="pi pi-download"
                   :disabled="!canExportSelectedRun"
                   :loading="downloadingFormat === 'md'"
                   @click="downloadReport('md')"
                 />
                 <Button
-                  label="Download HTML Report"
+                  :label="t('autotest.downloadHtmlReport')"
                   icon="pi pi-download"
                   outlined
                   :disabled="!canExportSelectedRun"
@@ -173,7 +180,7 @@
                   @click="downloadReport('html')"
                 />
                 <Button
-                  label="Copy AI Fix Prompt"
+                  :label="t('autotest.copyAiFixPrompt')"
                   icon="pi pi-copy"
                   outlined
                   :disabled="!canCopyAiPrompt"
@@ -191,7 +198,7 @@
               v-if="selectedRun.suggestion"
               class="result-box"
             >
-              <h3>Fix suggestion</h3>
+              <h3>{{ t('autotest.fixSuggestion') }}</h3>
               <pre class="mono">{{ selectedRun.suggestion }}</pre>
             </div>
 
@@ -199,19 +206,19 @@
               v-if="selectedRun.problem_entry_id || selectedRun.solution_entry_id"
               class="result-box"
             >
-              <h3>Knowledge capture</h3>
+              <h3>{{ t('autotest.knowledgeCapture') }}</h3>
               <p class="muted">
-                Problem draft: {{ selectedRun.problem_entry_id || '-' }}
+                {{ t('autotest.problemDraft') }}: {{ selectedRun.problem_entry_id || '-' }}
               </p>
               <p class="muted">
-                Solution entry: {{ selectedRun.solution_entry_id || '-' }}
+                {{ t('autotest.solutionEntry') }}: {{ selectedRun.solution_entry_id || '-' }}
               </p>
               <div
                 v-if="selectedRun.problem_entry_id && !selectedRun.solution_entry_id"
                 class="row"
               >
                 <Button
-                  label="Promote problem to verified solution"
+                  :label="t('autotest.promoteProblemToVerifiedSolution')"
                   icon="pi pi-check"
                   @click="promoteProblem"
                 />
@@ -222,7 +229,7 @@
               v-if="selectedRun.prompt_output"
               class="result-box"
             >
-              <h3>Prompt output (for Codex/Copilot)</h3>
+              <h3>{{ t('autotest.promptOutput') }}</h3>
               <pre class="mono">{{ selectedRun.prompt_output }}</pre>
             </div>
 
@@ -230,7 +237,7 @@
               v-if="selectedRun.steps?.length"
               class="result-box"
             >
-              <h3>Steps</h3>
+              <h3>{{ t('autotest.steps') }}</h3>
               <article
                 v-for="step in selectedRun.steps"
                 :key="step.step_id"
@@ -270,7 +277,7 @@ import {
   promoteAutoTestProblem,
   startAutoTest,
 } from '../autotest-api'
-import { useI18n } from '../i18n'
+import { t } from '../i18n'
 import { confirmDanger } from '../services/confirm'
 import type {
   AutoTestExportFormat,
@@ -281,11 +288,9 @@ import type {
 import { useWorkspaceStore } from '../workspace-store'
 import AutoTestStatusBadge from './autotest/AutoTestStatusBadge.vue'
 import AutoTestTimeline from './autotest/AutoTestTimeline.vue'
-import EmptyStateBlock from './common/EmptyStateBlock.vue'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 
 const toast = useToast()
-const { t } = useI18n()
 
 const zipInput = ref<HTMLInputElement | null>(null)
 const selectedZip = ref<File | null>(null)
@@ -307,13 +312,18 @@ const canExportSelectedRun = computed(() => {
 })
 const selectedRunMode = computed(() => selectedRun.value?.execution_mode || 'simulated')
 const selectedRunRunnerMode = computed(() => selectedRun.value?.runner_mode || (selectedRunMode.value === 'real' ? 'local_trusted' : 'disabled'))
-const runnerModeLabel = computed(() => t(`statusLabels.${normalizeRunnerLabelKey(capabilities.value?.runner_mode || 'disabled')}`))
-const runnerBannerTitle = computed(() => `${t('autotest.runnerDisabled').replace(t('statusLabels.disabled'), '').trim()} ${runnerModeLabel.value}`.trim())
-const runnerBannerBody = computed(() => {
-  if (capabilities.value?.runner_mode === 'local_trusted') {
-    return capabilitiesMessage.value
+const runnerModeLabel = computed(() => {
+  const mode = capabilities.value?.runner_mode || 'disabled'
+  if (mode === 'local_trusted') {
+    return t('autotest.localTrusted')
   }
-  return t('autotest.simulatedMode')
+  if (mode === 'docker_sandbox') {
+    return t('autotest.dockerSandbox')
+  }
+  if (mode === 'simulated') {
+    return t('autotest.simulated')
+  }
+  return t('autotest.disabled')
 })
 const selectedRunIsGitHubIntakeOnly = computed(() => {
   const run = selectedRun.value
@@ -332,40 +342,30 @@ const aiFixPromptText = computed(() => {
 const canCopyAiPrompt = computed(() => canExportSelectedRun.value && !!aiFixPromptText.value)
 const reportActionHint = computed(() => {
   if (!selectedRun.value) {
-    return 'Select a run to export reports or copy the generated AI fix prompt.'
+    return t('autotest.selectRunReportHint')
   }
   if (!canExportSelectedRun.value) {
-    return `Run status is ${selectedRun.value.status}. Reports unlock after the run reaches passed or failed.`
+    return t('autotest.reportsLocked', { status: selectedRun.value.status })
   }
   if (!canCopyAiPrompt.value) {
-    return 'Report downloads are ready. AI fix prompt copy unlocks when the backend generated a suggestion or prompt output.'
+    return t('autotest.copyPromptLocked')
   }
-  return 'Exports use deterministic filenames and include the current run detail report.'
+  return t('autotest.exportsReady')
 })
 const runsLoadMessage = computed(() => store.state.error.autotestRuns || '')
 const showRunsReloadWarning = computed(() => store.state.status.autotestRuns === 'error' && runs.value.length > 0)
 const capabilitiesMessage = computed(() => {
   if (capabilities.value?.runner_mode === 'local_trusted') {
-    return 'Local trusted mode runs commands on this host. Do not run untrusted ZIP files here.'
+    return t('autotest.localTrustedWarning')
   }
   if (capabilities.value?.runner_mode === 'docker_sandbox') {
-    return capabilities.value.message || 'Docker sandbox mode is active.'
+    return capabilities.value.message || t('autotest.dockerActive')
   }
-  return capabilities.value?.message || 'Disabled mode does not execute uploaded project commands.'
+  return capabilities.value?.message || t('autotest.simulatedIntro')
 })
 
 function openZipPicker() {
   zipInput.value?.click()
-}
-
-function normalizeRunnerLabelKey(value: string) {
-  if (value === 'local_trusted') {
-    return 'localTrusted'
-  }
-  if (value === 'docker_sandbox') {
-    return 'dockerSandbox'
-  }
-  return 'disabled'
 }
 
 function onZipSelected(event: Event) {
@@ -381,10 +381,10 @@ function isTimeoutError(error: unknown) {
 
 function autoTestRunErrorMessage(error: unknown) {
   if (isTimeoutError(error)) {
-    return 'AutoTest upload or job creation timed out. Check the ZIP size, network connection, or backend status. If the job was created, refresh and review recent runs.'
+    return t('autotest.timeout')
   }
   const apiError = error as { message?: string }
-  return apiError?.message || 'Request failed.'
+  return apiError?.message || t('common.requestFailed')
 }
 
 function isTerminalRunStatus(status: string | undefined) {
@@ -406,7 +406,7 @@ async function pollAutoTestRun(runId: string) {
     }
     await sleep(AUTO_TEST_POLL_INTERVAL_MS)
   }
-  throw new Error('AutoTest execution timed out while waiting for the async job to finish.')
+  throw new Error(t('autotest.asyncTimeout'))
 }
 
 async function loadRuns() {
@@ -420,8 +420,8 @@ async function loadRuns() {
     const apiError = error as { message?: string }
     toast.add({
       severity: runs.value.length ? 'warn' : 'error',
-      summary: 'Reload failed',
-      detail: apiError?.message || store.state.error.autotestRuns || 'Request failed.',
+      summary: t('autotest.reloadFailed'),
+      detail: apiError?.message || store.state.error.autotestRuns || t('common.requestFailed'),
       life: 4500,
     })
   } finally {
@@ -431,7 +431,7 @@ async function loadRuns() {
 
 async function runAutoTest() {
   if (!selectedZip.value) {
-    toast.add({ severity: 'warn', summary: t('autotest.noZip'), detail: t('autotest.chooseZipFirst'), life: 3000 })
+    toast.add({ severity: 'warn', summary: t('autotest.noZipSelected'), detail: t('autotest.chooseZipFirst'), life: 3000 })
     return
   }
 
@@ -443,8 +443,8 @@ async function runAutoTest() {
     selectedRun.value = response
     toast.add({
       severity: 'info',
-      summary: 'Run queued',
-      detail: response.summary || `AutoTest job ${response.id} started.`,
+      summary: t('autotest.runQueued'),
+      detail: response.summary || t('autotest.jobStarted', { id: response.id }),
       life: 3000,
     })
     selectedZip.value = null
@@ -453,9 +453,9 @@ async function runAutoTest() {
     }
     await loadRuns()
     const completed = isTerminalRunStatus(response.status) ? response : await pollAutoTestRun(response.id)
-    toast.add({ severity: 'success', summary: 'Run completed', detail: completed.status || 'Done.', life: 3000 })
+    toast.add({ severity: 'success', summary: t('autotest.runCompleted'), detail: completed.status || t('autotest.done'), life: 3000 })
   } catch (error: unknown) {
-    toast.add({ severity: 'error', summary: 'Run failed', detail: autoTestRunErrorMessage(error), life: 6000 })
+    toast.add({ severity: 'error', summary: t('autotest.runFailed'), detail: autoTestRunErrorMessage(error), life: 6000 })
   } finally {
     running.value = false
   }
@@ -480,23 +480,23 @@ async function promoteProblem() {
   }
   if (
     !(await confirmDanger({
-      header: 'Promote AutoTest problem',
-      message: 'Promote this AutoTest problem draft to a verified knowledge entry?',
-      acceptLabel: 'Promote',
+      header: t('autotest.promoteProblemHeader'),
+      message: t('autotest.promoteProblemMessage'),
+      acceptLabel: t('logbook.promote'),
     }))
   ) {
     return
   }
   try {
     const response = await promoteAutoTestProblem(entryId)
-    toast.add({ severity: 'success', summary: 'Promoted', detail: `Knowledge entry: ${response.knowledge_entry_id}`, life: 4500 })
+    toast.add({ severity: 'success', summary: t('logbook.promoted'), detail: t('logbook.promotedDetail', { id: response.knowledge_entry_id }), life: 4500 })
     if (selectedRun.value?.id) {
       selectedRun.value = await getAutoTestRun(selectedRun.value.id)
     }
     await loadRuns()
   } catch (error: unknown) {
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Promote failed', detail: apiError?.message || 'Request failed.', life: 5000 })
+    toast.add({ severity: 'error', summary: t('common.promoteFailed'), detail: apiError?.message || t('common.requestFailed'), life: 5000 })
   }
 }
 
@@ -509,7 +509,7 @@ async function downloadReport(format: AutoTestExportFormat) {
     await downloadAutoTestReport(selectedRun.value.id, format)
     toast.add({
       severity: 'success',
-      summary: 'Report downloaded',
+      summary: t('autotest.reportDownloaded'),
       detail: `autotest-report-${selectedRun.value.id}.${format}`,
       life: 3000,
     })
@@ -517,8 +517,8 @@ async function downloadReport(format: AutoTestExportFormat) {
     const apiError = error as { message?: string }
     toast.add({
       severity: 'error',
-      summary: 'Report download failed',
-      detail: apiError?.message || 'Unable to download report.',
+      summary: t('autotest.reportDownloadFailed'),
+      detail: apiError?.message || t('autotest.reportDownloadUnable'),
       life: 5000,
     })
   } finally {
@@ -532,13 +532,13 @@ async function copyAiFixPrompt() {
   }
   try {
     await navigator.clipboard.writeText(aiFixPromptText.value)
-    toast.add({ severity: 'success', summary: 'Prompt copied', detail: 'AI fix prompt copied to clipboard.', life: 3000 })
+    toast.add({ severity: 'success', summary: t('autotest.promptCopied'), detail: t('autotest.promptCopiedDetail'), life: 3000 })
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({
       severity: 'error',
-      summary: 'Copy failed',
-      detail: apiError?.message || 'Unable to copy AI fix prompt.',
+      summary: t('autotest.copyFailed'),
+      detail: apiError?.message || t('autotest.copyPromptUnable'),
       life: 5000,
     })
   }
@@ -552,6 +552,35 @@ onMounted(loadRuns)
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+.page-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.autotest-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page-header {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.page-header h2,
+.page-header p {
+  margin: 0;
+}
+
+.page-header p {
+  margin-top: 6px;
+  color: #51606f;
 }
 
 .stack-md {
@@ -636,6 +665,22 @@ onMounted(loadRuns)
   margin: 8px 0 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 12px;
+}
+
+.empty-state {
+  padding: 18px;
+  color: #51606f;
+  line-height: 1.6;
+}
+
+.empty-state strong {
+  display: block;
+  color: #1f2f46;
+  margin-bottom: 4px;
+}
+
+.empty-state p {
+  margin: 0;
 }
 
 @media (max-width: 1080px) {

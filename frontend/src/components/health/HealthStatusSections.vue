@@ -1,7 +1,7 @@
 <template>
   <div class="status-blocks">
     <div class="status-block">
-      <h3>{{ t('dashboard.status.knowledgeByStatus') }}</h3>
+      <h3>{{ t('health.knowledgeByStatus') }}</h3>
       <div class="status-list">
         <div
           v-for="(count, status) in data.knowledge.by_status"
@@ -22,7 +22,7 @@
     </div>
 
     <div class="status-block">
-      <h3>{{ t('dashboard.status.documentIndexStatus') }}</h3>
+      <h3>{{ t('health.documentIndexStatus') }}</h3>
       <div class="status-list">
         <div
           v-for="row in documentRows"
@@ -60,25 +60,25 @@ const documentRows = computed(() => [
   {
     className: 'status-indexed',
     count: props.data.documents.indexed,
-    label: t('dashboard.status.indexed'),
+    label: t('common.indexed'),
     total: props.data.documents.total,
   },
   {
     className: 'status-pending',
     count: props.data.documents.pending,
-    label: t('dashboard.status.pending'),
+    label: t('common.pending'),
     total: props.data.documents.total,
   },
   {
     className: 'status-failed',
     count: props.data.documents.failed_documents,
-    label: t('dashboard.status.failed'),
+    label: t('common.failed'),
     total: props.data.documents.total,
   },
   {
     className: 'status-archived',
     count: props.data.documents.archived_documents,
-    label: t('dashboard.status.archived'),
+    label: t('common.archivedStatus'),
     total: props.data.documents.total + props.data.documents.archived_documents,
   },
 ])

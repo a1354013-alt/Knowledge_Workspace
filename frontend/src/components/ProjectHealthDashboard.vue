@@ -1,11 +1,12 @@
 <template>
-  <div class="page-panel">
-    <div class="page-heading">
-      <h2>{{ t('dashboard.title') }}</h2>
-      <p>{{ t('dashboard.subtitle') }}</p>
-    </div>
-
+  <div class="grid">
     <Card>
+      <template #title>
+        {{ t('health.title') }}
+      </template>
+      <template #subtitle>
+        {{ t('health.subtitle') }}
+      </template>
       <template #content>
         <div class="stack-lg">
           <div
@@ -13,7 +14,7 @@
             class="loading-state"
           >
             <div class="spinner" />
-            <p>{{ t('dashboard.loading') }}</p>
+            <p>{{ t('health.loadingMetrics') }}</p>
           </div>
 
           <div
@@ -24,18 +25,18 @@
               {{ error }}
             </p>
             <Button
-              :label="t('common.retry')"
+              :label="t('health.retry')"
               icon="pi pi-refresh"
               @click="loadDashboard"
             />
           </div>
 
-          <EmptyStateBlock
+          <div
             v-else-if="!data"
-            icon="pi pi-chart-line"
-            :title="t('common.noData')"
-            :description="t('dashboard.empty')"
-          />
+            class="empty-state"
+          >
+            <p>{{ t('health.noData') }}</p>
+          </div>
 
           <div
             v-else
@@ -43,10 +44,7 @@
           >
             <HealthSummaryCards :data="data" />
             <HealthStatusSections :data="data" />
-            <div class="dashboard-lower">
-              <HealthRecentRuns :runs="data.autotest.recent_runs" />
-              <HealthGettingStarted />
-            </div>
+            <HealthRecentRuns :runs="data.autotest.recent_runs" />
             <HealthRefreshPanel
               :data="data"
               :loading="loading"
@@ -63,16 +61,13 @@
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 
-import { useI18n } from '../i18n'
-import EmptyStateBlock from './common/EmptyStateBlock.vue'
-import HealthGettingStarted from './health/HealthGettingStarted.vue'
 import HealthRecentRuns from './health/HealthRecentRuns.vue'
 import HealthRefreshPanel from './health/HealthRefreshPanel.vue'
 import HealthStatusSections from './health/HealthStatusSections.vue'
 import HealthSummaryCards from './health/HealthSummaryCards.vue'
 import { useProjectHealth } from './health/useProjectHealth'
+import { t } from '../i18n'
 
-const { t } = useI18n()
 const { data, error, loading, loadDashboard } = useProjectHealth()
 </script>
 
@@ -136,19 +131,9 @@ const { data, error, loading, loadDashboard } = useProjectHealth()
   gap: 24px;
 }
 
-.dashboard-lower {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  gap: 16px;
-}
-
 @media (max-width: 768px) {
   .dashboard-content {
     gap: 16px;
-  }
-
-  .dashboard-lower {
-    grid-template-columns: 1fr;
   }
 }
 </style>
