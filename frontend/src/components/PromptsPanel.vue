@@ -1,123 +1,134 @@
 <template>
-  <div class="grid">
-    <Card>
-      <template #title>
-        Saved prompts
-      </template>
-      <template #subtitle>
-        Reusable prompts for recurring engineering workflows (debugging, reviews, postmortems).
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <p
-            v-if="loadMessage"
-            class="inline-status"
-            :class="{ 'inline-status-warning': showReloadWarning }"
-          >
-            {{ loadMessage }}
-          </p>
-          <div class="row">
-            <Button
-              label="Refresh"
-              outlined
-              icon="pi pi-refresh"
+  <div class="page-panel">
+    <div class="page-heading">
+      <h2>{{ t('prompts.title') }}</h2>
+      <p>{{ t('prompts.subtitle') }}</p>
+    </div>
+
+    <div class="grid">
+      <Card>
+        <template #title>
+          {{ t('prompts.listTitle') }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <p
+              v-if="loadMessage"
+              class="inline-status"
+              :class="{ 'inline-status-warning': showReloadWarning }"
+            >
+              {{ loadMessage }}
+            </p>
+            <div class="row">
+              <Button
+                :label="t('common.refresh')"
+                outlined
+                icon="pi pi-refresh"
+                :loading="loading"
+                @click="loadPrompts"
+              />
+            </div>
+            <InputText
+              v-model="filterText"
+              :placeholder="t('prompts.filter')"
+            />
+            <DataTable
+              :value="filteredPrompts"
               :loading="loading"
-              @click="loadPrompts"
-            />
-          </div>
-          <InputText
-            v-model="filterText"
-            placeholder="Filter by title/tags"
-          />
-          <DataTable
-            :value="filteredPrompts"
-            :loading="loading"
-            data-key="id"
-            size="small"
-            responsive-layout="scroll"
-          >
-            <Column
-              field="title"
-              header="Title"
-            />
-            <Column
-              field="tags"
-              header="Tags"
-            />
-            <Column
-              field="updated_at"
-              header="Updated"
-            />
-            <Column header="Actions">
-              <template #body="slotProps">
-                <div class="actions-inline">
-                  <Button
-                    icon="pi pi-copy"
-                    text
-                    @click="copyPrompt(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-sitemap"
-                    text
-                    severity="secondary"
-                    @click="selectForRelated(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-trash"
-                    text
-                    severity="danger"
-                    @click="deletePrompt(slotProps.data)"
-                  />
-                </div>
+              data-key="id"
+              size="small"
+              responsive-layout="scroll"
+            >
+              <Column
+                field="title"
+                :header="t('common.title')"
+              />
+              <Column
+                field="tags"
+                :header="t('common.tags')"
+              />
+              <Column
+                field="updated_at"
+                :header="t('common.updated')"
+              />
+              <Column :header="t('common.actions')">
+                <template #body="slotProps">
+                  <div class="actions-inline">
+                    <Button
+                      icon="pi pi-copy"
+                      text
+                      @click="copyPrompt(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-sitemap"
+                      text
+                      severity="secondary"
+                      @click="selectForRelated(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-trash"
+                      text
+                      severity="danger"
+                      @click="deletePrompt(slotProps.data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+              <template #empty>
+                <EmptyStateBlock
+                  icon="pi pi-comment"
+                  :title="t('prompts.emptyTitle')"
+                  :description="t('prompts.emptyDescription')"
+                />
               </template>
-            </Column>
-          </DataTable>
+            </DataTable>
 
-          <RelatedItemsPanel
-            v-if="selectedRelatedItemId"
-            :item-id="selectedRelatedItemId"
-          />
-        </div>
-      </template>
-    </Card>
-
-    <Card>
-      <template #title>
-        Create prompt
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <InputText
-            v-model="form.title"
-            placeholder="Title"
-          />
-          <Textarea
-            v-model="form.content"
-            rows="10"
-            placeholder="Prompt content"
-          />
-          <InputText
-            v-model="form.tags"
-            placeholder="Tags (comma separated)"
-          />
-          <div class="row">
-            <Button
-              label="Save"
-              icon="pi pi-save"
-              :loading="saving"
-              @click="savePrompt"
-            />
-            <Button
-              label="Reset"
-              outlined
-              severity="secondary"
-              :disabled="saving"
-              @click="resetForm"
+            <RelatedItemsPanel
+              v-if="selectedRelatedItemId"
+              :item-id="selectedRelatedItemId"
             />
           </div>
-        </div>
-      </template>
-    </Card>
+        </template>
+      </Card>
+
+      <Card>
+        <template #title>
+          {{ t('prompts.createTitle') }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <InputText
+              v-model="form.title"
+              :placeholder="t('common.title')"
+            />
+            <Textarea
+              v-model="form.content"
+              rows="10"
+              :placeholder="t('prompts.promptContent')"
+            />
+            <InputText
+              v-model="form.tags"
+              :placeholder="t('prompts.tagsComma')"
+            />
+            <div class="row">
+              <Button
+                :label="t('common.save')"
+                icon="pi pi-save"
+                :loading="saving"
+                @click="savePrompt"
+              />
+              <Button
+                :label="t('common.reset')"
+                outlined
+                severity="secondary"
+                :disabled="saving"
+                @click="resetForm"
+              />
+            </div>
+          </div>
+        </template>
+      </Card>
+    </div>
   </div>
 </template>
 
@@ -133,12 +144,15 @@ import Textarea from 'primevue/textarea'
 
 import { del, post } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { useI18n } from '../i18n'
 import { confirmDanger } from '../services/confirm'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
+import EmptyStateBlock from './common/EmptyStateBlock.vue'
 import { useWorkspaceStore } from '../workspace-store'
 import type { MessageResponse, SavedPromptCreateRequest, SavedPromptResponse } from '../types'
 
 const toast = useToast()
+const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)

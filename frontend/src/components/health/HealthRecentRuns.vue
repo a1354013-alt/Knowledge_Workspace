@@ -1,6 +1,6 @@
 <template>
   <div class="autotest-block">
-    <h3>Recent AutoTest Runs</h3>
+    <h3>{{ t('dashboard.recentRuns.title') }}</h3>
     <div
       v-if="runs.length > 0"
       class="recent-runs-table"
@@ -27,19 +27,27 @@
       v-else
       class="empty-runs"
     >
-      <p>No recent AutoTest runs</p>
+      <EmptyStateBlock
+        icon="pi pi-check-square"
+        :title="t('dashboard.recentRuns.emptyTitle')"
+        :description="t('dashboard.recentRuns.emptyDescription')"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { DashboardHealthViewModel } from '../../adapters/dashboard'
+import { useI18n } from '../../i18n'
+import EmptyStateBlock from '../common/EmptyStateBlock.vue'
 import HealthStatusBadge from './HealthStatusBadge.vue'
 import { formatDateTime } from './useProjectHealth'
 
 defineProps<{
   runs: DashboardHealthViewModel['autotest']['recent_runs']
 }>()
+
+const { t } = useI18n()
 </script>
 
 <style scoped>
@@ -94,9 +102,6 @@ defineProps<{
 }
 
 .empty-runs {
-  padding: 16px;
-  text-align: center;
-  color: #51606f;
-  font-size: 13px;
+  padding-top: 8px;
 }
 </style>

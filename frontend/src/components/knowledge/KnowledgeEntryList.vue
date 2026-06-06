@@ -1,7 +1,7 @@
 <template>
   <Card>
     <template #title>
-      Recent notes
+      {{ t('knowledge.recentNotes') }}
     </template>
     <template #content>
       <div class="stack-md">
@@ -13,7 +13,7 @@
           {{ loadMessage }}
         </p>
         <Button
-          label="Refresh"
+          :label="t('common.refresh')"
           outlined
           icon="pi pi-refresh"
           :loading="loadingRecent"
@@ -21,7 +21,7 @@
         />
         <InputText
           :model-value="filterText"
-          placeholder="Filter recent (title/tags/status)"
+          :placeholder="t('knowledge.recentFilter')"
           @update:model-value="emitFilterText"
         />
         <DataTable
@@ -55,7 +55,7 @@
             field="updated_at"
             header="Updated"
           />
-          <Column header="Actions">
+          <Column :header="t('common.actions')">
             <template #body="slotProps">
               <div class="actions-inline">
                 <Button
@@ -79,6 +79,13 @@
               </div>
             </template>
           </Column>
+          <template #empty>
+            <EmptyStateBlock
+              icon="pi pi-book"
+              :title="t('knowledge.emptyTitle')"
+              :description="t('knowledge.emptyDescription')"
+            />
+          </template>
         </DataTable>
 
         <RelatedItemsPanel
@@ -97,7 +104,9 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 
+import { useI18n } from '../../i18n'
 import type { KnowledgeEntryResponse } from '../../types'
+import EmptyStateBlock from '../common/EmptyStateBlock.vue'
 import RelatedItemsPanel from '../RelatedItemsPanel.vue'
 
 defineProps<{
@@ -116,6 +125,8 @@ const emit = defineEmits<{
   selectRelated: [value: KnowledgeEntryResponse]
   'update:filterText': [value: string]
 }>()
+
+const { t } = useI18n()
 
 function emitFilterText(value: string | undefined) {
   emit('update:filterText', value || '')

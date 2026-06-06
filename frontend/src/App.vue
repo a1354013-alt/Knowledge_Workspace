@@ -9,17 +9,32 @@
     >
       <Card class="login-card">
         <template #title>
-          Personal AI Knowledge Workspace for Engineers
+          {{ t('common.appNameLong') }}
         </template>
         <template #subtitle>
-          Capture solutions, index docs & screenshots, ask AI with traceable sources, and recycle AutoTest results into reusable troubleshooting knowledge.
+          {{ t('auth.subtitle') }}
         </template>
         <template #content>
           <div class="stack-md">
+            <div class="login-actions">
+              <div class="language-switch">
+                <button
+                  v-for="option in languageOptions"
+                  :key="option.value"
+                  type="button"
+                  class="lang-btn"
+                  :class="{ 'lang-btn-active': locale === option.value }"
+                  @click="setLocale(option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+            </div>
+
             <label
               class="field-label"
               for="userId"
-            >User ID</label>
+            >{{ t('auth.userId') }}</label>
             <InputText
               id="userId"
               v-model="loginForm.user_id"
@@ -29,7 +44,7 @@
             <label
               class="field-label"
               for="password"
-            >Password</label>
+            >{{ t('auth.password') }}</label>
             <Password
               id="password"
               v-model="loginForm.password"
@@ -39,12 +54,12 @@
             />
 
             <Button
-              label="Sign In"
+              :label="t('auth.signIn')"
               :loading="loginLoading"
               @click="login"
             />
             <p class="muted-text">
-              Default provider: Ollama (configure `OLLAMA_BASE_URL` / `OLLAMA_MODEL` in backend).
+              {{ t('auth.defaultProvider') }}
             </p>
           </div>
         </template>
@@ -53,43 +68,78 @@
 
     <section
       v-else
-      class="workspace-shell"
+      class="workspace-layout"
     >
-      <header class="topbar">
-        <div>
-          <h1>Personal AI Knowledge Workspace</h1>
-          <p>{{ currentUser.display_name }}</p>
+      <aside class="sidebar surface-card">
+        <div class="sidebar-header">
+          <p class="sidebar-eyebrow">
+            {{ t('common.appName') }}
+          </p>
+          <h1>{{ t('common.appNameLong') }}</h1>
         </div>
-        <div class="toolbar-actions">
-          <Button
-            label="Logout"
-            severity="secondary"
-            @click="logout()"
-          />
-        </div>
-      </header>
 
-      <main class="main-grid">
         <nav
-          class="tab-strip"
-          aria-label="Workspace sections"
+          class="sidebar-nav"
+          :aria-label="t('nav.aria')"
         >
-          <button
-            v-for="tab in tabs"
-            :key="tab.key"
-            type="button"
-            class="tab-chip"
-            :class="{ 'tab-chip-active': tab.key === activeTabKey }"
-            :aria-pressed="tab.key === activeTabKey"
-            @click="selectTab(tab.key)"
-            @mouseenter="tab.preload()"
-            @focus="tab.preload()"
+          <section
+            v-for="group in navGroups"
+            :key="group.labelKey"
+            class="sidebar-group"
           >
-            {{ tab.label }}
-          </button>
+            <p class="sidebar-group-title">
+              {{ t(group.labelKey) }}
+            </p>
+            <button
+              v-for="tab in group.items"
+              :key="tab.key"
+              type="button"
+              class="sidebar-link"
+              :class="{ 'sidebar-link-active': tab.key === activeTabKey }"
+              :aria-pressed="tab.key === activeTabKey"
+              @click="selectTab(tab.key)"
+              @mouseenter="tab.preload()"
+              @focus="tab.preload()"
+            >
+              <i
+                class="sidebar-link-icon pi"
+                :class="tab.icon"
+                aria-hidden="true"
+              />
+              <span>{{ t(tab.labelKey) }}</span>
+            </button>
+          </section>
         </nav>
+      </aside>
 
-        <section class="tab-panel-shell">
+      <div class="workspace-main">
+        <header class="topbar surface-card">
+          <div class="topbar-copy">
+            <h2>{{ t('common.appName') }}</h2>
+            <p>{{ currentUser.display_name || t('common.owner') }}</p>
+          </div>
+          <div class="toolbar-actions">
+            <div class="language-switch">
+              <button
+                v-for="option in languageOptions"
+                :key="option.value"
+                type="button"
+                class="lang-btn"
+                :class="{ 'lang-btn-active': locale === option.value }"
+                @click="setLocale(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+            <Button
+              :label="t('common.logout')"
+              severity="secondary"
+              @click="logout()"
+            />
+          </div>
+        </header>
+
+        <main class="page-content">
           <Suspense>
             <component
               :is="activeTab.component"
@@ -97,18 +147,18 @@
             />
             <template #fallback>
               <div class="panel-loading">
-                Loading...
+                {{ t('common.loading') }}
               </div>
             </template>
           </Suspense>
-        </section>
-      </main>
+        </main>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, markRaw, onBeforeUnmount, onMounted, ref, type AsyncComponentLoader, type Component } from 'vue'
+import { computed, defineAsyncComponent, markRaw, onBeforeUnmount, onMounted, ref, watch, type AsyncComponentLoader, type Component } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
@@ -120,52 +170,48 @@ import { createInitialUser } from './app-state'
 import { get, post } from './api'
 import { apiPaths } from './api/endpoints'
 import { clearToken, onUnauthorized, restoreToken, setToken } from './auth'
+import { useI18n, type Locale } from './i18n'
 import { useWorkspaceStore } from './workspace-store'
+import { useWorkspaceNavigation } from './workspace-navigation'
 import AppConfirmDialog from './components/AppConfirmDialog.vue'
 import type { LoginRequest, LoginResponse, MeResponse } from './types'
 
-type TabKey =
-  | 'health'
-  | 'activity'
-  | 'search'
-  | 'knowledge'
-  | 'logbook'
-  | 'docsPhotos'
-  | 'autotest'
-  | 'prompts'
-  | 'generator'
-  | 'settings'
+type TabKey = import('./workspace-navigation').WorkspaceSectionKey
 
 type LazyTab = {
   key: TabKey
-  label: string
+  labelKey: string
+  icon: string
   component: Component
   preload: AsyncComponentLoader<Component>
 }
 
-function lazyTab(key: TabKey, label: string, loader: AsyncComponentLoader<Component>): LazyTab {
+function lazyTab(key: TabKey, labelKey: string, icon: string, loader: AsyncComponentLoader<Component>): LazyTab {
   return {
     key,
-    label,
+    labelKey,
+    icon,
     component: markRaw(defineAsyncComponent(loader)),
     preload: loader,
   }
 }
 
 const tabs: readonly LazyTab[] = [
-  lazyTab('health', 'Health', () => import('./components/ProjectHealthDashboard.vue')),
-  lazyTab('activity', 'Activity', () => import('./components/ActivityDashboard.vue')),
-  lazyTab('search', 'Search', () => import('./components/GlobalSearchPanel.vue')),
-  lazyTab('knowledge', 'Knowledge Base', () => import('./components/KnowledgeBase.vue')),
-  lazyTab('logbook', 'Problem Logbook', () => import('./components/LogbookPanel.vue')),
-  lazyTab('docsPhotos', 'Documents & Photos', () => import('./components/DocsPhotosPanel.vue')),
-  lazyTab('autotest', 'Auto Test', () => import('./components/AutoTestPanel.vue')),
-  lazyTab('prompts', 'Prompts', () => import('./components/PromptsPanel.vue')),
-  lazyTab('generator', 'Generator', () => import('./components/TemplateGeneratorPanel.vue')),
-  lazyTab('settings', 'Settings', () => import('./components/SettingsPanel.vue')),
+  lazyTab('health', 'nav.health', 'pi-chart-line', () => import('./components/ProjectHealthDashboard.vue')),
+  lazyTab('activity', 'nav.activity', 'pi-history', () => import('./components/ActivityDashboard.vue')),
+  lazyTab('search', 'nav.search', 'pi-search', () => import('./components/GlobalSearchPanel.vue')),
+  lazyTab('knowledge', 'nav.knowledge', 'pi-book', () => import('./components/KnowledgeBase.vue')),
+  lazyTab('logbook', 'nav.logbook', 'pi-file-edit', () => import('./components/LogbookPanel.vue')),
+  lazyTab('docsPhotos', 'nav.docsPhotos', 'pi-images', () => import('./components/DocsPhotosPanel.vue')),
+  lazyTab('autotest', 'nav.autotest', 'pi-check-square', () => import('./components/AutoTestPanel.vue')),
+  lazyTab('prompts', 'nav.prompts', 'pi-comment', () => import('./components/PromptsPanel.vue')),
+  lazyTab('generator', 'nav.generator', 'pi-sparkles', () => import('./components/TemplateGeneratorPanel.vue')),
+  lazyTab('settings', 'nav.settings', 'pi-cog', () => import('./components/SettingsPanel.vue')),
 ]
 
 const toast = useToast()
+const { locale, setLocale, t } = useI18n()
+const { activeSection, navigate } = useWorkspaceNavigation()
 
 const loginLoading = ref(false)
 const currentUser = ref(createInitialUser())
@@ -173,18 +219,32 @@ const loginForm = ref<LoginRequest>({ user_id: '', password: '' })
 const workspaceStore = useWorkspaceStore()
 const activeTabKey = ref<TabKey>('health')
 
+const navGroups = [
+  { labelKey: 'nav.sections.overview', items: tabs.filter((tab) => ['health', 'activity'].includes(tab.key)) },
+  { labelKey: 'nav.sections.knowledgeManagement', items: tabs.filter((tab) => ['search', 'knowledge', 'logbook'].includes(tab.key)) },
+  { labelKey: 'nav.sections.docsAndTesting', items: tabs.filter((tab) => ['docsPhotos', 'autotest'].includes(tab.key)) },
+  { labelKey: 'nav.sections.aiTools', items: tabs.filter((tab) => ['prompts', 'generator'].includes(tab.key)) },
+  { labelKey: 'nav.sections.system', items: tabs.filter((tab) => ['settings'].includes(tab.key)) },
+] as const
+
+const languageOptions: { label: string; value: Locale }[] = [
+  { label: '繁中', value: 'zh-TW' },
+  { label: 'EN', value: 'en' },
+]
+
 const isLoggedIn = computed(() => Boolean(currentUser.value.user_id))
 const activeTab = computed(() => tabs.find((tab) => tab.key === activeTabKey.value) ?? tabs[0])
 const activeTabProps = computed(() => (activeTab.value.key === 'settings' ? { currentUser: currentUser.value } : {}))
 
 function selectTab(tabKey: TabKey) {
   activeTabKey.value = tabKey
+  navigate(tabKey)
   activeTab.value.preload()
 }
 
 async function login() {
   if (!loginForm.value.user_id || !loginForm.value.password) {
-    toast.add({ severity: 'warn', summary: 'Missing fields', detail: 'Enter user ID and password.', life: 3000 })
+    toast.add({ severity: 'warn', summary: t('auth.missingFields'), detail: t('auth.enterCredentials'), life: 3000 })
     return
   }
 
@@ -193,10 +253,10 @@ async function login() {
     const response = await post<LoginResponse, LoginRequest>(apiPaths.auth.login, loginForm.value, { skipAuth: true })
     setToken(response.access_token)
     await bootstrapSession()
-    toast.add({ severity: 'success', summary: 'Signed in', detail: 'Workspace ready.', life: 3000 })
+    toast.add({ severity: 'success', summary: t('auth.signedIn'), detail: t('auth.workspaceReady'), life: 3000 })
   } catch (error: unknown) {
     const apiError = error as { message?: string; status?: number }
-    toast.add({ severity: 'error', summary: 'Login failed', detail: apiError?.message || 'Login failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('auth.loginFailed'), detail: apiError?.message || t('auth.invalidCredentials'), life: 4000 })
     if (apiError?.status === 401) {
       clearToken()
     }
@@ -211,7 +271,7 @@ function logout(showToast = true) {
   loginForm.value = { user_id: '', password: '' }
   workspaceStore.reset()
   if (showToast) {
-    toast.add({ severity: 'info', summary: 'Logged out', detail: 'Session cleared.', life: 3000 })
+    toast.add({ severity: 'info', summary: t('auth.loggedOut'), detail: t('auth.sessionCleared'), life: 3000 })
   }
 }
 
@@ -226,13 +286,14 @@ async function bootstrapSession() {
 
 const removeUnauthorizedListener = onUnauthorized((event) => {
   if (isLoggedIn.value) {
-    toast.add({ severity: 'warn', summary: 'Session expired', detail: event.detail || 'Please sign in again.', life: 4000 })
+    toast.add({ severity: 'warn', summary: t('auth.sessionExpired'), detail: event.detail || t('auth.signInAgain'), life: 4000 })
   }
   logout(false)
 })
 
 onMounted(async () => {
   activeTab.value.preload()
+  navigate(activeTabKey.value)
   try {
     await bootstrapSession()
   } catch (error: unknown) {
@@ -246,19 +307,28 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   removeUnauthorizedListener()
 })
+
+watch(activeSection, (value) => {
+  if (value !== activeTabKey.value) {
+    activeTabKey.value = value
+    activeTab.value.preload()
+  }
+})
 </script>
 
 <style scoped>
 .app-shell {
-  min-height: 100vh;
-  padding: 24px;
+  height: 100dvh;
+  overflow: hidden;
+  padding: 20px;
   background: radial-gradient(circle at top left, rgba(69, 138, 255, 0.22), transparent 52%),
     radial-gradient(circle at bottom right, rgba(0, 184, 148, 0.15), transparent 50%),
     linear-gradient(140deg, #f7f7fb 0%, #eef4ff 45%, #f5fff9 100%);
+  box-sizing: border-box;
 }
 
 .login-shell {
-  min-height: calc(100vh - 48px);
+  height: 100%;
   display: grid;
   place-items: center;
 }
@@ -268,9 +338,110 @@ onBeforeUnmount(() => {
 }
 
 .workspace-shell {
+}
+
+.workspace-layout {
+  display: flex;
+  gap: 18px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar {
+  flex: 0 0 260px;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+}
+
+.sidebar-header {
+  margin-bottom: 18px;
+}
+
+.sidebar-header h1,
+.topbar-copy h2,
+.topbar-copy p {
+  margin: 0;
+}
+
+.sidebar-eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #55708a;
+}
+
+.sidebar-header h1 {
+  font-size: 1.1rem;
+  line-height: 1.45;
+  color: #16324a;
+}
+
+.sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+}
+
+.sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-group-title {
+  margin: 0;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6c8194;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #244663;
+  padding: 11px 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.sidebar-link:hover,
+.sidebar-link:focus-visible {
+  background: rgba(255, 255, 255, 0.82);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.sidebar-link-active {
+  background: linear-gradient(135deg, rgba(39, 107, 209, 0.95), rgba(37, 163, 154, 0.92));
+  color: #fff;
+  box-shadow: 0 18px 32px rgba(41, 111, 185, 0.22);
+}
+
+.sidebar-link-icon {
+  width: 1.1rem;
+}
+
+.workspace-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
 }
 
 .topbar {
@@ -278,67 +449,58 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 20px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(12px);
+  padding: 14px 18px;
+  flex: 0 0 auto;
 }
 
-.topbar h1,
-.topbar p {
-  margin: 0;
+.topbar-copy h2 {
+  font-size: 1rem;
+  color: #17324d;
+}
+
+.topbar-copy p {
+  margin-top: 4px;
+  color: #5e7488;
+  font-size: 0.92rem;
 }
 
 .toolbar-actions {
   display: flex;
+  align-items: center;
   gap: 12px;
-}
-
-.main-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-}
-
-.tab-strip {
-  display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
 }
 
-.tab-chip {
-  border: 1px solid rgba(38, 63, 103, 0.12);
-  background: rgba(255, 255, 255, 0.92);
-  color: #1f2f46;
+.language-switch {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
   border-radius: 999px;
-  padding: 10px 14px;
-  font: inherit;
-  font-weight: 600;
+  background: rgba(233, 241, 251, 0.95);
+}
+
+.lang-btn {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #33536d;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
-.tab-chip:hover,
-.tab-chip:focus-visible {
-  transform: translateY(-1px);
-  border-color: rgba(37, 99, 235, 0.28);
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.12);
-  outline: none;
+.lang-btn-active {
+  background: #fff;
+  color: #1b4d8e;
+  box-shadow: 0 6px 12px rgba(31, 76, 132, 0.12);
 }
 
-.tab-chip-active {
-  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
-}
-
-.tab-panel-shell {
-  min-width: 0;
+.page-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .stack-md {
@@ -349,6 +511,11 @@ onBeforeUnmount(() => {
 
 .field-label {
   font-weight: 600;
+}
+
+.login-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .muted-text {
@@ -362,6 +529,30 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 720px) {
+  .app-shell {
+    padding: 14px;
+  }
+
+  .workspace-layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    flex: 0 0 auto;
+    overflow: auto hidden;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: max-content;
+  }
+
+  .sidebar-group {
+    min-width: 190px;
+  }
+
   .topbar {
     flex-direction: column;
     align-items: flex-start;

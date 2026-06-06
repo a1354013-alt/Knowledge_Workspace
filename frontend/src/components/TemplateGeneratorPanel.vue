@@ -1,78 +1,96 @@
 <template>
-  <div class="grid">
-    <Card>
-      <template #title>
-        Template generator
-      </template>
-      <template #subtitle>
-        Generate structured engineering docs (bug reports, troubleshooting notes, PR descriptions, postmortems).
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <div class="row">
-            <Button
-              label="Refresh templates"
-              outlined
-              icon="pi pi-refresh"
-              :loading="loadingTemplates"
-              @click="loadTemplates"
-            />
-            <Dropdown
-              v-model="selectedTemplate"
-              :options="templates"
-              option-label="label"
-              option-value="value"
-              placeholder="Choose a template..."
-              class="picker"
-            />
-          </div>
+  <div class="page-panel">
+    <div class="page-heading">
+      <h2>{{ t('generator.title') }}</h2>
+      <p>{{ t('generator.subtitle') }}</p>
+    </div>
 
-          <div
-            v-if="selectedTemplate && fields.length"
-            class="stack-md"
-          >
-            <div
-              v-for="field in fields"
-              :key="field"
-              class="stack-xs"
-            >
-              <label class="field-label">{{ field }}</label>
-              <Textarea
-                v-model="inputs[field]"
-                rows="2"
-                :placeholder="field"
-                auto-resize
+    <div class="grid">
+      <Card>
+        <template #title>
+          {{ t('generator.panelTitle') }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <div class="row">
+              <Button
+                :label="t('generator.refreshTemplates')"
+                outlined
+                icon="pi pi-refresh"
+                :loading="loadingTemplates"
+                @click="loadTemplates"
+              />
+              <Dropdown
+                v-model="selectedTemplate"
+                :options="templates"
+                option-label="label"
+                option-value="value"
+                :placeholder="t('generator.chooseTemplate')"
+                class="picker"
               />
             </div>
-          </div>
 
-          <div class="row">
-            <Button
-              label="Generate"
-              icon="pi pi-bolt"
-              :loading="generating"
-              :disabled="!selectedTemplate"
-              @click="generate"
+            <EmptyStateBlock
+              v-if="!templates.length && !loadingTemplates"
+              icon="pi pi-file"
+              :title="t('generator.noTemplatesTitle')"
+              :description="t('generator.noTemplatesDescription')"
             />
-            <Button
-              label="Clear output"
-              outlined
-              severity="secondary"
-              :disabled="generating"
-              @click="output = ''"
-            />
-          </div>
 
-          <div
-            v-if="output"
-            class="result-box"
-          >
-            <h3>Output</h3>
-            <pre class="mono">{{ output }}</pre>
+            <div
+              v-if="selectedTemplate && fields.length"
+              class="stack-md"
+            >
+              <div
+                v-for="field in fields"
+                :key="field"
+                class="stack-xs"
+              >
+                <label class="field-label">{{ field }}</label>
+                <Textarea
+                  v-model="inputs[field]"
+                  rows="2"
+                  :placeholder="field"
+                  auto-resize
+                />
+              </div>
+            </div>
+
+            <div class="row">
+              <Button
+                :label="t('common.generate')"
+                icon="pi pi-bolt"
+                :loading="generating"
+                :disabled="!selectedTemplate"
+                @click="generate"
+              />
+              <Button
+                :label="t('common.clearOutput')"
+                outlined
+                severity="secondary"
+                :disabled="generating"
+                @click="output = ''"
+              />
+            </div>
+
+            <EmptyStateBlock
+              v-if="templates.length && !selectedTemplate"
+              icon="pi pi-sparkles"
+              :title="t('generator.emptyTitle')"
+              :description="t('generator.emptyDescription')"
+            />
+
+            <div
+              v-else-if="output"
+              class="result-box"
+            >
+              <h3>{{ t('common.output') }}</h3>
+              <pre class="mono">{{ output }}</pre>
+            </div>
           </div>
-        </div>
-      </template>
-    </Card>
+        </template>
+      </Card>
+    </div>
   </div>
 </template>
 
@@ -86,9 +104,12 @@ import Textarea from 'primevue/textarea'
 
 import { get, post } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { useI18n } from '../i18n'
+import EmptyStateBlock from './common/EmptyStateBlock.vue'
 import type { GenerateRequest, GenerateResponse, TemplateMetaItem, TemplatesMetaResponse } from '../types'
 
 const toast = useToast()
+const { t } = useI18n()
 
 const loadingTemplates = ref(false)
 const generating = ref(false)
@@ -137,7 +158,7 @@ async function generate() {
     const response = await post<GenerateResponse, GenerateRequest>(apiPaths.generator.generate, payload)
     output.value = response.content || ''
     if (!output.value) {
-      toast.add({ severity: 'warn', summary: 'No output', detail: 'Generator returned empty content.', life: 3000 })
+      toast.add({ severity: 'warn', summary: t('common.output'), detail: t('generator.noOutput'), life: 3000 })
     }
   } catch (error: unknown) {
     output.value = ''

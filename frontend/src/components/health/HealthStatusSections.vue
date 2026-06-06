@@ -1,7 +1,7 @@
 <template>
   <div class="status-blocks">
     <div class="status-block">
-      <h3>Knowledge by Status</h3>
+      <h3>{{ t('dashboard.status.knowledgeByStatus') }}</h3>
       <div class="status-list">
         <div
           v-for="(count, status) in data.knowledge.by_status"
@@ -22,7 +22,7 @@
     </div>
 
     <div class="status-block">
-      <h3>Document Index Status</h3>
+      <h3>{{ t('dashboard.status.documentIndexStatus') }}</h3>
       <div class="status-list">
         <div
           v-for="row in documentRows"
@@ -48,35 +48,37 @@
 import { computed } from 'vue'
 
 import type { DashboardHealthViewModel } from '../../adapters/dashboard'
+import { useI18n } from '../../i18n'
 import { calculateStatusWidth, capitalizeStatus } from './useProjectHealth'
 
 const props = defineProps<{
   data: DashboardHealthViewModel
 }>()
+const { t } = useI18n()
 
 const documentRows = computed(() => [
   {
     className: 'status-indexed',
     count: props.data.documents.indexed,
-    label: 'Indexed',
+    label: t('dashboard.status.indexed'),
     total: props.data.documents.total,
   },
   {
     className: 'status-pending',
     count: props.data.documents.pending,
-    label: 'Pending',
+    label: t('dashboard.status.pending'),
     total: props.data.documents.total,
   },
   {
     className: 'status-failed',
     count: props.data.documents.failed_documents,
-    label: 'Failed',
+    label: t('dashboard.status.failed'),
     total: props.data.documents.total,
   },
   {
     className: 'status-archived',
     count: props.data.documents.archived_documents,
-    label: 'Archived',
+    label: t('dashboard.status.archived'),
     total: props.data.documents.total + props.data.documents.archived_documents,
   },
 ])

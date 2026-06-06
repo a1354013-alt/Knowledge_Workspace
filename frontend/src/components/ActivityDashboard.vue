@@ -1,17 +1,15 @@
 <template>
-  <div class="grid">
+  <div class="page-panel">
+    <div class="page-heading">
+      <h2>{{ t('activity.title') }}</h2>
+      <p>{{ t('activity.subtitle') }}</p>
+    </div>
     <Card>
-      <template #title>
-        Recent activity
-      </template>
-      <template #subtitle>
-        A traceable timeline across knowledge, logbook, documents, photos, prompts, and AutoTest runs.
-      </template>
       <template #content>
         <div class="stack-md">
           <div class="row">
             <Button
-              label="Refresh"
+              :label="t('common.refresh')"
               outlined
               icon="pi pi-refresh"
               :loading="loading"
@@ -19,7 +17,7 @@
             />
             <InputText
               v-model="filterText"
-              placeholder="Filter (title/type/status/source)"
+              :placeholder="t('activity.filterPlaceholder')"
               class="filter"
             />
           </div>
@@ -34,29 +32,36 @@
           >
             <Column
               field="kind"
-              header="Type"
+              :header="t('activity.headers.type')"
             />
             <Column
               field="title"
-              header="Title"
+              :header="t('activity.headers.title')"
             />
             <Column
               field="status"
-              header="Status"
+              :header="t('activity.headers.status')"
             />
             <Column
               field="source"
-              header="Source"
+              :header="t('activity.headers.source')"
             />
             <Column
               field="when"
-              header="When"
+              :header="t('activity.headers.when')"
             />
-            <Column header="Item">
+            <Column :header="t('activity.headers.item')">
               <template #body="slotProps">
                 <code>{{ slotProps.data.item_id }}</code>
               </template>
             </Column>
+            <template #empty>
+              <EmptyStateBlock
+                icon="pi pi-history"
+                :title="t('activity.emptyTitle')"
+                :description="t('activity.emptyDescription')"
+              />
+            </template>
           </DataTable>
 
           <RelatedItemsPanel
@@ -78,9 +83,12 @@ import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
+import EmptyStateBlock from './common/EmptyStateBlock.vue'
+import { useI18n } from '../i18n'
 import { useWorkspaceStore } from '../workspace-store'
 
 const store = useWorkspaceStore()
+const { t } = useI18n()
 const loading = computed(() => store.anyLoading.value)
 const filterText = ref('')
 
@@ -123,8 +131,8 @@ async function load() {
 
   for (const entry of knowledgeEntries || []) {
     mapped.push({
-      kind: 'Knowledge',
-      title: entry.title || entry.problem?.slice?.(0, 80) || 'Knowledge entry',
+      kind: t('activity.itemKinds.knowledge'),
+      title: entry.title || entry.problem?.slice?.(0, 80) || t('nav.knowledge'),
       status: entry.status || '',
       source: `${entry.source_type || ''}`.trim(),
       when: normalizeWhen(entry.updated_at || entry.created_at),
@@ -133,8 +141,8 @@ async function load() {
   }
   for (const entry of logbookEntries || []) {
     mapped.push({
-      kind: 'Logbook',
-      title: entry.title || entry.problem?.slice?.(0, 80) || 'Logbook entry',
+      kind: t('activity.itemKinds.logbook'),
+      title: entry.title || entry.problem?.slice?.(0, 80) || t('nav.logbook'),
       status: entry.status || '',
       source: `${entry.source_type || ''}`.trim(),
       when: normalizeWhen(entry.updated_at || entry.created_at),
@@ -143,8 +151,8 @@ async function load() {
   }
   for (const doc of documents || []) {
     mapped.push({
-      kind: 'Document',
-      title: doc.filename || 'Document',
+      kind: t('activity.itemKinds.document'),
+      title: doc.filename || t('docsPhotos.docsTitle'),
       status: doc.status || '',
       source: 'upload',
       when: normalizeWhen(doc.updated_at || doc.uploaded_at),
@@ -153,8 +161,8 @@ async function load() {
   }
   for (const photo of photos || []) {
     mapped.push({
-      kind: 'Photo',
-      title: photo.filename || 'Photo',
+      kind: t('activity.itemKinds.photo'),
+      title: photo.filename || t('docsPhotos.photosTitle'),
       status: photo.status || '',
       source: 'upload',
       when: normalizeWhen(photo.updated_at || photo.created_at),
@@ -163,7 +171,7 @@ async function load() {
   }
   for (const run of autotestRuns || []) {
     mapped.push({
-      kind: 'AutoTest',
+      kind: t('activity.itemKinds.autotest'),
       title: run.project_name || run.id,
       status: run.status || '',
       source: 'upload',
@@ -173,8 +181,8 @@ async function load() {
   }
   for (const prompt of prompts || []) {
     mapped.push({
-      kind: 'Prompt',
-      title: prompt.title || 'Prompt',
+      kind: t('activity.itemKinds.prompt'),
+      title: prompt.title || t('nav.prompts'),
       status: 'saved',
       source: 'manual',
       when: normalizeWhen(prompt.updated_at || prompt.created_at),

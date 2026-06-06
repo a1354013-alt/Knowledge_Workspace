@@ -1,249 +1,257 @@
 <template>
-  <div class="grid">
-    <Card>
-      <template #title>
-        Run acceptance (install / build / test / lint)
-      </template>
-      <template #subtitle>
-        Disabled mode is the safe default. Local trusted mode is for your own projects; Docker sandbox mode uses container execution.
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <div class="warning-banner">
-            <strong>AutoTest runner: {{ runnerModeLabel }}</strong>
-            <p>{{ capabilitiesMessage }}</p>
-            <p v-if="capabilities?.safety_note">
-              {{ capabilities.safety_note }}
-            </p>
-            <p v-if="capabilities">
-              Sandbox backend: {{ capabilities.sandbox_backend }}{{ capabilities.sandbox_backend_ready ? ' (ready)' : ' (blocked)' }}
-            </p>
-          </div>
-          <div class="row">
-            <input
-              ref="zipInput"
-              type="file"
-              accept=".zip"
-              class="hidden-input"
-              @change="onZipSelected"
-            >
-            <Button
-              label="Choose Zip"
-              icon="pi pi-upload"
-              outlined
-              @click="openZipPicker"
-            />
-            <span
-              v-if="selectedZip"
-              class="muted"
-            >{{ selectedZip.name }}</span>
-          </div>
-          <div class="row">
-            <Button
-              label="Run"
-              icon="pi pi-play"
-              :loading="running"
-              :disabled="capabilities?.runner_mode === 'disabled' && capabilities?.real_mode_requested"
-              @click="runAutoTest"
-            />
-            <Button
-              label="Refresh"
-              outlined
-              icon="pi pi-refresh"
-              :loading="loadingRuns"
-              @click="loadRuns"
-            />
-          </div>
-          <p class="muted">
-            Tip: keep zips small; steps have timeouts. Results are stored as structured data for later search.
-          </p>
-        </div>
-      </template>
-    </Card>
+  <div class="page-panel">
+    <div class="page-heading">
+      <h2>{{ t('autotest.title') }}</h2>
+      <p>{{ t('autotest.subtitle') }}</p>
+    </div>
 
-    <Card>
-      <template #title>
-        Recent runs
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <p
-            v-if="runsLoadMessage"
-            class="inline-status"
-            :class="{ 'inline-status-warning': showRunsReloadWarning }"
-          >
-            {{ runsLoadMessage }}
-          </p>
-          <DataTable
-            :value="runs"
-            :loading="loadingRuns"
-            data-key="id"
-            size="small"
-            responsive-layout="scroll"
-            @row-click="onRunSelected"
-          >
-            <Column
-              field="project_name"
-              header="Project"
-            />
-            <Column
-              field="status"
-              header="Status"
-            />
-            <Column
-              field="created_at"
-              header="Created"
-            />
-          </DataTable>
-        </div>
-      </template>
-    </Card>
-
-    <Card v-if="selectedRun">
-      <template #title>
-        Run details
-      </template>
-      <template #subtitle>
-        {{ selectedRun.id }}
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <div class="result-box">
-            <h3>Execution</h3>
-            <p class="muted">
-              Mode: {{ selectedRunMode }}
-            </p>
-            <p
-              v-if="selectedRunRunnerMode === 'local_trusted'"
-              class="warning-text"
-            >
-              Local trusted mode executes commands from uploaded projects on this host. Use only with trusted local projects.
-            </p>
-            <p
-              v-if="selectedRunRunnerMode === 'docker_sandbox'"
-              class="muted"
-            >
-              Docker sandbox mode uses container limits and network is disabled unless configured.
-            </p>
-            <p
-              v-if="selectedRunIsGitHubIntakeOnly"
-              class="muted"
-            >
-              GitHub analyze is currently intake-only registration. This run is not queued for clone/test execution.
-            </p>
-            <p class="muted">
-              Failed reason: {{ selectedRun.failed_reason || '-' }}
-            </p>
-            <p class="muted">
-              Project type detected: {{ selectedRun.project_type_detected || selectedRun.project_type || '-' }}
-            </p>
-            <p class="muted">
-              Working directory: {{ selectedRun.working_directory || '-' }}
-            </p>
-          </div>
-
-          <div class="result-box">
-            <h3>Summary</h3>
-            <pre class="mono">{{ selectedRun.summary || '-' }}</pre>
-          </div>
-
-          <div class="result-box">
-            <h3>Reports</h3>
+    <div class="grid">
+      <Card>
+        <template #title>
+          {{ t('autotest.runTitle') }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <div class="warning-banner">
+              <strong>{{ runnerBannerTitle }}</strong>
+              <p>{{ t('autotest.safeModeDescription') }}</p>
+              <p>{{ runnerBannerBody }}</p>
+              <p>{{ t('autotest.simulatedFormat') }}</p>
+              <p>{{ t('autotest.dockerDisabled') }}</p>
+            </div>
+            <div class="row">
+              <input
+                ref="zipInput"
+                type="file"
+                accept=".zip"
+                class="hidden-input"
+                @change="onZipSelected"
+              >
+              <Button
+                :label="t('common.chooseZip')"
+                icon="pi pi-upload"
+                outlined
+                @click="openZipPicker"
+              />
+              <span
+                v-if="selectedZip"
+                class="muted"
+              >{{ selectedZip.name }}</span>
+            </div>
             <div class="row">
               <Button
-                label="Download Markdown Report"
-                icon="pi pi-download"
-                :disabled="!canExportSelectedRun"
-                :loading="downloadingFormat === 'md'"
-                @click="downloadReport('md')"
+                :label="t('common.run')"
+                icon="pi pi-play"
+                :loading="running"
+                :disabled="capabilities?.runner_mode === 'disabled' && capabilities?.real_mode_requested"
+                @click="runAutoTest"
               />
               <Button
-                label="Download HTML Report"
-                icon="pi pi-download"
+                :label="t('common.refresh')"
                 outlined
-                :disabled="!canExportSelectedRun"
-                :loading="downloadingFormat === 'html'"
-                @click="downloadReport('html')"
-              />
-              <Button
-                label="Copy AI Fix Prompt"
-                icon="pi pi-copy"
-                outlined
-                :disabled="!canCopyAiPrompt"
-                @click="copyAiFixPrompt"
+                icon="pi pi-refresh"
+                :loading="loadingRuns"
+                @click="loadRuns"
               />
             </div>
             <p class="muted">
-              {{ reportActionHint }}
+              Tip: keep zips small; steps have timeouts. Results are stored as structured data for later search.
             </p>
           </div>
+        </template>
+      </Card>
 
-          <AutoTestTimeline :run="selectedRun" />
-
-          <div
-            v-if="selectedRun.suggestion"
-            class="result-box"
-          >
-            <h3>Fix suggestion</h3>
-            <pre class="mono">{{ selectedRun.suggestion }}</pre>
-          </div>
-
-          <div
-            v-if="selectedRun.problem_entry_id || selectedRun.solution_entry_id"
-            class="result-box"
-          >
-            <h3>Knowledge capture</h3>
-            <p class="muted">
-              Problem draft: {{ selectedRun.problem_entry_id || '-' }}
-            </p>
-            <p class="muted">
-              Solution entry: {{ selectedRun.solution_entry_id || '-' }}
-            </p>
-            <div
-              v-if="selectedRun.problem_entry_id && !selectedRun.solution_entry_id"
-              class="row"
+      <Card>
+        <template #title>
+          {{ t('autotest.recentRuns') }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <p
+              v-if="runsLoadMessage"
+              class="inline-status"
+              :class="{ 'inline-status-warning': showRunsReloadWarning }"
             >
-              <Button
-                label="Promote problem to verified solution"
-                icon="pi pi-check"
-                @click="promoteProblem"
+              {{ runsLoadMessage }}
+            </p>
+            <DataTable
+              :value="runs"
+              :loading="loadingRuns"
+              data-key="id"
+              size="small"
+              responsive-layout="scroll"
+              @row-click="onRunSelected"
+            >
+              <Column
+                field="project_name"
+                :header="t('common.project')"
               />
+              <Column
+                field="status"
+                :header="t('common.status')"
+              />
+              <Column
+                field="created_at"
+                :header="t('common.created')"
+              />
+              <template #empty>
+                <EmptyStateBlock
+                  icon="pi pi-check-square"
+                  :title="t('autotest.emptyTitle')"
+                  :description="t('autotest.emptyDescription')"
+                />
+              </template>
+            </DataTable>
+          </div>
+        </template>
+      </Card>
+
+      <Card v-if="selectedRun">
+        <template #title>
+          Run details
+        </template>
+        <template #subtitle>
+          {{ selectedRun.id }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <div class="result-box">
+              <h3>Execution</h3>
+              <p class="muted">
+                Mode: {{ selectedRunMode }}
+              </p>
+              <p
+                v-if="selectedRunRunnerMode === 'local_trusted'"
+                class="warning-text"
+              >
+                Local trusted mode executes commands from uploaded projects on this host. Use only with trusted local projects.
+              </p>
+              <p
+                v-if="selectedRunRunnerMode === 'docker_sandbox'"
+                class="muted"
+              >
+                Docker sandbox mode uses container limits and network is disabled unless configured.
+              </p>
+              <p
+                v-if="selectedRunIsGitHubIntakeOnly"
+                class="muted"
+              >
+                GitHub analyze is currently intake-only registration. This run is not queued for clone/test execution.
+              </p>
+              <p class="muted">
+                Failed reason: {{ selectedRun.failed_reason || '-' }}
+              </p>
+              <p class="muted">
+                Project type detected: {{ selectedRun.project_type_detected || selectedRun.project_type || '-' }}
+              </p>
+              <p class="muted">
+                Working directory: {{ selectedRun.working_directory || '-' }}
+              </p>
             </div>
-          </div>
 
-          <div
-            v-if="selectedRun.prompt_output"
-            class="result-box"
-          >
-            <h3>Prompt output (for Codex/Copilot)</h3>
-            <pre class="mono">{{ selectedRun.prompt_output }}</pre>
-          </div>
+            <div class="result-box">
+              <h3>Summary</h3>
+              <pre class="mono">{{ selectedRun.summary || '-' }}</pre>
+            </div>
 
-          <div
-            v-if="selectedRun.steps?.length"
-            class="result-box"
-          >
-            <h3>Steps</h3>
-            <article
-              v-for="step in selectedRun.steps"
-              :key="step.step_id"
-              class="step-card"
-            >
-              <div class="step-head">
-                <strong>{{ step.name }}</strong>
-                <AutoTestStatusBadge :status="step.status" />
+            <div class="result-box">
+              <h3>Reports</h3>
+              <div class="row">
+                <Button
+                  label="Download Markdown Report"
+                  icon="pi pi-download"
+                  :disabled="!canExportSelectedRun"
+                  :loading="downloadingFormat === 'md'"
+                  @click="downloadReport('md')"
+                />
+                <Button
+                  label="Download HTML Report"
+                  icon="pi pi-download"
+                  outlined
+                  :disabled="!canExportSelectedRun"
+                  :loading="downloadingFormat === 'html'"
+                  @click="downloadReport('html')"
+                />
+                <Button
+                  label="Copy AI Fix Prompt"
+                  icon="pi pi-copy"
+                  outlined
+                  :disabled="!canCopyAiPrompt"
+                  @click="copyAiFixPrompt"
+                />
               </div>
               <p class="muted">
-                {{ step.command }}
+                {{ reportActionHint }}
               </p>
-              <pre class="mono">{{ step.output || step.stderr_summary || step.stdout_summary || '-' }}</pre>
-            </article>
-          </div>
+            </div>
 
-          <RelatedItemsPanel :item-id="`autotest_run:${selectedRun.id}`" />
-        </div>
-      </template>
-    </Card>
+            <AutoTestTimeline :run="selectedRun" />
+
+            <div
+              v-if="selectedRun.suggestion"
+              class="result-box"
+            >
+              <h3>Fix suggestion</h3>
+              <pre class="mono">{{ selectedRun.suggestion }}</pre>
+            </div>
+
+            <div
+              v-if="selectedRun.problem_entry_id || selectedRun.solution_entry_id"
+              class="result-box"
+            >
+              <h3>Knowledge capture</h3>
+              <p class="muted">
+                Problem draft: {{ selectedRun.problem_entry_id || '-' }}
+              </p>
+              <p class="muted">
+                Solution entry: {{ selectedRun.solution_entry_id || '-' }}
+              </p>
+              <div
+                v-if="selectedRun.problem_entry_id && !selectedRun.solution_entry_id"
+                class="row"
+              >
+                <Button
+                  label="Promote problem to verified solution"
+                  icon="pi pi-check"
+                  @click="promoteProblem"
+                />
+              </div>
+            </div>
+
+            <div
+              v-if="selectedRun.prompt_output"
+              class="result-box"
+            >
+              <h3>Prompt output (for Codex/Copilot)</h3>
+              <pre class="mono">{{ selectedRun.prompt_output }}</pre>
+            </div>
+
+            <div
+              v-if="selectedRun.steps?.length"
+              class="result-box"
+            >
+              <h3>Steps</h3>
+              <article
+                v-for="step in selectedRun.steps"
+                :key="step.step_id"
+                class="step-card"
+              >
+                <div class="step-head">
+                  <strong>{{ step.name }}</strong>
+                  <AutoTestStatusBadge :status="step.status" />
+                </div>
+                <p class="muted">
+                  {{ step.command }}
+                </p>
+                <pre class="mono">{{ step.output || step.stderr_summary || step.stdout_summary || '-' }}</pre>
+              </article>
+            </div>
+
+            <RelatedItemsPanel :item-id="`autotest_run:${selectedRun.id}`" />
+          </div>
+        </template>
+      </Card>
+    </div>
   </div>
 </template>
 
@@ -262,6 +270,7 @@ import {
   promoteAutoTestProblem,
   startAutoTest,
 } from '../autotest-api'
+import { useI18n } from '../i18n'
 import { confirmDanger } from '../services/confirm'
 import type {
   AutoTestExportFormat,
@@ -272,9 +281,11 @@ import type {
 import { useWorkspaceStore } from '../workspace-store'
 import AutoTestStatusBadge from './autotest/AutoTestStatusBadge.vue'
 import AutoTestTimeline from './autotest/AutoTestTimeline.vue'
+import EmptyStateBlock from './common/EmptyStateBlock.vue'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 
 const toast = useToast()
+const { t } = useI18n()
 
 const zipInput = ref<HTMLInputElement | null>(null)
 const selectedZip = ref<File | null>(null)
@@ -296,15 +307,13 @@ const canExportSelectedRun = computed(() => {
 })
 const selectedRunMode = computed(() => selectedRun.value?.execution_mode || 'simulated')
 const selectedRunRunnerMode = computed(() => selectedRun.value?.runner_mode || (selectedRunMode.value === 'real' ? 'local_trusted' : 'disabled'))
-const runnerModeLabel = computed(() => {
-  const mode = capabilities.value?.runner_mode || 'disabled'
-  if (mode === 'local_trusted') {
-    return 'Local trusted'
+const runnerModeLabel = computed(() => t(`statusLabels.${normalizeRunnerLabelKey(capabilities.value?.runner_mode || 'disabled')}`))
+const runnerBannerTitle = computed(() => `${t('autotest.runnerDisabled').replace(t('statusLabels.disabled'), '').trim()} ${runnerModeLabel.value}`.trim())
+const runnerBannerBody = computed(() => {
+  if (capabilities.value?.runner_mode === 'local_trusted') {
+    return capabilitiesMessage.value
   }
-  if (mode === 'docker_sandbox') {
-    return 'Docker sandbox'
-  }
-  return 'Disabled'
+  return t('autotest.simulatedMode')
 })
 const selectedRunIsGitHubIntakeOnly = computed(() => {
   const run = selectedRun.value
@@ -347,6 +356,16 @@ const capabilitiesMessage = computed(() => {
 
 function openZipPicker() {
   zipInput.value?.click()
+}
+
+function normalizeRunnerLabelKey(value: string) {
+  if (value === 'local_trusted') {
+    return 'localTrusted'
+  }
+  if (value === 'docker_sandbox') {
+    return 'dockerSandbox'
+  }
+  return 'disabled'
 }
 
 function onZipSelected(event: Event) {
@@ -412,7 +431,7 @@ async function loadRuns() {
 
 async function runAutoTest() {
   if (!selectedZip.value) {
-    toast.add({ severity: 'warn', summary: 'No zip selected', detail: 'Choose a project zip first.', life: 3000 })
+    toast.add({ severity: 'warn', summary: t('autotest.noZip'), detail: t('autotest.chooseZipFirst'), life: 3000 })
     return
   }
 

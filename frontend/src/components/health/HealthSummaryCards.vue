@@ -2,7 +2,7 @@
   <div class="cards-row">
     <div class="summary-card">
       <div class="card-header">
-        <span class="card-label">Knowledge Total</span>
+        <span class="card-label">{{ t('dashboard.metrics.knowledgeTotal') }}</span>
         <i class="pi pi-book" />
       </div>
       <div class="card-value">
@@ -21,40 +21,40 @@
 
     <div class="summary-card">
       <div class="card-header">
-        <span class="card-label">Logbook Resolution Rate</span>
+        <span class="card-label">{{ t('dashboard.metrics.logbookResolutionRate') }}</span>
         <i class="pi pi-list" />
       </div>
       <div class="card-value">
         {{ formatPercentage(data.logbook.resolution_rate) }}
       </div>
       <div class="card-detail">
-        {{ data.logbook.with_solution }} / {{ data.logbook.total }} with solution
+        {{ t('dashboard.metrics.withSolution', { solved: data.logbook.with_solution, total: data.logbook.total }) }}
       </div>
     </div>
 
     <div class="summary-card">
       <div class="card-header">
-        <span class="card-label">AutoTest Pass Rate</span>
+        <span class="card-label">{{ t('dashboard.metrics.autotestPassRate') }}</span>
         <i class="pi pi-check-circle" />
       </div>
       <div class="card-value">
         {{ formatPercentage(data.autotest.pass_rate) }}
       </div>
       <div class="card-detail">
-        {{ data.autotest.passed }} / {{ data.autotest.total_runs }} passed
+        {{ t('dashboard.metrics.passed', { passed: data.autotest.passed, total: data.autotest.total_runs }) }}
       </div>
     </div>
 
     <div class="summary-card">
       <div class="card-header">
-        <span class="card-label">Document Index Rate</span>
+        <span class="card-label">{{ t('dashboard.metrics.documentIndexRate') }}</span>
         <i class="pi pi-file" />
       </div>
       <div class="card-value">
         {{ formatPercentage(documentIndexRate) }}
       </div>
       <div class="card-detail">
-        {{ data.documents.indexed }} / {{ data.documents.total }} indexed
+        {{ t('dashboard.metrics.indexed', { indexed: data.documents.indexed, total: data.documents.total }) }}
       </div>
     </div>
   </div>
@@ -64,11 +64,13 @@
 import { computed } from 'vue'
 
 import type { DashboardHealthViewModel } from '../../adapters/dashboard'
+import { useI18n } from '../../i18n'
 import { formatPercentage } from './useProjectHealth'
 
 const props = defineProps<{
   data: DashboardHealthViewModel
 }>()
+const { t } = useI18n()
 
 const documentIndexRate = computed(() => {
   if (props.data.documents.total === 0) {

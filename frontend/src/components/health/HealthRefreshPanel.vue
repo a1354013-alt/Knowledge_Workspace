@@ -1,6 +1,6 @@
 <template>
   <div class="activity-block">
-    <h3>Last 7 Days Activity</h3>
+    <h3>{{ t('dashboard.recentActivity.title') }}</h3>
     <div class="activity-grid">
       <div
         v-for="item in activityItems"
@@ -22,7 +22,7 @@
 
   <div class="action-bar">
     <Button
-      label="Refresh"
+      :label="t('common.refresh')"
       icon="pi pi-refresh"
       :loading="loading"
       @click="$emit('refresh')"
@@ -35,6 +35,7 @@ import { computed } from 'vue'
 import Button from 'primevue/button'
 
 import type { DashboardHealthViewModel } from '../../adapters/dashboard'
+import { useI18n } from '../../i18n'
 
 const props = defineProps<{
   data: DashboardHealthViewModel
@@ -45,13 +46,15 @@ defineEmits<{
   refresh: []
 }>()
 
+const { t } = useI18n()
+
 const activityItems = computed(() => [
-  { label: 'Documents Added', value: props.data.recent_activity.documents_added, className: '' },
-  { label: 'Knowledge Added', value: props.data.recent_activity.knowledge_added, className: '' },
-  { label: 'Logbook Added', value: props.data.recent_activity.logbook_added, className: '' },
-  { label: 'AutoTest Runs', value: props.data.recent_activity.autotest_runs, className: '' },
-  { label: 'AutoTest Passed', value: props.data.recent_activity.autotest_passed, className: 'success' },
-  { label: 'AutoTest Failed', value: props.data.recent_activity.autotest_failed, className: 'error' },
+  { label: t('dashboard.recentActivity.documentsAdded'), value: props.data.recent_activity.documents_added, className: '' },
+  { label: t('dashboard.recentActivity.knowledgeAdded'), value: props.data.recent_activity.knowledge_added, className: '' },
+  { label: t('dashboard.recentActivity.logbookAdded'), value: props.data.recent_activity.logbook_added, className: '' },
+  { label: t('dashboard.recentActivity.autotestRuns'), value: props.data.recent_activity.autotest_runs, className: '' },
+  { label: t('dashboard.recentActivity.autotestPassed'), value: props.data.recent_activity.autotest_passed, className: 'success' },
+  { label: t('dashboard.recentActivity.autotestFailed'), value: props.data.recent_activity.autotest_failed, className: 'error' },
 ])
 </script>
 

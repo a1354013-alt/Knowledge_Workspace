@@ -67,7 +67,7 @@ describe('frontend smoke flows', () => {
     })
 
     const wrapper = mount(App, { global: { stubs: PrimeStubs } })
-    expect(wrapper.text()).toContain('Personal AI Knowledge Workspace for Engineers')
+    expect(wrapper.text()).toContain('工程師個人 AI 知識工作台')
 
     const vm = wrapper.vm as unknown as { loginForm: { user_id: string; password: string }; login: () => Promise<void> }
     vm.loginForm.user_id = 'owner'
@@ -105,7 +105,7 @@ describe('frontend smoke flows', () => {
     const wrapper = mount(ProjectHealthDashboard, { global: { stubs: PrimeStubs } })
     await flushUi()
     await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('AutoTest Runs')
+    expect(wrapper.text()).toContain('AutoTest 次數')
   })
 
   it('handles an empty search result without crashing', async () => {

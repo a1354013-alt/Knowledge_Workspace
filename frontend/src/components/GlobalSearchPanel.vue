@@ -1,136 +1,144 @@
 <template>
-  <Card>
-    <template #title>
-      Global search
-    </template>
-    <template #subtitle>
-      Keyword + filters across knowledge, logbook, documents, photos, prompts, and AutoTest runs.
-    </template>
-    <template #content>
-      <div class="stack-md">
-        <div class="row">
-          <InputText
-            v-model="query"
-            placeholder="Keyword..."
-            class="grow"
-            @keyup.enter="runSearch"
-          />
-          <Button
-            label="Search"
-            icon="pi pi-search"
+  <div class="page-panel">
+    <div class="page-heading">
+      <h2>{{ t('search.title') }}</h2>
+      <p>{{ t('search.subtitle') }}</p>
+    </div>
+
+    <Card>
+      <template #content>
+        <div class="stack-md">
+          <div class="row">
+            <InputText
+              v-model="query"
+              :placeholder="t('search.keyword')"
+              class="grow"
+              @keyup.enter="runSearch"
+            />
+            <Button
+              :label="t('common.search')"
+              icon="pi pi-search"
+              :loading="loading"
+              @click="runSearch"
+            />
+            <Button
+              :label="t('common.clear')"
+              outlined
+              severity="secondary"
+              :disabled="loading"
+              @click="reset"
+            />
+          </div>
+
+          <div class="row">
+            <MultiSelect
+              v-model="selectedTypes"
+              :options="typeOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('search.types')"
+              display="chip"
+              class="types"
+            />
+            <Dropdown
+              v-model="statusFilter"
+              :options="statusOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('search.status')"
+              class="status"
+            />
+            <InputText
+              v-model="tag"
+              :placeholder="t('search.tagContains')"
+              class="tag"
+            />
+          </div>
+
+          <div class="row">
+            <InputText
+              v-model="dateFrom"
+              :placeholder="t('search.dateFrom')"
+              class="date"
+            />
+            <InputText
+              v-model="dateTo"
+              :placeholder="t('search.dateTo')"
+              class="date"
+            />
+            <Dropdown
+              v-model="limit"
+              :options="limitOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('search.limit')"
+              class="limit"
+            />
+          </div>
+
+          <DataTable
+            :value="results"
             :loading="loading"
-            @click="runSearch"
-          />
-          <Button
-            label="Clear"
-            outlined
-            severity="secondary"
-            :disabled="loading"
-            @click="reset"
-          />
-        </div>
-
-        <div class="row">
-          <MultiSelect
-            v-model="selectedTypes"
-            :options="typeOptions"
-            option-label="label"
-            option-value="value"
-            placeholder="Types"
-            display="chip"
-            class="types"
-          />
-          <Dropdown
-            v-model="statusFilter"
-            :options="statusOptions"
-            option-label="label"
-            option-value="value"
-            placeholder="Status"
-            class="status"
-          />
-          <InputText
-            v-model="tag"
-            placeholder="Tag contains..."
-            class="tag"
-          />
-        </div>
-
-        <div class="row">
-          <InputText
-            v-model="dateFrom"
-            placeholder="Date from (YYYY-MM-DD)"
-            class="date"
-          />
-          <InputText
-            v-model="dateTo"
-            placeholder="Date to (YYYY-MM-DD)"
-            class="date"
-          />
-          <Dropdown
-            v-model="limit"
-            :options="limitOptions"
-            option-label="label"
-            option-value="value"
-            placeholder="Limit"
-            class="limit"
-          />
-        </div>
-
-        <DataTable
-          :value="results"
-          :loading="loading"
-          data-key="item_id"
-          size="small"
-          responsive-layout="scroll"
-        >
-          <Column
-            field="item_type"
-            header="Type"
-          />
-          <Column
-            field="title"
-            header="Title"
-          />
-          <Column
-            field="status"
-            header="Status"
-          />
-          <Column
-            field="updated_at"
-            header="Updated"
-          />
-          <Column header="Item">
-            <template #body="slotProps">
-              <code>{{ slotProps.data.item_id }}</code>
+            data-key="item_id"
+            size="small"
+            responsive-layout="scroll"
+          >
+            <Column
+              field="item_type"
+              :header="t('common.type')"
+            />
+            <Column
+              field="title"
+              :header="t('common.title')"
+            />
+            <Column
+              field="status"
+              :header="t('common.status')"
+            />
+            <Column
+              field="updated_at"
+              :header="t('common.updated')"
+            />
+            <Column :header="t('common.item')">
+              <template #body="slotProps">
+                <code>{{ slotProps.data.item_id }}</code>
+              </template>
+            </Column>
+            <Column :header="t('common.actions')">
+              <template #body="slotProps">
+                <div class="actions-inline">
+                  <Button
+                    icon="pi pi-sitemap"
+                    text
+                    severity="secondary"
+                    @click="selectRelated(slotProps.data)"
+                  />
+                  <Button
+                    icon="pi pi-copy"
+                    text
+                    severity="secondary"
+                    @click="copyId(slotProps.data)"
+                  />
+                </div>
+              </template>
+            </Column>
+            <template #empty>
+              <EmptyStateBlock
+                icon="pi pi-search"
+                :title="t('search.emptyTitle')"
+                :description="t('search.emptyDescription')"
+              />
             </template>
-          </Column>
-          <Column header="Actions">
-            <template #body="slotProps">
-              <div class="actions-inline">
-                <Button
-                  icon="pi pi-sitemap"
-                  text
-                  severity="secondary"
-                  @click="selectRelated(slotProps.data)"
-                />
-                <Button
-                  icon="pi pi-copy"
-                  text
-                  severity="secondary"
-                  @click="copyId(slotProps.data)"
-                />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
+          </DataTable>
 
-        <RelatedItemsPanel
-          v-if="selectedItemId"
-          :item-id="selectedItemId"
-        />
-      </div>
-    </template>
-  </Card>
+          <RelatedItemsPanel
+            v-if="selectedItemId"
+            :item-id="selectedItemId"
+          />
+        </div>
+      </template>
+    </Card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -146,10 +154,13 @@ import MultiSelect from 'primevue/multiselect'
 
 import { get } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { useI18n } from '../i18n'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
+import EmptyStateBlock from './common/EmptyStateBlock.vue'
 import type { ItemSummary, ResolveItemsResponse } from '../types'
 
 const toast = useToast()
+const { t } = useI18n()
 
 const loading = ref(false)
 const results = ref<ItemSummary[]>([])
@@ -164,12 +175,12 @@ const dateTo = ref('')
 const limit = ref(200)
 
 const typeOptions = [
-  { label: 'Knowledge', value: 'knowledge' },
-  { label: 'Logbook', value: 'logbook' },
-  { label: 'Documents', value: 'document' },
-  { label: 'Photos', value: 'photo' },
-  { label: 'Prompts', value: 'prompt' },
-  { label: 'AutoTest runs', value: 'autotest_run' },
+  { label: t('nav.knowledge'), value: 'knowledge' },
+  { label: t('nav.logbook'), value: 'logbook' },
+  { label: t('docsPhotos.docsTitle'), value: 'document' },
+  { label: t('docsPhotos.photosTitle'), value: 'photo' },
+  { label: t('nav.prompts'), value: 'prompt' },
+  { label: t('autotest.recentRuns'), value: 'autotest_run' },
 ]
 
 const statusOptions = [
@@ -237,7 +248,7 @@ async function runSearch() {
   } catch (error: unknown) {
     results.value = []
     const apiError = error as { message?: string }
-    toast.add({ severity: 'error', summary: 'Search failed', detail: apiError?.message || 'Request failed.', life: 4000 })
+    toast.add({ severity: 'error', summary: t('search.searchFailed'), detail: apiError?.message || 'Request failed.', life: 4000 })
   } finally {
     loading.value = false
   }

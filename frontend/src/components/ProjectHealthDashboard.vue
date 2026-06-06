@@ -1,12 +1,11 @@
 <template>
-  <div class="grid">
+  <div class="page-panel">
+    <div class="page-heading">
+      <h2>{{ t('dashboard.title') }}</h2>
+      <p>{{ t('dashboard.subtitle') }}</p>
+    </div>
+
     <Card>
-      <template #title>
-        Project Health Dashboard
-      </template>
-      <template #subtitle>
-        System-wide metrics and recent activity overview
-      </template>
       <template #content>
         <div class="stack-lg">
           <div
@@ -14,7 +13,7 @@
             class="loading-state"
           >
             <div class="spinner" />
-            <p>Loading dashboard metrics...</p>
+            <p>{{ t('dashboard.loading') }}</p>
           </div>
 
           <div
@@ -25,18 +24,18 @@
               {{ error }}
             </p>
             <Button
-              label="Retry"
+              :label="t('common.retry')"
               icon="pi pi-refresh"
               @click="loadDashboard"
             />
           </div>
 
-          <div
+          <EmptyStateBlock
             v-else-if="!data"
-            class="empty-state"
-          >
-            <p>No data available yet. Start by uploading documents or creating knowledge entries.</p>
-          </div>
+            icon="pi pi-chart-line"
+            :title="t('common.noData')"
+            :description="t('dashboard.empty')"
+          />
 
           <div
             v-else
@@ -44,7 +43,10 @@
           >
             <HealthSummaryCards :data="data" />
             <HealthStatusSections :data="data" />
-            <HealthRecentRuns :runs="data.autotest.recent_runs" />
+            <div class="dashboard-lower">
+              <HealthRecentRuns :runs="data.autotest.recent_runs" />
+              <HealthGettingStarted />
+            </div>
             <HealthRefreshPanel
               :data="data"
               :loading="loading"
@@ -61,12 +63,16 @@
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 
+import { useI18n } from '../i18n'
+import EmptyStateBlock from './common/EmptyStateBlock.vue'
+import HealthGettingStarted from './health/HealthGettingStarted.vue'
 import HealthRecentRuns from './health/HealthRecentRuns.vue'
 import HealthRefreshPanel from './health/HealthRefreshPanel.vue'
 import HealthStatusSections from './health/HealthStatusSections.vue'
 import HealthSummaryCards from './health/HealthSummaryCards.vue'
 import { useProjectHealth } from './health/useProjectHealth'
 
+const { t } = useI18n()
 const { data, error, loading, loadDashboard } = useProjectHealth()
 </script>
 
@@ -130,9 +136,19 @@ const { data, error, loading, loadDashboard } = useProjectHealth()
   gap: 24px;
 }
 
+.dashboard-lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 16px;
+}
+
 @media (max-width: 768px) {
   .dashboard-content {
     gap: 16px;
+  }
+
+  .dashboard-lower {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -1,171 +1,179 @@
 <template>
-  <div class="grid">
-    <Card>
-      <template #title>
-        Engineering troubleshooting logbook
-      </template>
-      <template #subtitle>
-        First-class module for problems you solved. Fully searchable via Knowledge Base.
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <p
-            v-if="loadMessage"
-            class="inline-status"
-            :class="{ 'inline-status-warning': showReloadWarning }"
-          >
-            {{ loadMessage }}
-          </p>
-          <div class="row">
-            <Button
-              label="Refresh"
-              outlined
-              icon="pi pi-refresh"
+  <div class="page-panel">
+    <div class="page-heading">
+      <h2>{{ t('logbook.title') }}</h2>
+      <p>{{ t('logbook.subtitle') }}</p>
+    </div>
+
+    <div class="grid">
+      <Card>
+        <template #content>
+          <div class="stack-md">
+            <p
+              v-if="loadMessage"
+              class="inline-status"
+              :class="{ 'inline-status-warning': showReloadWarning }"
+            >
+              {{ loadMessage }}
+            </p>
+            <div class="row">
+              <Button
+                :label="t('common.refresh')"
+                outlined
+                icon="pi pi-refresh"
+                :loading="loading"
+                @click="loadEntries"
+              />
+            </div>
+            <DataTable
+              :value="entries"
               :loading="loading"
-              @click="loadEntries"
-            />
-          </div>
-          <DataTable
-            :value="entries"
-            :loading="loading"
-            data-key="id"
-            size="small"
-            responsive-layout="scroll"
-          >
-            <Column
-              field="title"
-              header="Title"
-            />
-            <Column
-              field="tags"
-              header="Tags"
-            />
-            <Column
-              field="source_type"
-              header="Source"
-            />
-            <Column
-              field="source_ref"
-              header="Source ref"
-            />
-            <Column
-              field="status"
-              header="Status"
-            />
-            <Column
-              field="updated_at"
-              header="Updated"
-            />
-            <Column header="Actions">
-              <template #body="slotProps">
-                <div class="actions-inline">
-                  <Button
-                    icon="pi pi-pencil"
-                    text
-                    severity="secondary"
-                    @click="openEditor(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-sitemap"
-                    text
-                    severity="secondary"
-                    @click="selectForRelated(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-check"
-                    text
-                    severity="success"
-                    @click="promoteEntry(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-trash"
-                    text
-                    severity="danger"
-                    @click="deleteEntry(slotProps.data)"
-                  />
-                </div>
+              data-key="id"
+              size="small"
+              responsive-layout="scroll"
+            >
+              <Column
+                field="title"
+                header="Title"
+              />
+              <Column
+                field="tags"
+                header="Tags"
+              />
+              <Column
+                field="source_type"
+                header="Source"
+              />
+              <Column
+                field="source_ref"
+                header="Source ref"
+              />
+              <Column
+                field="status"
+                header="Status"
+              />
+              <Column
+                field="updated_at"
+                header="Updated"
+              />
+              <Column header="Actions">
+                <template #body="slotProps">
+                  <div class="actions-inline">
+                    <Button
+                      icon="pi pi-pencil"
+                      text
+                      severity="secondary"
+                      @click="openEditor(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-sitemap"
+                      text
+                      severity="secondary"
+                      @click="selectForRelated(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-check"
+                      text
+                      severity="success"
+                      @click="promoteEntry(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-trash"
+                      text
+                      severity="danger"
+                      @click="deleteEntry(slotProps.data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+              <template #empty>
+                <EmptyStateBlock
+                  icon="pi pi-file-edit"
+                  :title="t('logbook.emptyTitle')"
+                  :description="t('logbook.emptyDescription')"
+                />
               </template>
-            </Column>
-          </DataTable>
+            </DataTable>
 
-          <RelatedItemsPanel
-            v-if="selectedRelatedItemId"
-            :item-id="selectedRelatedItemId"
-          />
-        </div>
-      </template>
-    </Card>
-
-    <Card>
-      <template #title>
-        Add entry
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <InputText
-            v-model="form.title"
-            placeholder="Title"
-          />
-          <Textarea
-            v-model="form.problem"
-            rows="3"
-            placeholder="Problem"
-          />
-          <Textarea
-            v-model="form.root_cause"
-            rows="3"
-            placeholder="Root cause"
-          />
-          <Textarea
-            v-model="form.solution"
-            rows="4"
-            placeholder="Solution"
-          />
-          <InputText
-            v-model="form.tags"
-            placeholder="Tags (comma separated)"
-          />
-          <Dropdown
-            v-model="form.status"
-            :options="statusOptions"
-            option-label="label"
-            option-value="value"
-            placeholder="Status"
-          />
-          <Dropdown
-            v-model="form.source_type"
-            :options="sourceTypes"
-            option-label="label"
-            option-value="value"
-            placeholder="Source type"
-          />
-          <InputText
-            v-model="form.source_ref"
-            placeholder="Source ref (optional, e.g. doc:..., autotest_run:...)"
-          />
-          <Chips
-            v-model="form.related_item_ids"
-            separator=","
-            placeholder="Related item IDs (comma-separated, e.g. document:..., photo:..., prompt:...)"
-          />
-          <div class="row">
-            <Button
-              label="Save"
-              icon="pi pi-save"
-              :loading="saving"
-              @click="saveEntry"
-            />
-            <Button
-              label="Reset"
-              outlined
-              severity="secondary"
-              :disabled="saving"
-              @click="resetForm"
+            <RelatedItemsPanel
+              v-if="selectedRelatedItemId"
+              :item-id="selectedRelatedItemId"
             />
           </div>
-        </div>
-      </template>
-    </Card>
+        </template>
+      </Card>
+
+      <Card>
+        <template #title>
+          {{ t('logbook.addEntry') }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <InputText
+              v-model="form.title"
+              placeholder="Title"
+            />
+            <Textarea
+              v-model="form.problem"
+              rows="3"
+              placeholder="Problem"
+            />
+            <Textarea
+              v-model="form.root_cause"
+              rows="3"
+              placeholder="Root cause"
+            />
+            <Textarea
+              v-model="form.solution"
+              rows="4"
+              placeholder="Solution"
+            />
+            <InputText
+              v-model="form.tags"
+              placeholder="Tags (comma separated)"
+            />
+            <Dropdown
+              v-model="form.status"
+              :options="statusOptions"
+              option-label="label"
+              option-value="value"
+              placeholder="Status"
+            />
+            <Dropdown
+              v-model="form.source_type"
+              :options="sourceTypes"
+              option-label="label"
+              option-value="value"
+              placeholder="Source type"
+            />
+            <InputText
+              v-model="form.source_ref"
+              placeholder="Source ref (optional, e.g. doc:..., autotest_run:...)"
+            />
+            <Chips
+              v-model="form.related_item_ids"
+              separator=","
+              placeholder="Related item IDs (comma-separated, e.g. document:..., photo:..., prompt:...)"
+            />
+            <div class="row">
+              <Button
+                label="Save"
+                icon="pi pi-save"
+                :loading="saving"
+                @click="saveEntry"
+              />
+              <Button
+                label="Reset"
+                outlined
+                severity="secondary"
+                :disabled="saving"
+                @click="resetForm"
+              />
+            </div>
+          </div>
+        </template>
+      </Card>
+    </div>
   </div>
 
   <Dialog
@@ -276,6 +284,7 @@ import Textarea from 'primevue/textarea'
 
 import { del, patch, post } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { useI18n } from '../i18n'
 import { confirmDanger } from '../services/confirm'
 import { useWorkspaceStore } from '../workspace-store'
 import type {
@@ -291,8 +300,10 @@ import type {
   SavedPromptResponse,
 } from '../types'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
+import EmptyStateBlock from './common/EmptyStateBlock.vue'
 
 const toast = useToast()
+const { t } = useI18n()
 
 const loading = ref(false)
 const saving = ref(false)

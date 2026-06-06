@@ -1,308 +1,329 @@
 <template>
-  <div class="grid">
-    <Card>
-      <template #title>
-        Documents
-      </template>
-      <template #subtitle>
-        Upload and tag engineering docs. Indexing happens immediately for your workspace.
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <p
-            v-if="docLoadMessage"
-            class="inline-status"
-            :class="{ 'inline-status-warning': showDocReloadWarning }"
-          >
-            {{ docLoadMessage }}
-          </p>
-          <p
-            v-if="searchStatusMessage"
-            class="index-banner"
-            :class="{ 'index-banner-ok': searchStatusReady }"
-          >
-            {{ searchStatusMessage }}
-          </p>
-          <div class="row">
-            <input
-              ref="docInput"
-              type="file"
-              accept=".pdf,.txt,.md"
-              class="hidden-input"
-              @change="onDocSelected"
-            >
-            <Button
-              label="Choose Document"
-              icon="pi pi-upload"
-              outlined
-              @click="openDocPicker"
-            />
-            <span
-              v-if="selectedDoc"
-              class="muted"
-            >{{ selectedDoc.name }}</span>
-          </div>
+  <div class="page-panel">
+    <div class="page-heading">
+      <h2>{{ t('docsPhotos.title') }}</h2>
+      <p>{{ t('docsPhotos.docsSubtitle') }}</p>
+    </div>
 
-          <InputText
-            v-model="docCategory"
-            placeholder="Category (optional)"
-          />
-          <InputText
-            v-model="docTags"
-            placeholder="Tags (comma separated, optional)"
-          />
-          <div class="row">
-            <Button
-              label="Upload"
-              :loading="uploadingDoc"
-              @click="uploadDoc"
+    <div class="grid">
+      <Card>
+        <template #title>
+          {{ t('docsPhotos.docsTitle') }}
+        </template>
+        <template #subtitle>
+          {{ t('docsPhotos.docsSubtitle') }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <p
+              v-if="docLoadMessage"
+              class="inline-status"
+              :class="{ 'inline-status-warning': showDocReloadWarning }"
+            >
+              {{ docLoadMessage }}
+            </p>
+            <p
+              v-if="searchStatusMessage"
+              class="index-banner"
+              :class="{ 'index-banner-ok': searchStatusReady }"
+            >
+              {{ searchStatusMessage }}
+            </p>
+            <div class="row">
+              <input
+                ref="docInput"
+                type="file"
+                accept=".pdf,.txt,.md"
+                class="hidden-input"
+                @change="onDocSelected"
+              >
+              <Button
+                :label="t('common.chooseDocument')"
+                icon="pi pi-upload"
+                outlined
+                @click="openDocPicker"
+              />
+              <span
+                v-if="selectedDoc"
+                class="muted"
+              >{{ selectedDoc.name }}</span>
+            </div>
+
+            <InputText
+              v-model="docCategory"
+              placeholder="Category (optional)"
             />
-            <Button
-              label="Refresh"
-              outlined
-              icon="pi pi-refresh"
+            <InputText
+              v-model="docTags"
+              placeholder="Tags (comma separated, optional)"
+            />
+            <div class="row">
+              <Button
+                :label="t('common.upload')"
+                :loading="uploadingDoc"
+                @click="uploadDoc"
+              />
+              <Button
+                :label="t('common.refresh')"
+                outlined
+                icon="pi pi-refresh"
+                :loading="loadingDocs"
+                @click="loadDocuments"
+              />
+            </div>
+
+            <InputText
+              v-model="docFilterText"
+              placeholder="Filter docs (filename/tags)"
+            />
+
+            <DataTable
+              :value="filteredDocuments"
               :loading="loadingDocs"
-              @click="loadDocuments"
-            />
-          </div>
-
-          <InputText
-            v-model="docFilterText"
-            placeholder="Filter docs (filename/tags)"
-          />
-
-          <DataTable
-            :value="filteredDocuments"
-            :loading="loadingDocs"
-            data-key="id"
-            size="small"
-            responsive-layout="scroll"
-          >
-            <Column
-              field="filename"
-              header="File"
-            />
-            <Column
-              field="category"
-              header="Category"
-            />
-            <Column
-              field="tags"
-              header="Tags"
-            />
-            <Column
-              field="status"
-              header="Status"
-            />
-            <Column header="Index">
-              <template #body="slotProps">
-                <div class="index-cell">
-                  <strong>{{ slotProps.data.index_status || 'pending' }}</strong>
-                  <span
-                    v-if="slotProps.data.index_error"
-                    class="muted"
-                  >{{ slotProps.data.index_error }}</span>
-                  <span
-                    v-else-if="slotProps.data.index_status === 'excluded'"
-                    class="muted"
-                  >Archived items are excluded from active indexing work.</span>
-                </div>
-              </template>
-            </Column>
-            <Column header="Actions">
-              <template #body="slotProps">
-                <div class="actions-inline">
-                  <Button
-                    v-if="slotProps.data.index_status !== 'indexed' && slotProps.data.index_status !== 'excluded'"
-                    icon="pi pi-wrench"
-                    text
-                    severity="warning"
-                    @click="rebuildDocumentIndex(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-eye"
-                    text
-                    severity="secondary"
-                    @click="previewDocument(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-download"
-                    text
-                    severity="secondary"
-                    @click="downloadDocument(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-pencil"
-                    text
-                    severity="secondary"
-                    @click="openDocEditor(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-sitemap"
-                    text
-                    severity="secondary"
-                    @click="showDocReferences(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-archive"
-                    text
-                    severity="secondary"
-                    @click="archiveDocument(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-trash"
-                    text
-                    severity="danger"
-                    @click="deleteDocument(slotProps.data)"
-                  />
-                </div>
-              </template>
-            </Column>
-          </DataTable>
-
-          <RelatedItemsPanel
-            v-if="selectedRelatedItemId"
-            :item-id="selectedRelatedItemId"
-          />
-        </div>
-      </template>
-    </Card>
-
-    <Card>
-      <template #title>
-        Photos / Images
-      </template>
-      <template #subtitle>
-        Upload images, add tags/description. OCR is optional and safe-by-default.
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <p
-            v-if="photoLoadMessage"
-            class="inline-status"
-            :class="{ 'inline-status-warning': showPhotoReloadWarning }"
-          >
-            {{ photoLoadMessage }}
-          </p>
-          <div class="row">
-            <input
-              ref="photoInput"
-              type="file"
-              accept="image/*"
-              class="hidden-input"
-              @change="onPhotoSelected"
+              data-key="id"
+              size="small"
+              responsive-layout="scroll"
             >
-            <Button
-              label="Choose Image"
-              icon="pi pi-image"
-              outlined
-              @click="openPhotoPicker"
-            />
-            <span
-              v-if="selectedPhoto"
-              class="muted"
-            >{{ selectedPhoto.name }}</span>
-          </div>
-
-          <InputText
-            v-model="photoTags"
-            placeholder="Tags (comma separated, optional)"
-          />
-          <Textarea
-            v-model="photoDescription"
-            rows="2"
-            placeholder="Description (optional)"
-          />
-          <div class="row">
-            <Button
-              label="Upload"
-              :loading="uploadingPhoto"
-              @click="uploadPhoto"
-            />
-            <Button
-              label="Refresh"
-              outlined
-              icon="pi pi-refresh"
-              :loading="loadingPhotos"
-              @click="loadPhotos"
-            />
-          </div>
-
-          <DataTable
-            :value="photos"
-            :loading="loadingPhotos"
-            data-key="id"
-            size="small"
-            responsive-layout="scroll"
-          >
-            <Column
-              field="filename"
-              header="File"
-            />
-            <Column
-              field="tags"
-              header="Tags"
-            />
-            <Column
-              field="description"
-              header="Description"
-            />
-            <Column header="OCR">
-              <template #body="slotProps">
-                <Tag
-                  :severity="slotProps.data.ocr_status === 'completed' ? 'success' : slotProps.data.ocr_status === 'pending' ? 'info' : 'warn'"
-                  :value="slotProps.data.ocr_status || 'pending'"
+              <Column
+                field="filename"
+                header="File"
+              />
+              <Column
+                field="category"
+                header="Category"
+              />
+              <Column
+                field="tags"
+                header="Tags"
+              />
+              <Column
+                field="status"
+                header="Status"
+              />
+              <Column header="Index">
+                <template #body="slotProps">
+                  <div class="index-cell">
+                    <strong>{{ slotProps.data.index_status || 'pending' }}</strong>
+                    <span
+                      v-if="slotProps.data.index_error"
+                      class="muted"
+                    >{{ slotProps.data.index_error }}</span>
+                    <span
+                      v-else-if="slotProps.data.index_status === 'excluded'"
+                      class="muted"
+                    >Archived items are excluded from active indexing work.</span>
+                  </div>
+                </template>
+              </Column>
+              <Column header="Actions">
+                <template #body="slotProps">
+                  <div class="actions-inline">
+                    <Button
+                      v-if="slotProps.data.index_status !== 'indexed' && slotProps.data.index_status !== 'excluded'"
+                      icon="pi pi-wrench"
+                      text
+                      severity="warning"
+                      @click="rebuildDocumentIndex(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-eye"
+                      text
+                      severity="secondary"
+                      @click="previewDocument(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-download"
+                      text
+                      severity="secondary"
+                      @click="downloadDocument(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-pencil"
+                      text
+                      severity="secondary"
+                      @click="openDocEditor(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-sitemap"
+                      text
+                      severity="secondary"
+                      @click="showDocReferences(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-archive"
+                      text
+                      severity="secondary"
+                      @click="archiveDocument(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-trash"
+                      text
+                      severity="danger"
+                      @click="deleteDocument(slotProps.data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+              <template #empty>
+                <EmptyStateBlock
+                  icon="pi pi-file"
+                  :title="t('docsPhotos.emptyDocsTitle')"
+                  :description="t('docsPhotos.emptyDocsDescription')"
                 />
-                <small
-                  v-if="slotProps.data.ocr_error"
-                  class="muted block"
-                >{{ slotProps.data.ocr_error }}</small>
               </template>
-            </Column>
-            <Column
-              field="created_at"
-              header="Created"
+            </DataTable>
+
+            <RelatedItemsPanel
+              v-if="selectedRelatedItemId"
+              :item-id="selectedRelatedItemId"
             />
-            <Column header="Actions">
-              <template #body="slotProps">
-                <div class="actions-inline">
-                  <Button
-                    icon="pi pi-eye"
-                    text
-                    severity="secondary"
-                    @click="previewPhoto(slotProps.data)"
+          </div>
+        </template>
+      </Card>
+
+      <Card>
+        <template #title>
+          {{ t('docsPhotos.photosTitle') }}
+        </template>
+        <template #subtitle>
+          {{ t('docsPhotos.photosSubtitle') }}
+        </template>
+        <template #content>
+          <div class="stack-md">
+            <p
+              v-if="photoLoadMessage"
+              class="inline-status"
+              :class="{ 'inline-status-warning': showPhotoReloadWarning }"
+            >
+              {{ photoLoadMessage }}
+            </p>
+            <div class="row">
+              <input
+                ref="photoInput"
+                type="file"
+                accept="image/*"
+                class="hidden-input"
+                @change="onPhotoSelected"
+              >
+              <Button
+                :label="t('common.chooseImage')"
+                icon="pi pi-image"
+                outlined
+                @click="openPhotoPicker"
+              />
+              <span
+                v-if="selectedPhoto"
+                class="muted"
+              >{{ selectedPhoto.name }}</span>
+            </div>
+
+            <InputText
+              v-model="photoTags"
+              placeholder="Tags (comma separated, optional)"
+            />
+            <Textarea
+              v-model="photoDescription"
+              rows="2"
+              placeholder="Description (optional)"
+            />
+            <div class="row">
+              <Button
+                :label="t('common.upload')"
+                :loading="uploadingPhoto"
+                @click="uploadPhoto"
+              />
+              <Button
+                :label="t('common.refresh')"
+                outlined
+                icon="pi pi-refresh"
+                :loading="loadingPhotos"
+                @click="loadPhotos"
+              />
+            </div>
+
+            <DataTable
+              :value="photos"
+              :loading="loadingPhotos"
+              data-key="id"
+              size="small"
+              responsive-layout="scroll"
+            >
+              <Column
+                field="filename"
+                header="File"
+              />
+              <Column
+                field="tags"
+                header="Tags"
+              />
+              <Column
+                field="description"
+                header="Description"
+              />
+              <Column header="OCR">
+                <template #body="slotProps">
+                  <Tag
+                    :severity="slotProps.data.ocr_status === 'completed' ? 'success' : slotProps.data.ocr_status === 'pending' ? 'info' : 'warn'"
+                    :value="slotProps.data.ocr_status || 'pending'"
                   />
-                  <Button
-                    icon="pi pi-download"
-                    text
-                    severity="secondary"
-                    @click="downloadPhoto(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-pencil"
-                    text
-                    severity="secondary"
-                    @click="openPhotoEditor(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-sitemap"
-                    text
-                    severity="secondary"
-                    @click="showPhotoReferences(slotProps.data)"
-                  />
-                  <Button
-                    icon="pi pi-trash"
-                    text
-                    severity="danger"
-                    @click="deletePhoto(slotProps.data)"
-                  />
-                </div>
+                  <small
+                    v-if="slotProps.data.ocr_error"
+                    class="muted block"
+                  >{{ slotProps.data.ocr_error }}</small>
+                </template>
+              </Column>
+              <Column
+                field="created_at"
+                header="Created"
+              />
+              <Column header="Actions">
+                <template #body="slotProps">
+                  <div class="actions-inline">
+                    <Button
+                      icon="pi pi-eye"
+                      text
+                      severity="secondary"
+                      @click="previewPhoto(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-download"
+                      text
+                      severity="secondary"
+                      @click="downloadPhoto(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-pencil"
+                      text
+                      severity="secondary"
+                      @click="openPhotoEditor(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-sitemap"
+                      text
+                      severity="secondary"
+                      @click="showPhotoReferences(slotProps.data)"
+                    />
+                    <Button
+                      icon="pi pi-trash"
+                      text
+                      severity="danger"
+                      @click="deletePhoto(slotProps.data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+              <template #empty>
+                <EmptyStateBlock
+                  icon="pi pi-images"
+                  :title="t('docsPhotos.emptyPhotosTitle')"
+                  :description="t('docsPhotos.emptyPhotosDescription')"
+                />
               </template>
-            </Column>
-          </DataTable>
-        </div>
-      </template>
-    </Card>
+            </DataTable>
+          </div>
+        </template>
+      </Card>
+    </div>
   </div>
 
   <Dialog
@@ -408,10 +429,12 @@ import Textarea from 'primevue/textarea'
 
 import { del, get, patch, post } from '../api'
 import { apiPaths } from '../api/endpoints'
+import { useI18n } from '../i18n'
 import { confirmDanger } from '../services/confirm'
 import { downloadDocumentFile, downloadPhotoFile, previewDocumentFile, previewPhotoFile } from '../services/downloads'
 import { useWorkspaceStore } from '../workspace-store'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
+import EmptyStateBlock from './common/EmptyStateBlock.vue'
 import type {
   DocumentUpdateRequest,
   DocumentResponse,
@@ -425,6 +448,7 @@ import type {
 } from '../types'
 
 const toast = useToast()
+const { t } = useI18n()
 
 const docInput = ref<HTMLInputElement | null>(null)
 const photoInput = ref<HTMLInputElement | null>(null)

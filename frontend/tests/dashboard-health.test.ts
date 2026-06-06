@@ -57,7 +57,7 @@ describe('ProjectHealthDashboard', () => {
     await wrapper.vm.$nextTick()
 
     expect(mocks.get).toHaveBeenCalledWith('/api/dashboard/health')
-    expect(wrapper.text()).toContain('AutoTest Runs')
+    expect(wrapper.text()).toContain('AutoTest 次數')
     expect(wrapper.text()).not.toContain('QA Count')
     expect(wrapper.text()).not.toContain('skipped')
   })
@@ -70,7 +70,7 @@ describe('ProjectHealthDashboard', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('Dashboard API returned an invalid payload.')
-    expect(wrapper.text()).toContain('Retry')
+    expect(wrapper.text()).toContain('重試')
   })
 
   it('renders archived counts without implying pending indexing work', async () => {
@@ -94,8 +94,8 @@ describe('ProjectHealthDashboard', () => {
     await Promise.resolve()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.text()).toContain('Archived')
-    expect(wrapper.text()).toContain('Pending')
-    expect(wrapper.text()).not.toContain('Pending 2')
+    expect(wrapper.text()).toContain('已封存')
+    expect(wrapper.text()).toContain('待處理')
+    expect(wrapper.text()).not.toContain('待處理2')
   })
 })
