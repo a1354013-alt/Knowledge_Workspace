@@ -411,7 +411,7 @@
       "Body_run_autotest_api_autotest_run_post": {
         "properties": {
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           }
@@ -430,7 +430,7 @@
             "type": "string"
           },
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           },
@@ -454,7 +454,7 @@
             "type": "string"
           },
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "format": "binary",
             "title": "File",
             "type": "string"
           },
@@ -873,7 +873,6 @@
         "additionalProperties": false,
         "properties": {
           "inputs": {
-            "additionalProperties": true,
             "title": "Inputs",
             "type": "object"
           },
@@ -926,14 +925,12 @@
           "analysis_scope": {
             "const": "intake_only",
             "default": "intake_only",
-            "title": "Analysis Scope",
-            "type": "string"
+            "title": "Analysis Scope"
           },
           "execution_mode": {
             "const": "simulated",
             "default": "simulated",
-            "title": "Execution Mode",
-            "type": "string"
+            "title": "Execution Mode"
           },
           "message": {
             "title": "Message",
@@ -958,8 +955,7 @@
           },
           "status": {
             "const": "registered",
-            "title": "Status",
-            "type": "string"
+            "title": "Status"
           }
         },
         "required": [
@@ -977,8 +973,7 @@
           "analysis_scope": {
             "const": "intake_only",
             "default": "intake_only",
-            "title": "Analysis Scope",
-            "type": "string"
+            "title": "Analysis Scope"
           },
           "clone_supported": {
             "default": false,
@@ -1157,15 +1152,6 @@
           "summary": {
             "additionalProperties": {
               "$ref": "#/components/schemas/IndexStatusSummaryItem"
-            },
-            "propertyNames": {
-              "enum": [
-                "document",
-                "knowledge",
-                "logbook",
-                "photo",
-                "prompt"
-              ]
             },
             "title": "Summary",
             "type": "object"
@@ -2853,13 +2839,6 @@
       },
       "ValidationError": {
         "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
           "loc": {
             "items": {
               "anyOf": [
