@@ -122,6 +122,13 @@
               </div>
             </template>
           </Column>
+          <template #empty>
+            <EmptyStateBlock
+              icon="pi pi-search"
+              :title="query ? t('search.emptyTitle') : t('search.idleTitle')"
+              :description="query ? t('search.emptyDescription') : t('search.idleDescription')"
+            />
+          </template>
         </DataTable>
 
         <RelatedItemsPanel
@@ -134,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
@@ -147,10 +154,13 @@ import MultiSelect from 'primevue/multiselect'
 import { get } from '../api'
 import { apiPaths } from '../api/endpoints'
 import { t } from '../i18n'
+import { useWorkspaceNavigation } from '../workspace-navigation'
+import EmptyStateBlock from './common/EmptyStateBlock.vue'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import type { ItemSummary, ResolveItemsResponse } from '../types'
 
 const toast = useToast()
+const { clearSearchDraft, searchDraft } = useWorkspaceNavigation()
 
 const loading = ref(false)
 const results = ref<ItemSummary[]>([])
@@ -202,6 +212,7 @@ function reset() {
   limit.value = 200
   results.value = []
   selectedItemId.value = ''
+  clearSearchDraft()
 }
 
 function selectRelated(item: ItemSummary) {
@@ -243,6 +254,24 @@ async function runSearch() {
     loading.value = false
   }
 }
+
+async function consumePendingSearchQuery() {
+  const nextQuery = String(searchDraft.value || '').trim()
+  if (!nextQuery) {
+    return
+  }
+  query.value = nextQuery
+  clearSearchDraft()
+  await runSearch()
+}
+
+watch(searchDraft, () => {
+  void consumePendingSearchQuery()
+})
+
+onMounted(() => {
+  void consumePendingSearchQuery()
+})
 </script>
 
 <style scoped>

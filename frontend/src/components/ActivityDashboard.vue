@@ -57,6 +57,13 @@
                 <code>{{ slotProps.data.item_id }}</code>
               </template>
             </Column>
+            <template #empty>
+              <EmptyStateBlock
+                icon="pi pi-history"
+                :title="t('activity.emptyTitle')"
+                :description="t('activity.emptyDescription')"
+              />
+            </template>
           </DataTable>
 
           <RelatedItemsPanel
@@ -78,6 +85,7 @@ import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
+import EmptyStateBlock from './common/EmptyStateBlock.vue'
 import { t } from '../i18n'
 import { useWorkspaceStore } from '../workspace-store'
 

@@ -1,4 +1,5 @@
 import { computed, readonly, ref } from 'vue'
+import { applyP1Messages } from './i18n-p1'
 
 export type Locale = 'zh-TW' | 'en'
 
@@ -948,6 +949,8 @@ export const messages = {
     },
   },
 } as const
+
+applyP1Messages(messages)
 
 type MessageTree = Record<string, unknown>
 

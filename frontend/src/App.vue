@@ -118,6 +118,21 @@
             <h2>{{ t('app.name') }}</h2>
             <p>{{ t('nav.owner') }}: {{ currentUser.display_name || '-' }}</p>
           </div>
+          <div class="topbar-search">
+            <InputText
+              v-model="globalSearchText"
+              :placeholder="t('app.globalSearchPlaceholder')"
+              class="topbar-search-input"
+              @keyup.enter="submitGlobalSearch"
+            />
+            <Button
+              icon="pi pi-search"
+              severity="secondary"
+              outlined
+              :aria-label="t('app.globalSearchAction')"
+              @click="submitGlobalSearch"
+            />
+          </div>
           <div class="toolbar-actions">
             <div class="language-switch">
               <button
@@ -204,6 +219,7 @@ const tabs: readonly LazyTab[] = [
   lazyTab('logbook', 'nav.logbook', 'pi-file-edit', () => import('./components/LogbookPanel.vue')),
   lazyTab('docsPhotos', 'nav.docsPhotos', 'pi-images', () => import('./components/DocsPhotosPanel.vue')),
   lazyTab('autotest', 'nav.autotest', 'pi-check-square', () => import('./components/AutoTestPanel.vue')),
+  lazyTab('dataImport', 'nav.dataImport', 'pi-file-import', () => import('./components/DataImportPanel.vue')),
   lazyTab('prompts', 'nav.prompts', 'pi-comment', () => import('./components/PromptsPanel.vue')),
   lazyTab('generator', 'nav.generator', 'pi-sparkles', () => import('./components/TemplateGeneratorPanel.vue')),
   lazyTab('settings', 'nav.settings', 'pi-cog', () => import('./components/SettingsPanel.vue')),
@@ -211,18 +227,19 @@ const tabs: readonly LazyTab[] = [
 
 const toast = useToast()
 const { locale, setLocale, t } = useI18n()
-const { activeSection, navigate } = useWorkspaceNavigation()
+const { activeSection, navigate, openSearch } = useWorkspaceNavigation()
 
 const loginLoading = ref(false)
 const currentUser = ref(createInitialUser())
 const loginForm = ref<LoginRequest>({ user_id: '', password: '' })
 const workspaceStore = useWorkspaceStore()
 const activeTabKey = ref<TabKey>('health')
+const globalSearchText = ref('')
 
 const navGroups = [
   { labelKey: 'nav.sections.overview', items: tabs.filter((tab) => ['health', 'activity'].includes(tab.key)) },
   { labelKey: 'nav.sections.knowledgeManagement', items: tabs.filter((tab) => ['search', 'knowledge', 'logbook'].includes(tab.key)) },
-  { labelKey: 'nav.sections.docsAndTesting', items: tabs.filter((tab) => ['docsPhotos', 'autotest'].includes(tab.key)) },
+  { labelKey: 'nav.sections.docsAndTesting', items: tabs.filter((tab) => ['docsPhotos', 'autotest', 'dataImport'].includes(tab.key)) },
   { labelKey: 'nav.sections.aiTools', items: tabs.filter((tab) => ['prompts', 'generator'].includes(tab.key)) },
   { labelKey: 'nav.sections.system', items: tabs.filter((tab) => ['settings'].includes(tab.key)) },
 ] as const
@@ -240,6 +257,10 @@ function selectTab(tabKey: TabKey) {
   activeTabKey.value = tabKey
   navigate(tabKey)
   activeTab.value.preload()
+}
+
+function submitGlobalSearch() {
+  openSearch(globalSearchText.value)
 }
 
 async function login() {
@@ -478,6 +499,19 @@ watch(activeSection, (value) => {
   flex-wrap: wrap;
 }
 
+.topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 360px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.topbar-search-input {
+  width: min(100%, 460px);
+}
+
 .language-switch {
   display: inline-flex;
   gap: 6px;
@@ -563,6 +597,16 @@ watch(activeSection, (value) => {
   .topbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .topbar-search {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .topbar-search-input {
+    flex: 1 1 auto;
+    width: 100%;
   }
 }
 

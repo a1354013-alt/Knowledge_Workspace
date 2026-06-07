@@ -224,6 +224,38 @@
         </div>
       </template>
     </Card>
+
+    <Card>
+      <template #title>
+        {{ t('demoData.title') }}
+      </template>
+      <template #subtitle>
+        {{ t('demoData.subtitle') }}
+      </template>
+      <template #content>
+        <div class="stack-md">
+          <div class="row">
+            <Button
+              :label="t('demoData.create')"
+              icon="pi pi-plus-circle"
+              :loading="loadingDemo"
+              @click="handleCreateDemoData"
+            />
+            <Button
+              :label="t('demoData.clear')"
+              icon="pi pi-trash"
+              outlined
+              severity="secondary"
+              :loading="clearingDemo"
+              @click="handleClearDemoData"
+            />
+          </div>
+          <p class="muted">
+            {{ t('demoData.hint') }}
+          </p>
+        </div>
+      </template>
+    </Card>
   </div>
 </template>
 
@@ -237,6 +269,8 @@ import { get } from '../api'
 import { post } from '../api'
 import { apiPaths } from '../api/endpoints'
 import { t } from '../i18n'
+import { clearDemoData, createDemoData } from '../services/workspace-data'
+import { useWorkspaceStore } from '../workspace-store'
 import type {
   IndexRebuildResponse,
   IndexStatusResponse,
@@ -258,7 +292,10 @@ const loadingTemplates = ref(false)
 const loadingOcr = ref(false)
 const loadingIndex = ref(false)
 const rebuildingIndex = ref(false)
+const loadingDemo = ref(false)
+const clearingDemo = ref(false)
 const toast = useToast()
+const store = useWorkspaceStore()
 const status = ref<SettingsLLMResponse>({
   primary_provider: '',
   active_provider: '',
@@ -389,6 +426,44 @@ async function rebuildAllIndexes() {
 }
 
 onMounted(loadIndexStatus)
+
+async function handleCreateDemoData() {
+  loadingDemo.value = true
+  try {
+    const response = await createDemoData()
+    await store.refreshAll({ force: true })
+    toast.add({
+      severity: response.created > 0 ? 'success' : 'info',
+      summary: t('demoData.createSuccess'),
+      detail: t('demoData.createDetail', { created: response.created, skipped: response.skipped }),
+      life: 3500,
+    })
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({ severity: 'error', summary: t('demoData.createFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
+  } finally {
+    loadingDemo.value = false
+  }
+}
+
+async function handleClearDemoData() {
+  clearingDemo.value = true
+  try {
+    const response = await clearDemoData()
+    await store.refreshAll({ force: true })
+    toast.add({
+      severity: 'success',
+      summary: t('demoData.clearSuccess'),
+      detail: t('demoData.clearDetail', { cleared: response.cleared }),
+      life: 3500,
+    })
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({ severity: 'error', summary: t('demoData.clearFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
+  } finally {
+    clearingDemo.value = false
+  }
+}
 </script>
 
 <style scoped>

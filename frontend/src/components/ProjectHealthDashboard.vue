@@ -43,6 +43,10 @@
             class="dashboard-content"
           >
             <HealthSummaryCards :data="data" />
+            <div class="insights-grid">
+              <LlmStatusCard />
+              <RecentWorkspaceItems />
+            </div>
             <HealthStatusSections :data="data" />
             <HealthRecentRuns :runs="data.autotest.recent_runs" />
             <HealthRefreshPanel
@@ -65,6 +69,8 @@ import HealthRecentRuns from './health/HealthRecentRuns.vue'
 import HealthRefreshPanel from './health/HealthRefreshPanel.vue'
 import HealthStatusSections from './health/HealthStatusSections.vue'
 import HealthSummaryCards from './health/HealthSummaryCards.vue'
+import LlmStatusCard from './LlmStatusCard.vue'
+import RecentWorkspaceItems from './RecentWorkspaceItems.vue'
 import { useProjectHealth } from './health/useProjectHealth'
 import { t } from '../i18n'
 
@@ -131,9 +137,19 @@ const { data, error, loading, loadDashboard } = useProjectHealth()
   gap: 24px;
 }
 
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
 @media (max-width: 768px) {
   .dashboard-content {
     gap: 16px;
+  }
+
+  .insights-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
