@@ -20,10 +20,10 @@
   "dependencies": {
     "@primeuix/themes": "^2.0.3",
     "axios": "^1.16.0",
+    "exceljs": "^4.4.0",
     "primeicons": "^6.0.0",
     "primevue": "^4.0.0",
-    "vue": "^3.4.0",
-    "xlsx": "^0.18.5"
+    "vue": "^3.4.0"
   },
   "devDependencies": {
     "@emnapi/core": "^1.10.0",

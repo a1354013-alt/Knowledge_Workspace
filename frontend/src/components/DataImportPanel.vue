@@ -324,9 +324,14 @@ function onFileSelected(event: Event) {
   result.value = null
 }
 
-function handleDownloadTemplate() {
-  downloadImportTemplate(selectedKind.value)
-  toast.add({ severity: 'success', summary: t('common.downloaded'), detail: t('dataImport.templateReady'), life: 2500 })
+async function handleDownloadTemplate() {
+  try {
+    await downloadImportTemplate(selectedKind.value)
+    toast.add({ severity: 'success', summary: t('common.downloaded'), detail: t('dataImport.templateReady'), life: 2500 })
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    toast.add({ severity: 'error', summary: t('common.requestFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
+  }
 }
 
 async function analyzeSelectedFile() {

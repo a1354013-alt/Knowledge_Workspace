@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 import { del, get, patch, post } from '../api'
 import { apiPaths } from '../api/endpoints'
@@ -128,32 +128,47 @@ function exportBaseFilename(kind: WorkspaceDataKind): string {
 }
 
 function buildWorkbook(headers: string[], row: Record<string, string>, sheetName: string) {
-  const workbook = XLSX.utils.book_new()
-  const worksheet = XLSX.utils.aoa_to_sheet([
-    headers,
-    headers.map((header) => row[header] ?? ''),
-  ])
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
+  const workbook = new ExcelJS.Workbook()
+  const worksheet = workbook.addWorksheet(sheetName)
+  worksheet.addRow(headers)
+  worksheet.addRow(headers.map((header) => row[header] ?? ''))
   return workbook
 }
 
-function listFormulaErrors(sheet: XLSX.WorkSheet, headers: string[]): ImportErrorDetail[] {
-  const errors: ImportErrorDetail[] = []
-  const rangeRef = sheet['!ref']
-  if (!rangeRef) {
-    return errors
+function isFormulaCell(cell: ExcelJS.Cell): boolean {
+  return cell.type === ExcelJS.ValueType.Formula || Boolean(cell.formula)
+}
+
+function getCellText(cell: ExcelJS.Cell): string {
+  if (isFormulaCell(cell)) {
+    return normalizeCellValue(cell.result ?? '')
   }
-  const range = XLSX.utils.decode_range(rangeRef)
-  for (let rowIndex = range.s.r + 1; rowIndex <= range.e.r; rowIndex += 1) {
-    for (let columnIndex = range.s.c; columnIndex <= range.e.c; columnIndex += 1) {
-      const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
-      const cell = sheet[cellAddress] as (XLSX.CellObject & { f?: string }) | undefined
-      if (!cell?.f) {
+  return normalizeCellValue(cell.text || cell.value)
+}
+
+function getRowValues(row: ExcelJS.Row, columnCount: number): string[] {
+  return Array.from({ length: columnCount }, (_, index) => getCellText(row.getCell(index + 1)))
+}
+
+async function downloadWorkbook(workbook: ExcelJS.Workbook, filename: string) {
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer as BlobPart], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  downloadBlob(blob, filename)
+}
+
+function listFormulaErrors(worksheet: ExcelJS.Worksheet, headers: string[]): ImportErrorDetail[] {
+  const errors: ImportErrorDetail[] = []
+  for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+    const row = worksheet.getRow(rowNumber)
+    for (let columnIndex = 1; columnIndex <= headers.length; columnIndex += 1) {
+      if (!isFormulaCell(row.getCell(columnIndex))) {
         continue
       }
       errors.push({
-        row: rowIndex + 1,
-        field: headers[columnIndex] ?? t('common.field'),
+        row: rowNumber,
+        field: headers[columnIndex - 1] ?? t('common.field'),
         reason: t('dataImport.formulaNotSupported'),
       })
     }
@@ -168,10 +183,10 @@ export function getImportLimits() {
   }
 }
 
-export function downloadImportTemplate(kind: WorkspaceDataKind) {
+export async function downloadImportTemplate(kind: WorkspaceDataKind) {
   const schema = getSchema(kind)
   const workbook = buildWorkbook(schema.columns, schema.sample, kind)
-  XLSX.writeFile(workbook, schema.filename, { compression: true })
+  await downloadWorkbook(workbook, schema.filename)
 }
 
 export async function analyzeImportFile(kind: WorkspaceDataKind, file: File): Promise<ImportAnalysis> {
@@ -184,27 +199,22 @@ export async function analyzeImportFile(kind: WorkspaceDataKind, file: File): Pr
   }
 
   const buffer = await file.arrayBuffer()
-  const workbook = XLSX.read(buffer, { type: 'array', cellFormula: true, cellHTML: false })
-  const firstSheetName = workbook.SheetNames[0]
-  const sheet = workbook.Sheets[firstSheetName]
-  const rows = XLSX.utils.sheet_to_json<(string | number | boolean | null)[]>(sheet, {
-    header: 1,
-    raw: false,
-    defval: '',
-    blankrows: false,
-  })
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(buffer)
+  const worksheet = workbook.worksheets[0]
 
-  if (!rows.length) {
+  if (!worksheet) {
     throw new Error(t('dataImport.emptyFile'))
   }
 
-  const headers = (rows[0] || []).map((value) => normalizeCellValue(value).toLowerCase())
+  const headerColumnCount = Math.max(worksheet.getRow(1).cellCount, worksheet.columnCount)
+  const headers = getRowValues(worksheet.getRow(1), headerColumnCount).map((value) => value.toLowerCase())
   if (!headers.length || headers.every((value) => !value)) {
     throw new Error(t('dataImport.emptyHeader'))
   }
 
   const missingHeaders = schema.required.filter((field) => !headers.includes(field))
-  const errors: ImportErrorDetail[] = listFormulaErrors(sheet, headers)
+  const errors: ImportErrorDetail[] = listFormulaErrors(worksheet, headers)
   if (missingHeaders.length) {
     errors.push(
       ...missingHeaders.map((field) => ({
@@ -215,7 +225,13 @@ export async function analyzeImportFile(kind: WorkspaceDataKind, file: File): Pr
     )
   }
 
-  const rawDataRows = rows.slice(1)
+  const rawDataRows = Array.from({ length: Math.max(worksheet.rowCount - 1, 0) }, (_, index) => {
+    const rowNumber = index + 2
+    return {
+      rowNumber,
+      values: getRowValues(worksheet.getRow(rowNumber), headers.length),
+    }
+  })
   if (!rawDataRows.length) {
     throw new Error(t('dataImport.emptyFile'))
   }
@@ -227,32 +243,31 @@ export async function analyzeImportFile(kind: WorkspaceDataKind, file: File): Pr
   const validRows: ImportPreviewRow[] = []
   let skippedRows = 0
 
-  rawDataRows.forEach((row, index) => {
-    const rowNumber = index + 2
-    const values = Object.fromEntries(headers.map((header, headerIndex) => [header, normalizeCellValue(row?.[headerIndex])]))
+  rawDataRows.forEach((row) => {
+    const values = Object.fromEntries(headers.map((header, headerIndex) => [header, normalizeCellValue(row.values[headerIndex])]))
     const populatedFields = Object.values(values).filter(Boolean)
     if (!populatedFields.length) {
       skippedRows += 1
-      errors.push({ row: rowNumber, field: '-', reason: t('dataImport.emptyRow') })
+      errors.push({ row: row.rowNumber, field: '-', reason: t('dataImport.emptyRow') })
       return
     }
 
     const rowErrors: ImportErrorDetail[] = []
     for (const field of schema.required) {
       if (!values[field]) {
-        rowErrors.push({ row: rowNumber, field, reason: t('dataImport.missingRequiredField') })
+        rowErrors.push({ row: row.rowNumber, field, reason: t('dataImport.missingRequiredField') })
       }
     }
 
     if ('status' in values && values.status && !allowedStatuses.has(values.status)) {
-      rowErrors.push({ row: rowNumber, field: 'status', reason: t('dataImport.invalidStatus') })
+      rowErrors.push({ row: row.rowNumber, field: 'status', reason: t('dataImport.invalidStatus') })
     }
 
     if (previewRows.length < PREVIEW_ROW_LIMIT) {
-      previewRows.push({ rowNumber, values })
+      previewRows.push({ rowNumber: row.rowNumber, values })
     }
     if (!rowErrors.length) {
-      validRows.push({ rowNumber, values })
+      validRows.push({ rowNumber: row.rowNumber, values })
     }
     errors.push(...rowErrors)
   })
@@ -408,10 +423,13 @@ export async function exportWorkspaceData(kind: WorkspaceDataKind, format: Expor
     return
   }
 
-  const workbook = XLSX.utils.book_new()
-  const worksheet = XLSX.utils.json_to_sheet(rows, { header: schema.columns })
-  XLSX.utils.book_append_sheet(workbook, worksheet, exportBaseFilename(kind))
-  XLSX.writeFile(workbook, `${filename}.xlsx`, { compression: true })
+  const workbook = new ExcelJS.Workbook()
+  const worksheet = workbook.addWorksheet(exportBaseFilename(kind))
+  worksheet.addRow(schema.columns)
+  rows.forEach((row) => {
+    worksheet.addRow(schema.columns.map((column) => row[column] ?? ''))
+  })
+  await downloadWorkbook(workbook, `${filename}.xlsx`)
 }
 
 type DemoResult = {
