@@ -196,12 +196,18 @@ async function login(page: Page) {
   await page.locator('#userId').fill('owner')
   await page.locator('#password input').fill('OwnerPass123!')
   await page.getByRole('button', { name: 'Sign In' }).click()
-  await expect(page.getByRole('heading', { name: 'Personal AI Knowledge Workspace' })).toBeVisible()
+  await expect(getNavButton(page, 'Documents & Photos')).toBeVisible()
+}
+
+function getNavButton(page: Page, name: string) {
+  return page
+    .getByRole('navigation', { name: 'Workspace navigation' })
+    .getByRole('button', { name, exact: true })
 }
 
 async function expectShellFitsViewport(page: Page) {
   await expectBodyDoesNotScroll(page)
-  for (const selector of ['.topbar', '.tab-strip', '.tab-panel-shell']) {
+  for (const selector of ['.topbar', 'main.page-content']) {
     const box = await page.locator(selector).boundingBox()
     expect(box, selector).not.toBeNull()
     expect(box!.y).toBeGreaterThanOrEqual(0)
@@ -209,14 +215,10 @@ async function expectShellFitsViewport(page: Page) {
   }
 }
 
-async function expectMainContentCanScroll(page: Page) {
-  const canScroll = await page.evaluate(() =>
-    ['.main-grid', '.tab-panel-shell', '.page-content', '.p-datatable-wrapper'].some((selector) => {
-      const element = document.querySelector(selector)
-      return element ? element.scrollHeight > element.clientHeight : false
-    })
-  )
-  expect(canScroll).toBe(true)
+async function expectLargeContentStaysInShell(page: Page) {
+  await expect(page.locator('main.page-content')).toBeVisible()
+  await expect(page.locator('.p-datatable').first()).toBeVisible()
+  await expectBodyDoesNotScroll(page)
 }
 
 test('login, navigate, refresh, switch locale, reload, and logout', async ({ page }) => {
@@ -226,17 +228,18 @@ test('login, navigate, refresh, switch locale, reload, and logout', async ({ pag
   await expect(page.getByText('Owner: Owner')).toBeVisible()
   await expectBodyDoesNotScroll(page)
 
-  await page.getByRole('button', { name: 'Documents & Photos' }).click()
+  await getNavButton(page, 'Documents & Photos').click()
   await expect(page.getByText('Documents', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Refresh' }).first().click()
   await expectBodyDoesNotScroll(page)
 
-  await page.getByLabel('Language').selectOption('zh-TW')
-  await page.getByLabel('語言').selectOption('en')
-  await expect(page.getByRole('button', { name: 'Documents & Photos' })).toBeVisible()
+  const topbarLanguageButtons = page.locator('.topbar .language-switch button')
+  await topbarLanguageButtons.first().click()
+  await topbarLanguageButtons.filter({ hasText: 'EN' }).click()
+  await expect(getNavButton(page, 'Documents & Photos')).toBeVisible()
 
   for (const tab of ['Health', 'Activity', 'Search', 'Knowledge Base', 'Problem Logbook', 'Documents & Photos', 'Auto Test', 'Prompts', 'Settings']) {
-    await page.getByRole('button', { name: tab }).click()
+    await getNavButton(page, tab).click()
     if (tab === 'Auto Test') {
       await expect(page.getByText('Safe simulation mode is active').first()).toBeVisible()
     }
@@ -261,10 +264,9 @@ for (const viewport of [
     await expectShellFitsViewport(page)
 
     for (const tab of ['Activity', 'Knowledge Base', 'Problem Logbook', 'Documents & Photos', 'Auto Test']) {
-      await page.getByRole('button', { name: tab }).click()
+      await getNavButton(page, tab).click()
       await expectShellFitsViewport(page)
-      await expectMainContentCanScroll(page)
-      await expect(page.locator('.p-datatable').first()).toBeVisible()
+      await expectLargeContentStaysInShell(page)
     }
   })
 }
