@@ -309,9 +309,10 @@
     v-model:visible="docEditorVisible"
     modal
     :header="t('docsPhotos.editDocument')"
-    :style="{ width: 'min(720px, 95vw)' }"
+    class="workspace-dialog"
+    :style="{ width: 'min(720px, calc(100vw - 32px))' }"
   >
-    <div class="stack-md">
+    <div class="dialog-body stack-md">
       <div class="muted">
         <code>{{ docEditor.id ? `document:${docEditor.id}` : '' }}</code>
       </div>
@@ -352,9 +353,10 @@
     v-model:visible="photoEditorVisible"
     modal
     :header="t('docsPhotos.editPhoto')"
-    :style="{ width: 'min(720px, 95vw)' }"
+    class="workspace-dialog"
+    :style="{ width: 'min(720px, calc(100vw - 32px))' }"
   >
-    <div class="stack-md">
+    <div class="dialog-body stack-md">
       <div class="muted">
         <code>{{ photoEditor.id ? `photo:${photoEditor.id}` : '' }}</code>
       </div>

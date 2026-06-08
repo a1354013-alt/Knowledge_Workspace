@@ -3,10 +3,11 @@
     :visible="visible"
     modal
     :header="t('logbook.editEntry')"
-    :style="{ width: 'min(920px, 95vw)' }"
+    class="workspace-dialog"
+    :style="{ width: 'min(920px, calc(100vw - 32px))' }"
     @update:visible="$emit('update:visible', $event)"
   >
-    <div class="stack-md">
+    <div class="dialog-body stack-md">
       <InputText
         :model-value="editor.title"
         :placeholder="t('common.title')"

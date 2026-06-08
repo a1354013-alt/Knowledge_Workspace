@@ -70,12 +70,61 @@
       v-else
       class="workspace-layout"
     >
-      <aside class="sidebar surface-card">
+      <button
+        v-if="mobileSidebarOpen"
+        type="button"
+        class="sidebar-backdrop"
+        :aria-label="t('nav.closeMenu')"
+        @click="closeMobileSidebar"
+      />
+
+      <aside
+        class="sidebar surface-card"
+        :class="{
+          'sidebar-collapsed': isSidebarCollapsed,
+          'sidebar-pinned': sidebarPinned,
+          'mobile-open': mobileSidebarOpen,
+        }"
+        @mouseenter="sidebarHovering = true"
+        @mouseleave="sidebarHovering = false"
+      >
         <div class="sidebar-header">
-          <p class="sidebar-eyebrow">
-            {{ t('app.name') }}
-          </p>
-          <h1>{{ t('app.title') }}</h1>
+          <div
+            v-if="isSidebarExpanded"
+            class="sidebar-brand"
+          >
+            <p class="sidebar-eyebrow">
+              {{ t('app.name') }}
+            </p>
+            <h1>{{ t('app.title') }}</h1>
+          </div>
+          <Button
+            icon="pi pi-times"
+            text
+            rounded
+            class="mobile-sidebar-close"
+            :aria-label="t('nav.closeMenu')"
+            @click="closeMobileSidebar"
+          />
+        </div>
+
+        <div class="sidebar-controls">
+          <Button
+            :icon="sidebarCollapsed ? 'pi pi-angle-double-right' : 'pi pi-angle-double-left'"
+            text
+            rounded
+            :title="sidebarCollapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')"
+            :aria-label="sidebarCollapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')"
+            @click="toggleSidebarCollapsed"
+          />
+          <Button
+            :icon="sidebarPinned ? 'pi pi-lock' : 'pi pi-lock-open'"
+            text
+            rounded
+            :title="sidebarPinned ? t('nav.unpinSidebar') : t('nav.pinSidebar')"
+            :aria-label="sidebarPinned ? t('nav.unpinSidebar') : t('nav.pinSidebar')"
+            @click="toggleSidebarPinned"
+          />
         </div>
 
         <nav
@@ -97,6 +146,7 @@
               class="sidebar-link"
               :class="{ 'sidebar-link-active': tab.key === activeTabKey }"
               :aria-pressed="tab.key === activeTabKey"
+              :title="isSidebarExpanded ? undefined : t(tab.labelKey)"
               @click="selectTab(tab.key)"
               @mouseenter="tab.preload()"
               @focus="tab.preload()"
@@ -106,7 +156,7 @@
                 :class="tab.icon"
                 aria-hidden="true"
               />
-              <span>{{ t(tab.labelKey) }}</span>
+              <span v-if="isSidebarExpanded">{{ t(tab.labelKey) }}</span>
             </button>
           </section>
         </nav>
@@ -114,6 +164,14 @@
 
       <div class="workspace-main">
         <header class="topbar surface-card">
+          <Button
+            icon="pi pi-bars"
+            text
+            rounded
+            class="mobile-menu-button"
+            :aria-label="t('nav.openMenu')"
+            @click="openMobileSidebar"
+          />
           <div class="topbar-copy">
             <h2>{{ t('app.name') }}</h2>
             <p>{{ t('nav.owner') }}: {{ currentUser.display_name || '-' }}</p>
@@ -235,6 +293,10 @@ const loginForm = ref<LoginRequest>({ user_id: '', password: '' })
 const workspaceStore = useWorkspaceStore()
 const activeTabKey = ref<TabKey>('health')
 const globalSearchText = ref('')
+const sidebarCollapsed = ref(readBooleanStorage('knowledge_workspace_sidebar_collapsed', false))
+const sidebarPinned = ref(readBooleanStorage('knowledge_workspace_sidebar_pinned', true))
+const sidebarHovering = ref(false)
+const mobileSidebarOpen = ref(false)
 
 const navGroups = [
   { labelKey: 'nav.sections.overview', items: tabs.filter((tab) => ['health', 'activity'].includes(tab.key)) },
@@ -252,11 +314,28 @@ const languageOptions: { label: string; value: Locale }[] = [
 const isLoggedIn = computed(() => Boolean(currentUser.value.user_id))
 const activeTab = computed(() => tabs.find((tab) => tab.key === activeTabKey.value) ?? tabs[0])
 const activeTabProps = computed(() => (activeTab.value.key === 'settings' ? { currentUser: currentUser.value } : {}))
+const isSidebarExpanded = computed(() => sidebarPinned.value || !sidebarCollapsed.value || sidebarHovering.value || mobileSidebarOpen.value)
+const isSidebarCollapsed = computed(() => !isSidebarExpanded.value)
+
+function readBooleanStorage(key: string, fallback: boolean) {
+  if (typeof window === 'undefined') {
+    return fallback
+  }
+  const value = window.localStorage.getItem(key)
+  if (value === 'true') {
+    return true
+  }
+  if (value === 'false') {
+    return false
+  }
+  return fallback
+}
 
 function selectTab(tabKey: TabKey) {
   activeTabKey.value = tabKey
   navigate(tabKey)
   activeTab.value.preload()
+  closeMobileSidebar()
 }
 
 function submitGlobalSearch() {
@@ -301,6 +380,31 @@ function logout(showToast = true) {
   }
 }
 
+function toggleSidebarCollapsed() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
+
+function toggleSidebarPinned() {
+  sidebarPinned.value = !sidebarPinned.value
+  if (sidebarPinned.value) {
+    sidebarCollapsed.value = false
+  }
+}
+
+function openMobileSidebar() {
+  mobileSidebarOpen.value = true
+}
+
+function closeMobileSidebar() {
+  mobileSidebarOpen.value = false
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    closeMobileSidebar()
+  }
+}
+
 async function bootstrapSession() {
   const token = restoreToken()
   if (!token) {
@@ -318,6 +422,7 @@ const removeUnauthorizedListener = onUnauthorized((event) => {
 })
 
 onMounted(async () => {
+  window.addEventListener('keydown', handleKeydown)
   activeTab.value.preload()
   navigate(activeTabKey.value)
   try {
@@ -331,7 +436,16 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown)
   removeUnauthorizedListener()
+})
+
+watch(sidebarCollapsed, (value) => {
+  window.localStorage.setItem('knowledge_workspace_sidebar_collapsed', String(value))
+})
+
+watch(sidebarPinned, (value) => {
+  window.localStorage.setItem('knowledge_workspace_sidebar_pinned', String(value))
 })
 
 watch(activeSection, (value) => {
@@ -349,7 +463,7 @@ watch(activeSection, (value) => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 16px;
   background: radial-gradient(circle at top left, rgba(69, 138, 255, 0.22), transparent 52%),
     radial-gradient(circle at bottom right, rgba(0, 184, 148, 0.15), transparent 50%),
     linear-gradient(140deg, #f7f7fb 0%, #eef4ff 45%, #f5fff9 100%);
@@ -370,21 +484,30 @@ watch(activeSection, (value) => {
 
 .workspace-layout {
   display: flex;
-  gap: 18px;
+  gap: 14px;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .sidebar {
-  flex: 0 0 260px;
+  flex: 0 0 240px;
+  width: 240px;
   min-height: 0;
   overflow: auto;
-  padding: 18px;
+  padding: 14px;
+  transition: flex-basis 0.18s ease, width 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  z-index: 20;
 }
 
 .sidebar-header {
-  margin-bottom: 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  min-height: 36px;
 }
 
 .sidebar-header h1,
@@ -405,6 +528,44 @@ watch(activeSection, (value) => {
   font-size: 1.1rem;
   line-height: 1.45;
   color: #16324a;
+}
+
+.sidebar-brand {
+  min-width: 0;
+}
+
+.sidebar-controls {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.sidebar-collapsed {
+  flex-basis: 72px;
+  width: 72px;
+  padding-inline: 8px;
+}
+
+.sidebar-collapsed .sidebar-header,
+.sidebar-collapsed .sidebar-controls {
+  justify-content: center;
+}
+
+.sidebar-collapsed .sidebar-controls {
+  flex-direction: column;
+  align-items: center;
+}
+
+.sidebar-collapsed .sidebar-group-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .sidebar-nav {
@@ -435,7 +596,7 @@ watch(activeSection, (value) => {
   gap: 10px;
   width: 100%;
   border: 0;
-  border-radius: 14px;
+  border-radius: 8px;
   background: transparent;
   color: #244663;
   padding: 11px 12px;
@@ -443,6 +604,12 @@ watch(activeSection, (value) => {
   text-align: left;
   cursor: pointer;
   transition: background 0.18s ease, transform 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.sidebar-collapsed .sidebar-link {
+  justify-content: center;
+  padding-inline: 0;
+  aspect-ratio: 1;
 }
 
 .sidebar-link:hover,
@@ -460,6 +627,8 @@ watch(activeSection, (value) => {
 
 .sidebar-link-icon {
   width: 1.1rem;
+  flex: 0 0 1.1rem;
+  text-align: center;
 }
 
 .workspace-main {
@@ -479,6 +648,11 @@ watch(activeSection, (value) => {
   gap: 16px;
   padding: 14px 18px;
   flex: 0 0 auto;
+}
+
+.mobile-menu-button,
+.mobile-sidebar-close {
+  display: none;
 }
 
 .topbar-copy h2 {
@@ -574,26 +748,6 @@ watch(activeSection, (value) => {
     padding: 14px;
   }
 
-  .workspace-layout {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    flex: 0 0 auto;
-    overflow: auto hidden;
-  }
-
-  .sidebar-nav {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 12px;
-    min-width: max-content;
-  }
-
-  .sidebar-group {
-    min-width: 190px;
-  }
-
   .topbar {
     flex-direction: column;
     align-items: flex-start;
@@ -607,6 +761,65 @@ watch(activeSection, (value) => {
   .topbar-search-input {
     flex: 1 1 auto;
     width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .mobile-menu-button,
+  .mobile-sidebar-close {
+    display: inline-flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(82vw, 320px);
+    max-width: calc(100vw - 32px);
+    height: 100dvh;
+    transform: translateX(-110%);
+    z-index: 50;
+    border-radius: 0 14px 14px 0;
+    box-shadow: 20px 0 48px rgba(31, 76, 132, 0.22);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    border: 0;
+    background: rgba(15, 23, 42, 0.32);
+    cursor: pointer;
+  }
+
+  .sidebar-collapsed {
+    flex-basis: auto;
+    padding-inline: 14px;
+  }
+
+  .sidebar-collapsed .sidebar-controls {
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+
+  .sidebar-collapsed .sidebar-group-title {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0 10px;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .sidebar-collapsed .sidebar-link {
+    justify-content: flex-start;
+    padding: 11px 12px;
+    aspect-ratio: auto;
   }
 }
 

@@ -99,45 +99,60 @@
         </template>
       </Card>
 
-      <Card>
-        <template #title>
-          {{ t('prompts.createPrompt') }}
-        </template>
-        <template #content>
-          <div class="stack-md">
-            <InputText
-              v-model="form.title"
-              :placeholder="t('common.title')"
-            />
-            <Textarea
-              v-model="form.content"
-              rows="10"
-              :placeholder="t('prompts.content')"
-            />
-            <InputText
-              v-model="form.tags"
-              :placeholder="t('prompts.tagsPlaceholder')"
-            />
-            <div class="row">
-              <Button
-                :label="t('common.save')"
-                icon="pi pi-save"
-                :loading="saving"
-                @click="savePrompt"
-              />
-              <Button
-                :label="t('common.reset')"
-                outlined
-                severity="secondary"
-                :disabled="saving"
-                @click="resetForm"
-              />
-            </div>
-          </div>
-        </template>
-      </Card>
+      <div class="create-panel surface-card">
+        <div>
+          <h3>{{ t('prompts.createPrompt') }}</h3>
+          <p>{{ t('prompts.savedSubtitle') }}</p>
+        </div>
+        <Button
+          :label="t('prompts.createPrompt')"
+          icon="pi pi-plus"
+          @click="createVisible = true"
+        />
+      </div>
     </div>
   </div>
+
+  <Dialog
+    v-model:visible="createVisible"
+    modal
+    :header="t('prompts.createPrompt')"
+    class="workspace-dialog"
+    :style="{ width: 'min(720px, calc(100vw - 32px))' }"
+  >
+    <div class="dialog-body stack-md">
+      <InputText
+        v-model="form.title"
+        :placeholder="t('common.title')"
+      />
+      <Textarea
+        v-model="form.content"
+        rows="10"
+        :placeholder="t('prompts.content')"
+      />
+      <InputText
+        v-model="form.tags"
+        :placeholder="t('prompts.tagsPlaceholder')"
+      />
+    </div>
+    <template #footer>
+      <div class="dialog-footer">
+        <Button
+          :label="t('common.reset')"
+          outlined
+          severity="secondary"
+          :disabled="saving"
+          @click="resetForm"
+        />
+        <Button
+          :label="t('common.save')"
+          icon="pi pi-save"
+          :loading="saving"
+          @click="saveCreatePrompt"
+        />
+      </div>
+    </template>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -147,6 +162,7 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
+import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 
@@ -166,6 +182,7 @@ const prompts = ref<SavedPromptResponse[]>([])
 const filterText = ref('')
 const selectedRelatedItemId = ref('')
 const store = useWorkspaceStore()
+const createVisible = ref(false)
 
 const form = ref<SavedPromptCreateRequest>(createBlankForm())
 
@@ -217,7 +234,7 @@ async function savePrompt() {
   }
   if (!payload.title || !payload.content) {
     toast.add({ severity: 'warn', summary: t('auth.missingFields'), detail: t('prompts.missingDetail'), life: 3500 })
-    return
+    return false
   }
 
   saving.value = true
@@ -230,11 +247,19 @@ async function savePrompt() {
     toast.add({ severity: response.index_status === 'failed' || indexingUnavailable ? 'warn' : 'success', summary: t('common.saved'), detail, life: 3500 })
     resetForm()
     await loadPrompts()
+    return true
   } catch (error: unknown) {
     const apiError = error as { message?: string }
     toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4500 })
+    return false
   } finally {
     saving.value = false
+  }
+}
+
+async function saveCreatePrompt() {
+  if (await savePrompt()) {
+    createVisible.value = false
   }
 }
 
@@ -327,9 +352,39 @@ onMounted(loadPrompts)
   flex-wrap: wrap;
 }
 
+.create-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.create-panel h3,
+.create-panel p {
+  margin: 0;
+}
+
+.create-panel h3 {
+  font-size: 1rem;
+}
+
+.create-panel p {
+  margin-top: 4px;
+  color: #51606f;
+  font-size: 0.9rem;
+}
+
 .actions-inline {
   display: flex;
   gap: 6px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
 }
 
 .inline-status {

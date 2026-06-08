@@ -2,49 +2,49 @@
   <Dialog
     :visible="visible"
     modal
-    :header="t('knowledge.editEntry')"
+    :header="t('knowledge.quickAddTitle')"
     class="workspace-dialog"
-    :style="{ width: 'min(920px, calc(100vw - 32px))' }"
+    :style="{ width: 'min(720px, calc(100vw - 32px))' }"
     @update:visible="$emit('update:visible', $event)"
   >
     <div class="dialog-body stack-md">
       <InputText
-        :model-value="editor.title"
-        :placeholder="t('common.title')"
+        :model-value="entry.title"
+        :placeholder="t('knowledge.titleShort')"
         @update:model-value="updateField('title', $event)"
       />
       <Textarea
-        :model-value="editor.problem"
+        :model-value="entry.problem"
         rows="3"
         :placeholder="t('common.problem')"
         @update:model-value="updateField('problem', $event)"
       />
       <Textarea
-        :model-value="editor.root_cause"
+        :model-value="entry.root_cause"
         rows="3"
         :placeholder="t('common.rootCause')"
         @update:model-value="updateField('root_cause', $event)"
       />
       <Textarea
-        :model-value="editor.solution"
+        :model-value="entry.solution"
         rows="4"
-        :placeholder="t('common.solution')"
+        :placeholder="t('knowledge.solutionDetailed')"
         @update:model-value="updateField('solution', $event)"
       />
       <InputText
-        :model-value="editor.tags"
-        :placeholder="t('common.tags')"
+        :model-value="entry.tags"
+        :placeholder="t('prompts.tagsPlaceholder')"
         @update:model-value="updateField('tags', $event)"
       />
       <Textarea
-        :model-value="editor.notes"
+        :model-value="entry.notes"
         rows="2"
-        :placeholder="t('common.notes')"
+        :placeholder="t('knowledge.notesOptional')"
         @update:model-value="updateField('notes', $event)"
       />
       <div class="row">
         <Dropdown
-          :model-value="editor.status"
+          :model-value="entry.status"
           :options="statusOptions"
           option-label="label"
           option-value="value"
@@ -52,7 +52,7 @@
           @update:model-value="updateField('status', $event)"
         />
         <Dropdown
-          :model-value="editor.source_type"
+          :model-value="entry.source_type"
           :options="sourceTypes"
           option-label="label"
           option-value="value"
@@ -61,52 +61,35 @@
         />
       </div>
       <InputText
-        :model-value="editor.source_ref"
+        :model-value="entry.source_ref"
         :placeholder="t('knowledge.sourceRefFull')"
         @update:model-value="updateField('source_ref', $event)"
       />
       <Chips
-        :model-value="editor.related_item_ids"
+        :model-value="entry.related_item_ids"
         separator=","
-        :placeholder="t('knowledge.relatedItemIds')"
+        :placeholder="t('knowledge.relatedItemIdsFull')"
         @update:model-value="updateField('related_item_ids', $event)"
       />
+    </div>
 
-      <div class="row">
-        <Dropdown
-          :model-value="pickerSelected"
-          :options="pickerOptions"
-          option-label="label"
-          option-value="value"
-          :placeholder="t('knowledge.addRelatedItem')"
-          class="picker"
-          @update:model-value="$emit('update:pickerSelected', $event)"
-        />
+    <template #footer>
+      <div class="dialog-footer">
         <Button
-          :label="t('common.add')"
-          icon="pi pi-plus"
-          outlined
-          :disabled="!pickerSelected"
-          @click="$emit('addRelated')"
-        />
-      </div>
-
-      <div class="row">
-        <Button
-          :label="t('common.saveChanges')"
-          icon="pi pi-save"
-          :loading="editorSaving"
-          @click="$emit('save')"
-        />
-        <Button
-          :label="t('common.close')"
+          :label="t('common.reset')"
           outlined
           severity="secondary"
-          :disabled="editorSaving"
-          @click="$emit('update:visible', false)"
+          :disabled="saving"
+          @click="$emit('reset')"
+        />
+        <Button
+          :label="t('common.save')"
+          icon="pi pi-save"
+          :loading="saving"
+          @click="$emit('save')"
         />
       </div>
-    </div>
+    </template>
   </Dialog>
 </template>
 
@@ -121,29 +104,24 @@ import Textarea from 'primevue/textarea'
 import { t } from '../../i18n'
 import type { KnowledgeEntryCreateRequest } from '../../types'
 
-type KnowledgeEditorModel = KnowledgeEntryCreateRequest & { id: string }
-
 const props = defineProps<{
-  editor: KnowledgeEditorModel
-  editorSaving: boolean
-  pickerOptions: Array<{ label: string; value: string }>
-  pickerSelected: string
+  entry: KnowledgeEntryCreateRequest
+  saving: boolean
   sourceTypes: Array<{ label: string; value: string }>
   statusOptions: Array<{ label: string; value: string }>
   visible: boolean
 }>()
 
 const emit = defineEmits<{
-  addRelated: []
+  reset: []
   save: []
-  'update:editor': [value: KnowledgeEditorModel]
-  'update:pickerSelected': [value: string]
+  'update:entry': [value: KnowledgeEntryCreateRequest]
   'update:visible': [value: boolean]
 }>()
 
-function updateField<Key extends keyof KnowledgeEditorModel>(key: Key, value: KnowledgeEditorModel[Key]) {
-  emit('update:editor', {
-    ...props.editor,
+function updateField<Key extends keyof KnowledgeEntryCreateRequest>(key: Key, value: KnowledgeEntryCreateRequest[Key]) {
+  emit('update:entry', {
+    ...props.entry,
     [key]: value,
   })
 }
@@ -163,7 +141,10 @@ function updateField<Key extends keyof KnowledgeEditorModel>(key: Key, value: Kn
   flex-wrap: wrap;
 }
 
-.picker {
-  min-width: min(520px, 100%);
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
 }
 </style>

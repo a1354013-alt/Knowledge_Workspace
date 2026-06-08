@@ -158,7 +158,7 @@ export function useKnowledgeEntries() {
     const trimmedProblem = String(entry.value.problem || '').trim()
     if (!trimmedProblem) {
       toast.add({ severity: 'warn', summary: t('common.validationError'), detail: t('knowledge.problemRequired'), life: 3500 })
-      return
+      return false
     }
 
     const payload = {
@@ -175,7 +175,7 @@ export function useKnowledgeEntries() {
     }
     if (!payload.solution) {
       toast.add({ severity: 'warn', summary: t('common.missingFields'), detail: t('knowledge.solutionRequired'), life: 3500 })
-      return
+      return false
     }
 
     saving.value = true
@@ -184,9 +184,11 @@ export function useKnowledgeEntries() {
       toast.add({ severity: 'success', summary: t('common.saved'), detail: t('knowledge.noteIndexed'), life: 3000 })
       resetEntry()
       await loadRecent()
+      return true
     } catch (error: unknown) {
       const apiError = error as { message?: string }
       toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
+      return false
     } finally {
       saving.value = false
     }

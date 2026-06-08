@@ -1,38 +1,54 @@
 <template>
-  <div class="grid">
-    <KnowledgeSearchBar
-      v-model:question="question"
-      :answer="answer"
-      :asking="asking"
-      :sources="sources"
-      @submit="submitQA"
-      @clear="clearResult"
-    />
+  <div class="page-panel">
+    <div class="panel-toolbar surface-card">
+      <div>
+        <h2>{{ t('nav.knowledge') }}</h2>
+        <p>{{ t('knowledge.quickAddSubtitle') }}</p>
+      </div>
+      <Button
+        :label="t('knowledge.quickAddTitle')"
+        icon="pi pi-plus"
+        @click="createVisible = true"
+      />
+    </div>
 
-    <KnowledgeEntryDetail
-      :entry="entry"
-      :saving="saving"
-      :source-types="sourceTypes"
-      :status-options="statusOptions"
-      @update:entry="updateEntry"
-      @save="saveEntry"
-      @reset="resetEntry"
-    />
+    <div class="grid">
+      <KnowledgeSearchBar
+        v-model:question="question"
+        :answer="answer"
+        :asking="asking"
+        :sources="sources"
+        @submit="submitQA"
+        @clear="clearResult"
+      />
 
-    <KnowledgeEntryList
-      :filter-text="recentFilterText"
-      :items="filteredRecent"
-      :load-message="loadRecentMessage"
-      :loading-recent="loadingRecent"
-      :selected-related-item-id="selectedRelatedItemId"
-      :show-reload-warning="showLoadRecentWarning"
-      @update:filter-text="updateRecentFilterText"
-      @refresh="loadRecent"
-      @edit="openEditor"
-      @select-related="selectForRelated"
-      @archive="archiveEntry"
-    />
+      <KnowledgeEntryList
+        :filter-text="recentFilterText"
+        :items="filteredRecent"
+        :load-message="loadRecentMessage"
+        :loading-recent="loadingRecent"
+        :selected-related-item-id="selectedRelatedItemId"
+        :show-reload-warning="showLoadRecentWarning"
+        @update:filter-text="updateRecentFilterText"
+        @refresh="loadRecent"
+        @edit="openEditor"
+        @select-related="selectForRelated"
+        @archive="archiveEntry"
+      />
+    </div>
   </div>
+
+  <KnowledgeEntryCreateDialog
+    :visible="createVisible"
+    :entry="entry"
+    :saving="saving"
+    :source-types="sourceTypes"
+    :status-options="statusOptions"
+    @update:entry="updateEntry"
+    @update:visible="updateCreateVisible"
+    @save="saveCreateEntry"
+    @reset="resetEntry"
+  />
 
   <KnowledgeEntryEditorDialog
     :visible="editorVisible"
@@ -52,7 +68,10 @@
 
 <script setup lang="ts">
 import type { KnowledgeEntryCreateRequest } from '../types'
-import KnowledgeEntryDetail from './knowledge/KnowledgeEntryDetail.vue'
+import Button from 'primevue/button'
+import { ref } from 'vue'
+import { t } from '../i18n'
+import KnowledgeEntryCreateDialog from './knowledge/KnowledgeEntryCreateDialog.vue'
 import KnowledgeEntryEditorDialog from './knowledge/KnowledgeEntryEditorDialog.vue'
 import KnowledgeEntryList from './knowledge/KnowledgeEntryList.vue'
 import KnowledgeSearchBar from './knowledge/KnowledgeSearchBar.vue'
@@ -90,6 +109,8 @@ const {
   showLoadRecentWarning,
 } = useKnowledgeEntries()
 
+const createVisible = ref(false)
+
 function updateEntry(value: KnowledgeEntryCreateRequest) {
   entry.value = value
 }
@@ -106,6 +127,16 @@ function updateEditorVisible(value: boolean) {
   editorVisible.value = value
 }
 
+function updateCreateVisible(value: boolean) {
+  createVisible.value = value
+}
+
+async function saveCreateEntry() {
+  if (await saveEntry()) {
+    createVisible.value = false
+  }
+}
+
 function updateRecentFilterText(value: string) {
   recentFilterText.value = value
 }
@@ -116,6 +147,29 @@ function updateRecentFilterText(value: string) {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   gap: 16px;
+}
+
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+}
+
+.panel-toolbar h2,
+.panel-toolbar p {
+  margin: 0;
+}
+
+.panel-toolbar h2 {
+  font-size: 1rem;
+}
+
+.panel-toolbar p {
+  margin-top: 4px;
+  color: #51606f;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 1080px) {

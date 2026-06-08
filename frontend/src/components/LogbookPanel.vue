@@ -23,77 +23,92 @@
       </template>
     </Card>
 
-    <Card>
-      <template #title>
-        {{ t('logbook.addEntry') }}
-      </template>
-      <template #content>
-        <div class="stack-md">
-          <InputText
-            v-model="form.title"
-            :placeholder="t('common.title')"
-          />
-          <Textarea
-            v-model="form.problem"
-            rows="3"
-            :placeholder="t('common.problem')"
-          />
-          <Textarea
-            v-model="form.root_cause"
-            rows="3"
-            :placeholder="t('common.rootCause')"
-          />
-          <Textarea
-            v-model="form.solution"
-            rows="4"
-            :placeholder="t('common.solution')"
-          />
-          <InputText
-            v-model="form.tags"
-            :placeholder="t('prompts.tagsPlaceholder')"
-          />
-          <Dropdown
-            v-model="form.status"
-            :options="statusOptions"
-            option-label="label"
-            option-value="value"
-            :placeholder="t('common.status')"
-          />
-          <Dropdown
-            v-model="form.source_type"
-            :options="sourceTypes"
-            option-label="label"
-            option-value="value"
-            :placeholder="t('common.sourceType')"
-          />
-          <InputText
-            v-model="form.source_ref"
-            :placeholder="t('knowledge.sourceRefFull')"
-          />
-          <Chips
-            v-model="form.related_item_ids"
-            separator=","
-            :placeholder="t('knowledge.relatedItemIdsFull')"
-          />
-          <div class="row">
-            <Button
-              :label="t('common.save')"
-              icon="pi pi-save"
-              :loading="saving"
-              @click="saveEntry"
-            />
-            <Button
-              :label="t('common.reset')"
-              outlined
-              severity="secondary"
-              :disabled="saving"
-              @click="resetForm"
-            />
-          </div>
-        </div>
-      </template>
-    </Card>
+    <div class="create-panel surface-card">
+      <div>
+        <h3>{{ t('logbook.addEntry') }}</h3>
+        <p>{{ t('logbook.pageSubtitle') }}</p>
+      </div>
+      <Button
+        :label="t('logbook.addEntry')"
+        icon="pi pi-plus"
+        @click="createVisible = true"
+      />
+    </div>
   </div>
+
+  <Dialog
+    v-model:visible="createVisible"
+    modal
+    :header="t('logbook.addEntry')"
+    class="workspace-dialog"
+    :style="{ width: 'min(720px, calc(100vw - 32px))' }"
+  >
+    <div class="dialog-body stack-md">
+      <InputText
+        v-model="form.title"
+        :placeholder="t('common.title')"
+      />
+      <Textarea
+        v-model="form.problem"
+        rows="3"
+        :placeholder="t('common.problem')"
+      />
+      <Textarea
+        v-model="form.root_cause"
+        rows="3"
+        :placeholder="t('common.rootCause')"
+      />
+      <Textarea
+        v-model="form.solution"
+        rows="4"
+        :placeholder="t('common.solution')"
+      />
+      <InputText
+        v-model="form.tags"
+        :placeholder="t('prompts.tagsPlaceholder')"
+      />
+      <Dropdown
+        v-model="form.status"
+        :options="statusOptions"
+        option-label="label"
+        option-value="value"
+        :placeholder="t('common.status')"
+      />
+      <Dropdown
+        v-model="form.source_type"
+        :options="sourceTypes"
+        option-label="label"
+        option-value="value"
+        :placeholder="t('common.sourceType')"
+      />
+      <InputText
+        v-model="form.source_ref"
+        :placeholder="t('knowledge.sourceRefFull')"
+      />
+      <Chips
+        v-model="form.related_item_ids"
+        separator=","
+        :placeholder="t('knowledge.relatedItemIdsFull')"
+      />
+    </div>
+    <template #footer>
+      <div class="dialog-footer">
+        <Button
+          :label="t('common.reset')"
+          outlined
+          severity="secondary"
+          :disabled="saving"
+          @click="resetForm"
+        />
+        <Button
+          :label="t('common.save')"
+          icon="pi pi-save"
+          :loading="saving"
+          @click="saveCreateEntry"
+        />
+      </div>
+    </template>
+  </Dialog>
 
   <LogbookEntryEditorDialog
     :visible="editorVisible"
@@ -115,9 +130,11 @@
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Chips from 'primevue/chips'
+import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
+import { ref } from 'vue'
 
 import { t } from '../i18n'
 import type { LogbookEntryCreateRequest } from '../types'
@@ -151,6 +168,8 @@ const {
   statusOptions,
 } = useLogbookEntries()
 
+const createVisible = ref(false)
+
 function updateEditor(value: LogbookEntryCreateRequest & { id: string }) {
   editor.value = value
 }
@@ -161,6 +180,12 @@ function updatePickerSelected(value: string) {
 
 function updateEditorVisible(value: boolean) {
   editorVisible.value = value
+}
+
+async function saveCreateEntry() {
+  if (await saveEntry()) {
+    createVisible.value = false
+  }
 }
 </script>
 
@@ -182,6 +207,36 @@ function updateEditorVisible(value: boolean) {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.create-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.create-panel h3,
+.create-panel p {
+  margin: 0;
+}
+
+.create-panel h3 {
+  font-size: 1rem;
+}
+
+.create-panel p {
+  margin-top: 4px;
+  color: #51606f;
+  font-size: 0.9rem;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
 }
 
 @media (max-width: 1080px) {

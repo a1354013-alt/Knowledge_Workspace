@@ -142,7 +142,7 @@ export function useLogbookEntries() {
     }
     if (!payload.title || !payload.problem || !payload.solution) {
       toast.add({ severity: 'warn', summary: t('common.missingFields'), detail: t('logbook.requiredFields'), life: 3500 })
-      return
+      return false
     }
 
     saving.value = true
@@ -151,9 +151,11 @@ export function useLogbookEntries() {
       toast.add({ severity: 'success', summary: t('common.saved'), detail: t('logbook.entryIndexed'), life: 3000 })
       resetForm()
       await loadEntries()
+      return true
     } catch (error: unknown) {
       const apiError = error as { message?: string }
       toast.add({ severity: 'error', summary: t('common.saveFailed'), detail: apiError?.message || t('common.requestFailed'), life: 4000 })
+      return false
     } finally {
       saving.value = false
     }
