@@ -1,10 +1,10 @@
 <template>
-  <Card>
+  <Card class="kw-card-fill">
     <template #title>
       {{ t('knowledge.recentNotes') }}
     </template>
     <template #content>
-      <div class="stack-md">
+      <div class="kw-table-panel">
         <p
           v-if="loadMessage"
           class="inline-status"
@@ -27,37 +27,93 @@
         <DataTable
           :value="items"
           :loading="loadingRecent"
+          class="kw-table"
           data-key="id"
+          paginator
+          :rows="8"
+          scrollable
+          scroll-height="flex"
           size="small"
           responsive-layout="scroll"
+          :table-style="{ minWidth: '980px' }"
         >
           <Column
-            field="title"
             :header="t('common.title')"
-          />
+            style="width: 18rem"
+          >
+            <template #body="slotProps">
+              <CellText :text="slotProps.data.title || slotProps.data.problem" />
+            </template>
+          </Column>
           <Column
-            field="tags"
             :header="t('common.tags')"
-          />
+            style="width: 14rem"
+          >
+            <template #body="slotProps">
+              <span
+                class="kw-chip-list"
+                :title="slotProps.data.tags || ''"
+              >
+                <span
+                  v-for="tag in visibleTags(slotProps.data.tags)"
+                  :key="tag"
+                  class="kw-chip"
+                >{{ tag }}</span>
+                <span
+                  v-if="hiddenTagCount(slotProps.data.tags) > 0"
+                  class="kw-chip"
+                >+{{ hiddenTagCount(slotProps.data.tags) }}</span>
+                <CellText
+                  v-if="!visibleTags(slotProps.data.tags).length"
+                  text="-"
+                  muted
+                />
+              </span>
+            </template>
+          </Column>
           <Column
             field="source_type"
             :header="t('common.source')"
+            style="width: 8rem"
           />
           <Column
-            field="source_ref"
             :header="t('common.sourceRef')"
-          />
+            style="width: 5rem"
+          >
+            <template #body="slotProps">
+              <span
+                class="kw-icon-cell"
+                :title="slotProps.data.source_ref || '-'"
+              >
+                <i
+                  class="pi pi-link"
+                  aria-hidden="true"
+                />
+              </span>
+            </template>
+          </Column>
           <Column
             field="status"
             :header="t('common.status')"
+            style="width: 8rem"
           />
           <Column
-            field="updated_at"
             :header="t('common.updated')"
-          />
-          <Column :header="t('common.actions')">
+            style="width: 10rem"
+          >
             <template #body="slotProps">
-              <div class="actions-inline">
+              <CellText
+                :text="formatDateTime(slotProps.data.updated_at)"
+                :title="formatDateTime(slotProps.data.updated_at)"
+              />
+            </template>
+          </Column>
+          <Column
+            :header="t('common.actions')"
+            style="width: 7rem"
+          >
+            <template #body="slotProps">
+              <div class="kw-actions-inline">
                 <Button
                   icon="pi pi-pencil"
                   text
@@ -99,6 +155,8 @@ import InputText from 'primevue/inputtext'
 
 import { t } from '../../i18n'
 import type { KnowledgeEntryResponse } from '../../types'
+import { formatDateTime } from '../../utils/date'
+import CellText from '../common/CellText.vue'
 import RelatedItemsPanel from '../RelatedItemsPanel.vue'
 
 defineProps<{
@@ -121,20 +179,24 @@ const emit = defineEmits<{
 function emitFilterText(value: string | undefined) {
   emit('update:filterText', value || '')
 }
+
+function parseTags(value: string | null | undefined): string[] {
+  return String(value || '')
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+}
+
+function visibleTags(value: string | null | undefined): string[] {
+  return parseTags(value).slice(0, 2)
+}
+
+function hiddenTagCount(value: string | null | undefined): number {
+  return Math.max(0, parseTags(value).length - 2)
+}
 </script>
 
 <style scoped>
-.stack-md {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.actions-inline {
-  display: flex;
-  gap: 6px;
-}
-
 .inline-status {
   margin: 0;
   color: #b45309;

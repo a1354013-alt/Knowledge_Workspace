@@ -11,6 +11,38 @@ function Fail($Message) {
     throw "Bootstrap failed: $Message"
 }
 
+function Get-FrontendNodeProcesses {
+    $frontendPath = [System.IO.Path]::GetFullPath($FrontendDir).TrimEnd("\")
+    $repoPath = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd("\")
+    Get-CimInstance Win32_Process -Filter "Name = 'node.exe' OR Name = 'npm.exe' OR Name = 'npm.cmd'" -ErrorAction SilentlyContinue |
+        Where-Object {
+            $commandLine = $_.CommandLine
+            if ([string]::IsNullOrWhiteSpace($commandLine)) {
+                return $false
+            }
+            $normalized = $commandLine -replace '/', '\'
+            return $normalized.Contains($frontendPath) -or ($normalized.Contains($repoPath) -and $normalized -match '\bvite\b')
+        }
+}
+
+function Assert-NoFrontendDevProcesses {
+    $processes = @(Get-FrontendNodeProcesses)
+    if ($processes.Count -eq 0) {
+        return
+    }
+
+    Write-Host "Frontend dev server is still running. Stop it before running npm ci."
+    Write-Host ""
+    Write-Host "Processes using this project's frontend:"
+    foreach ($process in $processes) {
+        Write-Host ("- PID {0}: {1}" -f $process.ProcessId, $process.CommandLine)
+    }
+    Write-Host ""
+    Write-Host "Windows EPERM unlink errors during npm ci usually mean node_modules is locked by a Node/Vite process, an editor, antivirus, or OneDrive sync."
+    Write-Host "Close the dev server and terminals that are using frontend\node_modules, then retry .\scripts\bootstrap-dev.ps1."
+    Fail "frontend node_modules is in use"
+}
+
 function Set-PythonCommand($Executable, $Arguments) {
     $script:PythonExecutable = $Executable
     $script:PythonArguments = $Arguments
@@ -133,6 +165,19 @@ function Remove-PackagingArtifacts {
         Remove-Item -Recurse -Force
 }
 
+function Remove-ViteOptimizeCache {
+    $cachePaths = @(
+        (Join-Path $FrontendDir "node_modules\.vite"),
+        (Join-Path $FrontendDir ".vite")
+    )
+    foreach ($cachePath in $cachePaths) {
+        if (Test-Path $cachePath) {
+            Remove-Item -LiteralPath $cachePath -Recurse -Force
+            Write-Host "Removed Vite optimize cache: $cachePath"
+        }
+    }
+}
+
 Write-Host "Bootstrapping Knowledge Workspace with Python 3.11..."
 
 if ((Get-Command py -ErrorAction SilentlyContinue) -and (Test-PythonCommand "py" @("-3.11"))) {
@@ -161,13 +206,18 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     Fail "npm was not found. Install Node.js 20 LTS or newer and retry."
 }
 
+Assert-NoFrontendDevProcesses
+
 Push-Location $FrontendDir
 try {
     npm ci
-    if ($LASTEXITCODE -ne 0) { Fail "frontend dependency installation failed" }
+    if ($LASTEXITCODE -ne 0) {
+        Fail "frontend dependency installation failed. On Windows, EPERM unlink errors usually mean a Node/Vite process, editor, antivirus, or OneDrive sync is locking frontend\node_modules. Stop dev servers, close terminals using node_modules, restart VS Code if needed, then retry."
+    }
 } finally {
     Pop-Location
 }
+Remove-ViteOptimizeCache
 
 Write-RootEnvIfMissing
 Write-BackendEnvIfMissing

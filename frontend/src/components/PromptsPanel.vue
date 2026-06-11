@@ -38,9 +38,15 @@
             <DataTable
               :value="filteredPrompts"
               :loading="loading"
+              class="kw-table"
               data-key="id"
+              paginator
+              :rows="8"
+              scrollable
+              scroll-height="flex"
               size="small"
               responsive-layout="scroll"
+              :table-style="{ minWidth: '760px' }"
             >
               <Column
                 field="title"
@@ -51,12 +57,22 @@
                 :header="t('common.tags')"
               />
               <Column
-                field="updated_at"
                 :header="t('common.updated')"
-              />
-              <Column :header="t('common.actions')">
+                style="width: 10rem"
+              >
                 <template #body="slotProps">
-                  <div class="actions-inline">
+                  <CellText
+                    :text="formatDateTime(slotProps.data.updated_at)"
+                    :title="formatDateTime(slotProps.data.updated_at)"
+                  />
+                </template>
+              </Column>
+              <Column
+                :header="t('common.actions')"
+                style="width: 7rem"
+              >
+                <template #body="slotProps">
+                  <div class="kw-actions-inline">
                     <Button
                       icon="pi pi-copy"
                       text
@@ -170,6 +186,8 @@ import { del, post } from '../api'
 import { apiPaths } from '../api/endpoints'
 import { t } from '../i18n'
 import { confirmDanger } from '../services/confirm'
+import { formatDateTime } from '../utils/date'
+import CellText from './common/CellText.vue'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import { useWorkspaceStore } from '../workspace-store'
 import type { MessageResponse, SavedPromptCreateRequest, SavedPromptResponse } from '../types'
@@ -373,11 +391,6 @@ onMounted(loadPrompts)
   margin-top: 4px;
   color: #51606f;
   font-size: 0.9rem;
-}
-
-.actions-inline {
-  display: flex;
-  gap: 6px;
 }
 
 .dialog-footer {

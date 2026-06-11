@@ -30,19 +30,41 @@
           v-if="itemId"
           :value="links"
           :loading="loading"
+          class="kw-table"
           data-key="link_id"
+          paginator
+          :rows="8"
+          scrollable
+          scroll-height="flex"
           size="small"
           responsive-layout="scroll"
+          :table-style="{ minWidth: '760px' }"
         >
           <Column
             field="created_at"
             :header="t('common.when')"
-          />
+            style="width: 10rem"
+          >
+            <template #body="slotProps">
+              <CellText
+                :text="formatDateTime(slotProps.data.created_at)"
+                :title="formatDateTime(slotProps.data.created_at)"
+              />
+            </template>
+          </Column>
           <Column
             field="link_type"
             :header="t('common.type')"
-          />
-          <Column :header="t('related.relatedItem')">
+            style="width: 10rem"
+          >
+            <template #body="slotProps">
+              <CellText :text="slotProps.data.link_type" />
+            </template>
+          </Column>
+          <Column
+            :header="t('related.relatedItem')"
+            style="width: 24rem"
+          >
             <template #body="slotProps">
               <div class="stack-xs">
                 <strong>{{ slotProps.data?.other_item?.title || displayOtherId(slotProps.data) }}</strong>
@@ -59,9 +81,12 @@
               </div>
             </template>
           </Column>
-          <Column :header="t('common.actions')">
+          <Column
+            :header="t('common.actions')"
+            style="width: 6rem"
+          >
             <template #body="slotProps">
-              <div class="actions-inline">
+              <div class="kw-actions-inline">
                 <Button
                   icon="pi pi-copy"
                   text
@@ -103,6 +128,8 @@ import { get } from '../api'
 import { apiPaths } from '../api/endpoints'
 import { t } from '../i18n'
 import { downloadRelatedItem, previewRelatedItem } from '../services/downloads'
+import { formatDateTime } from '../utils/date'
+import CellText from './common/CellText.vue'
 import type { ItemLinkResolved, ItemLinksResponse } from '../types'
 
 const props = defineProps({
@@ -209,6 +236,16 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.stack-xs strong,
+.stack-xs .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .row {
@@ -227,8 +264,4 @@ watch(
   margin: 0 6px;
 }
 
-.actions-inline {
-  display: flex;
-  gap: 6px;
-}
 </style>

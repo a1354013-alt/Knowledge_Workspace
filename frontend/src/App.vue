@@ -460,6 +460,7 @@ watch(activeSection, (value) => {
 .app-shell {
   height: 100dvh;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -487,6 +488,7 @@ watch(activeSection, (value) => {
   gap: 14px;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
   position: relative;
 }
@@ -494,7 +496,10 @@ watch(activeSection, (value) => {
 .sidebar {
   flex: 0 0 240px;
   width: 240px;
+  height: 100%;
+  max-height: calc(100dvh - 32px);
   min-height: 0;
+  min-width: 0;
   overflow: auto;
   padding: 14px;
   transition: flex-basis 0.18s ease, width 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
@@ -572,6 +577,8 @@ watch(activeSection, (value) => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
+  min-width: 0;
 }
 
 .sidebar-group {
@@ -602,6 +609,8 @@ watch(activeSection, (value) => {
   padding: 11px 12px;
   font-weight: 600;
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
   cursor: pointer;
   transition: background 0.18s ease, transform 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
@@ -648,6 +657,8 @@ watch(activeSection, (value) => {
   gap: 16px;
   padding: 14px 18px;
   flex: 0 0 auto;
+  min-height: 72px;
+  min-width: 0;
 }
 
 .mobile-menu-button,
@@ -658,12 +669,18 @@ watch(activeSection, (value) => {
 .topbar-copy h2 {
   font-size: 1rem;
   color: #17324d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topbar-copy p {
   margin-top: 4px;
   color: #5e7488;
   font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .toolbar-actions {
@@ -714,6 +731,7 @@ watch(activeSection, (value) => {
 .page-content {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow: auto;
   padding-right: 4px;
 }

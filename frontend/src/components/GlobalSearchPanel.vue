@@ -79,34 +79,65 @@
         <DataTable
           :value="results"
           :loading="loading"
+          class="kw-table"
           data-key="item_id"
+          paginator
+          :rows="10"
+          scrollable
+          scroll-height="flex"
           size="small"
           responsive-layout="scroll"
+          :table-style="{ minWidth: '920px' }"
         >
           <Column
-            field="item_type"
             :header="t('common.type')"
-          />
-          <Column
-            field="title"
-            :header="t('common.title')"
-          />
-          <Column
-            field="status"
-            :header="t('common.status')"
-          />
-          <Column
-            field="updated_at"
-            :header="t('common.updated')"
-          />
-          <Column :header="t('common.item')">
+            style="width: 8rem"
+          >
             <template #body="slotProps">
-              <code>{{ slotProps.data.item_id }}</code>
+              <CellText :text="slotProps.data.item_type" />
             </template>
           </Column>
-          <Column :header="t('common.actions')">
+          <Column
+            :header="t('common.title')"
+            style="width: 18rem"
+          >
             <template #body="slotProps">
-              <div class="actions-inline">
+              <CellText :text="slotProps.data.title" />
+            </template>
+          </Column>
+          <Column
+            :header="t('common.status')"
+            style="width: 8rem"
+          >
+            <template #body="slotProps">
+              <CellText :text="slotProps.data.status" />
+            </template>
+          </Column>
+          <Column
+            :header="t('common.updated')"
+            style="width: 10rem"
+          >
+            <template #body="slotProps">
+              <CellText
+                :text="formatDateTime(slotProps.data.updated_at)"
+                :title="formatDateTime(slotProps.data.updated_at)"
+              />
+            </template>
+          </Column>
+          <Column
+            :header="t('common.item')"
+            style="width: 14rem"
+          >
+            <template #body="slotProps">
+              <CellText :text="slotProps.data.item_id" />
+            </template>
+          </Column>
+          <Column
+            :header="t('common.actions')"
+            style="width: 5rem"
+          >
+            <template #body="slotProps">
+              <div class="kw-actions-inline">
                 <Button
                   icon="pi pi-sitemap"
                   text
@@ -155,6 +186,8 @@ import { get } from '../api'
 import { apiPaths } from '../api/endpoints'
 import { t } from '../i18n'
 import { useWorkspaceNavigation } from '../workspace-navigation'
+import { formatDateTime } from '../utils/date'
+import CellText from './common/CellText.vue'
 import EmptyStateBlock from './common/EmptyStateBlock.vue'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import type { ItemSummary, ResolveItemsResponse } from '../types'
@@ -313,8 +346,4 @@ onMounted(() => {
   min-width: 140px;
 }
 
-.actions-inline {
-  display: flex;
-  gap: 6px;
-}
 </style>

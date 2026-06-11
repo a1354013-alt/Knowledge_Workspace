@@ -47,6 +47,32 @@ npm run test:e2e
 
 Use `npm ci` instead of `npm install` for verification. `npm install` is only for intentional dependency changes that must update `package-lock.json`.
 
+## Local dev startup
+
+Windows first run:
+
+```powershell
+.\scripts\bootstrap-dev.ps1
+```
+
+Daily development:
+
+```powershell
+.\scripts\start-dev.ps1
+```
+
+VS Code users can run the `bootstrap: dev` task manually for first setup, then use the `Knowledge Workspace: Full Stack Dev` F5 profile. F5 runs `preflight: dev` only; it must not rerun `npm ci` on every launch.
+
+`start-dev.ps1` waits for `http://127.0.0.1:8000/api/health` and `http://127.0.0.1:5173` before reporting the dev stack as ready. If the backend is not ready, fix that error first instead of debugging frontend `/api/login` 502 responses.
+
+Windows EPERM troubleshooting:
+
+- Stop Vite, Node, and frontend test watchers before running `npm ci`.
+- Close terminals or editors that are actively reading `frontend\node_modules`.
+- Restart VS Code if an extension host or integrated terminal keeps a native binding locked.
+- Avoid keeping `node_modules` in a OneDrive-synced directory.
+- If dependencies or the Vite optimize cache are corrupted, stop all Node/Vite processes, delete `frontend\node_modules`, and rerun `.\scripts\bootstrap-dev.ps1`.
+
 If pip or another parser reports `TOMLDecodeError` at line 1 column 1, check for a UTF-8 BOM before reinstalling dependencies:
 
 ```powershell

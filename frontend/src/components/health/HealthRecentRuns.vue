@@ -3,7 +3,7 @@
     <h3>{{ t('health.recentRunsTitle') }}</h3>
     <div
       v-if="runs.length > 0"
-      class="recent-runs-table"
+      class="recent-runs-table kw-scroll-panel"
     >
       <div
         v-for="run in runs"
@@ -69,6 +69,7 @@ const { t } = useI18n()
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 320px;
 }
 
 .run-row {
@@ -83,6 +84,7 @@ const { t } = useI18n()
 
 .run-info {
   flex: 1;
+  min-width: 0;
 }
 
 .run-name {
@@ -90,6 +92,9 @@ const { t } = useI18n()
   font-weight: 600;
   color: #1a1a1a;
   margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .run-time {

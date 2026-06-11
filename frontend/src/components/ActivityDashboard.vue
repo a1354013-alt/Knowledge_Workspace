@@ -27,34 +27,66 @@
           <DataTable
             :value="filtered"
             :loading="loading"
+            class="kw-table"
             data-key="item_id"
+            paginator
+            :rows="10"
+            scrollable
+            scroll-height="flex"
             size="small"
             responsive-layout="scroll"
+            :table-style="{ minWidth: '920px' }"
             @row-click="onRowClick"
           >
             <Column
-              field="kind"
               :header="t('common.type')"
-            />
-            <Column
-              field="title"
-              :header="t('common.title')"
-            />
-            <Column
-              field="status"
-              :header="t('common.status')"
-            />
-            <Column
-              field="source"
-              :header="t('common.source')"
-            />
-            <Column
-              field="when"
-              :header="t('common.when')"
-            />
-            <Column :header="t('common.item')">
+              style="width: 8rem"
+            >
               <template #body="slotProps">
-                <code>{{ slotProps.data.item_id }}</code>
+                <CellText :text="slotProps.data.kind" />
+              </template>
+            </Column>
+            <Column
+              :header="t('common.title')"
+              style="width: 18rem"
+            >
+              <template #body="slotProps">
+                <CellText :text="slotProps.data.title" />
+              </template>
+            </Column>
+            <Column
+              :header="t('common.status')"
+              style="width: 8rem"
+            >
+              <template #body="slotProps">
+                <CellText :text="slotProps.data.status" />
+              </template>
+            </Column>
+            <Column
+              :header="t('common.source')"
+              style="width: 8rem"
+            >
+              <template #body="slotProps">
+                <CellText :text="slotProps.data.source" />
+              </template>
+            </Column>
+            <Column
+              :header="t('common.when')"
+              style="width: 10rem"
+            >
+              <template #body="slotProps">
+                <CellText
+                  :text="formatDateTime(slotProps.data.when)"
+                  :title="formatDateTime(slotProps.data.when)"
+                />
+              </template>
+            </Column>
+            <Column
+              :header="t('common.item')"
+              style="width: 14rem"
+            >
+              <template #body="slotProps">
+                <CellText :text="slotProps.data.item_id" />
               </template>
             </Column>
             <template #empty>
@@ -86,7 +118,9 @@ import InputText from 'primevue/inputtext'
 
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import EmptyStateBlock from './common/EmptyStateBlock.vue'
+import CellText from './common/CellText.vue'
 import { t } from '../i18n'
+import { formatDateTime } from '../utils/date'
 import { useWorkspaceStore } from '../workspace-store'
 
 const store = useWorkspaceStore()
@@ -117,7 +151,7 @@ const filtered = computed(() => {
 })
 
 function normalizeWhen(value: string) {
-  return String(value || '').replace('T', ' ').replace('Z', '')
+  return String(value || '')
 }
 
 function byWhenDesc(a: ActivityRow, b: ActivityRow) {

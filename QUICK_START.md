@@ -16,11 +16,13 @@ python -m pip install -U pip
 pip install -e ".[dev]"
 ```
 
-Or let the project bootstrap both backend and frontend dependencies:
+Or let the project bootstrap both backend and frontend dependencies. This is the recommended first-run path:
 
 ```powershell
 .\scripts\bootstrap-dev.ps1
 ```
+
+After the first successful bootstrap, use F5 or `.\scripts\start-dev.ps1` for daily development. They run preflight checks only and do not rerun `npm ci`.
 
 ## 2. Prepare backend env
 
@@ -49,7 +51,11 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 ## VS Code F5
 
-Open the repo root in VS Code, select `Knowledge Workspace: Full Stack Dev`, and press F5. The compound launch runs `bootstrap: dev`, starts FastAPI with `.venv`, starts Vite, and opens `http://localhost:5173`.
+Run `.\scripts\bootstrap-dev.ps1` once, open the repo root in VS Code, select `Knowledge Workspace: Full Stack Dev`, and press F5. The compound launch runs `preflight: dev`, starts FastAPI with `.venv`, starts Vite, and opens `http://localhost:5173`.
+
+Do not use F5 as a dependency installer. If preflight reports a missing `.venv`, `frontend\node_modules`, `backend\.env`, Node.js, npm, or Python 3.11, run `.\scripts\bootstrap-dev.ps1` manually.
+
+Windows EPERM during `npm ci` usually means `frontend\node_modules` is locked by a Node/Vite process, an editor, antivirus, or OneDrive sync. Stop dev servers, close terminals using `node_modules`, restart VS Code if needed, and avoid OneDrive-synced dependency folders. If the dependency tree is truly broken, stop all Node/Vite processes, delete `frontend\node_modules`, then rerun bootstrap.
 
 ## 5. AutoTest mode vocabulary
 

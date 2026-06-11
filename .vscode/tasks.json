@@ -46,7 +46,20 @@
           "endsPattern": "Application startup complete"
         }
       },
-      "dependsOn": "bootstrap: dev"
+      "dependsOn": "preflight: dev"
+    },
+    {
+      "label": "preflight: dev",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\ensure-dev.ps1"
+      ],
+      "problemMatcher": []
     },
     {
       "label": "frontend: dev",
@@ -79,7 +92,7 @@
           "endsPattern": "Local:"
         }
       },
-      "dependsOn": "bootstrap: dev"
+      "dependsOn": "preflight: dev"
     }
   ]
 }

@@ -106,8 +106,14 @@
                 <h3>{{ t('dataImport.preview') }}</h3>
                 <DataTable
                   :value="analysis.previewRows"
+                  class="kw-table"
+                  paginator
+                  :rows="8"
+                  scrollable
+                  scroll-height="flex"
                   size="small"
                   responsive-layout="scroll"
+                  :table-style="{ minWidth: '760px' }"
                 >
                   <Column
                     field="rowNumber"
@@ -119,7 +125,7 @@
                     :header="header"
                   >
                     <template #body="slotProps">
-                      {{ slotProps.data.values[header] || '-' }}
+                      <CellText :text="slotProps.data.values[header]" />
                     </template>
                   </Column>
                 </DataTable>
@@ -129,8 +135,14 @@
                 <h3>{{ t('dataImport.errorDetails') }}</h3>
                 <DataTable
                   :value="analysis.errors"
+                  class="kw-table"
+                  paginator
+                  :rows="8"
+                  scrollable
+                  scroll-height="flex"
                   size="small"
                   responsive-layout="scroll"
+                  :table-style="{ minWidth: '680px' }"
                 >
                   <Column
                     field="row"
@@ -269,6 +281,7 @@ import {
   type WorkspaceDataKind,
 } from '../services/workspace-data'
 import EmptyStateBlock from './common/EmptyStateBlock.vue'
+import CellText from './common/CellText.vue'
 import { useWorkspaceNavigation } from '../workspace-navigation'
 import { useWorkspaceStore } from '../workspace-store'
 

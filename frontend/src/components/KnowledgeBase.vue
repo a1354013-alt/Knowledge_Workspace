@@ -12,9 +12,30 @@
       />
     </div>
 
+    <div class="knowledge-tabs surface-card">
+      <button
+        type="button"
+        class="knowledge-tab"
+        :class="{ 'knowledge-tab-active': activePanel === 'ask' }"
+        @click="activePanel = 'ask'"
+      >
+        {{ t('knowledge.askTitle') }}
+      </button>
+      <button
+        type="button"
+        class="knowledge-tab"
+        :class="{ 'knowledge-tab-active': activePanel === 'recent' }"
+        @click="activePanel = 'recent'"
+      >
+        {{ t('knowledge.recentNotes') }}
+      </button>
+    </div>
+
     <div class="grid">
       <KnowledgeSearchBar
         v-model:question="question"
+        class="knowledge-panel"
+        :class="{ 'knowledge-panel-hidden': activePanel !== 'ask' }"
         :answer="answer"
         :asking="asking"
         :sources="sources"
@@ -23,6 +44,8 @@
       />
 
       <KnowledgeEntryList
+        class="knowledge-panel"
+        :class="{ 'knowledge-panel-hidden': activePanel !== 'recent' }"
         :filter-text="recentFilterText"
         :items="filteredRecent"
         :load-message="loadRecentMessage"
@@ -110,6 +133,7 @@ const {
 } = useKnowledgeEntries()
 
 const createVisible = ref(false)
+const activePanel = ref<'ask' | 'recent'>('ask')
 
 function updateEntry(value: KnowledgeEntryCreateRequest) {
   entry.value = value
@@ -147,6 +171,9 @@ function updateRecentFilterText(value: string) {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   gap: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
 }
 
 .panel-toolbar {
@@ -155,6 +182,29 @@ function updateRecentFilterText(value: string) {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
+}
+
+.knowledge-tabs {
+  display: none;
+  padding: 6px;
+  gap: 6px;
+}
+
+.knowledge-tab {
+  flex: 1 1 0;
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: transparent;
+  color: #33536d;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.knowledge-tab-active {
+  background: #fff;
+  color: #1b4d8e;
+  box-shadow: 0 6px 12px rgba(31, 76, 132, 0.12);
 }
 
 .panel-toolbar h2,
@@ -173,8 +223,16 @@ function updateRecentFilterText(value: string) {
 }
 
 @media (max-width: 1080px) {
+  .knowledge-tabs {
+    display: flex;
+  }
+
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .knowledge-panel-hidden {
+    display: none;
   }
 }
 </style>

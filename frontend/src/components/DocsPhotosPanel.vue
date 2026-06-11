@@ -74,9 +74,15 @@
           <DataTable
             :value="filteredDocuments"
             :loading="loadingDocs"
+            class="kw-table"
             data-key="id"
+            paginator
+            :rows="8"
+            scrollable
+            scroll-height="flex"
             size="small"
             responsive-layout="scroll"
+            :table-style="{ minWidth: '1120px' }"
           >
             <Column
               field="filename"
@@ -111,7 +117,7 @@
             </Column>
             <Column :header="t('common.actions')">
               <template #body="slotProps">
-                <div class="actions-inline">
+                <div class="kw-actions-inline">
                   <Button
                     v-if="slotProps.data.index_status !== 'indexed' && slotProps.data.index_status !== 'excluded'"
                     icon="pi pi-wrench"
@@ -231,9 +237,15 @@
           <DataTable
             :value="photos"
             :loading="loadingPhotos"
+            class="kw-table"
             data-key="id"
+            paginator
+            :rows="8"
+            scrollable
+            scroll-height="flex"
             size="small"
             responsive-layout="scroll"
+            :table-style="{ minWidth: '1020px' }"
           >
             <Column
               field="filename"
@@ -260,12 +272,18 @@
               </template>
             </Column>
             <Column
-              field="created_at"
               :header="t('common.created')"
-            />
+            >
+              <template #body="slotProps">
+                <CellText
+                  :text="formatDateTime(slotProps.data.created_at)"
+                  :title="formatDateTime(slotProps.data.created_at)"
+                />
+              </template>
+            </Column>
             <Column :header="t('common.actions')">
               <template #body="slotProps">
-                <div class="actions-inline">
+                <div class="kw-actions-inline">
                   <Button
                     icon="pi pi-eye"
                     text
@@ -414,6 +432,8 @@ import { confirmDanger } from '../services/confirm'
 import { downloadDocumentFile, downloadPhotoFile, previewDocumentFile, previewPhotoFile } from '../services/downloads'
 import { t } from '../i18n'
 import { useWorkspaceStore } from '../workspace-store'
+import { formatDateTime } from '../utils/date'
+import CellText from './common/CellText.vue'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 import type {
   DocumentUpdateRequest,
@@ -906,11 +926,6 @@ async function deletePhoto(photo: PhotoResponse) {
   background: #ecfdf5;
   border-color: #a7f3d0;
   color: #047857;
-}
-
-.actions-inline {
-  display: flex;
-  gap: 6px;
 }
 
 .index-cell {

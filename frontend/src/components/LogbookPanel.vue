@@ -1,8 +1,15 @@
 <template>
-  <div class="grid">
-    <Card>
+  <div class="page-panel kw-page-fill">
+    <Card class="kw-card-fill">
       <template #title>
-        {{ t('logbook.pageTitle') }}
+        <div class="panel-titlebar">
+          <span>{{ t('logbook.pageTitle') }}</span>
+          <Button
+            :label="t('logbook.addEntry')"
+            icon="pi pi-plus"
+            @click="createVisible = true"
+          />
+        </div>
       </template>
       <template #subtitle>
         {{ t('logbook.pageSubtitle') }}
@@ -22,18 +29,6 @@
         />
       </template>
     </Card>
-
-    <div class="create-panel surface-card">
-      <div>
-        <h3>{{ t('logbook.addEntry') }}</h3>
-        <p>{{ t('logbook.pageSubtitle') }}</p>
-      </div>
-      <Button
-        :label="t('logbook.addEntry')"
-        icon="pi pi-plus"
-        @click="createVisible = true"
-      />
-    </div>
   </div>
 
   <Dialog
@@ -190,12 +185,6 @@ async function saveCreateEntry() {
 </script>
 
 <style scoped>
-.grid {
-  display: grid;
-  grid-template-columns: 1.35fr 0.65fr;
-  gap: 16px;
-}
-
 .stack-md {
   display: flex;
   flex-direction: column;
@@ -209,27 +198,11 @@ async function saveCreateEntry() {
   flex-wrap: wrap;
 }
 
-.create-panel {
+.panel-titlebar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 16px;
-}
-
-.create-panel h3,
-.create-panel p {
-  margin: 0;
-}
-
-.create-panel h3 {
-  font-size: 1rem;
-}
-
-.create-panel p {
-  margin-top: 4px;
-  color: #51606f;
-  font-size: 0.9rem;
+  gap: 12px;
 }
 
 .dialog-footer {
@@ -239,9 +212,4 @@ async function saveCreateEntry() {
   width: 100%;
 }
 
-@media (max-width: 1080px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
 </style>

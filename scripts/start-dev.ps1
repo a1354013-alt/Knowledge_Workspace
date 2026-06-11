@@ -5,16 +5,10 @@ $BackendDir = Join-Path $RepoRoot "backend"
 $FrontendDir = Join-Path $RepoRoot "frontend"
 $VenvPython = Join-Path $RepoRoot ".venv\Scripts\python.exe"
 $BackendEnv = Join-Path $BackendDir ".env"
+$EnsureDev = Join-Path $PSScriptRoot "ensure-dev.ps1"
 
-if (-not (Test-Path $VenvPython)) {
-    throw "Missing .venv. Run .\scripts\bootstrap-dev.ps1 first, or create it with: py -3.11 -m venv .venv"
-}
-if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-    throw "npm was not found. Install Node.js 20 LTS or newer, then run .\scripts\bootstrap-dev.ps1."
-}
-if (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
-    throw "Missing frontend\node_modules. Run .\scripts\bootstrap-dev.ps1 first so npm ci installs the locked frontend dependencies."
-}
+& $EnsureDev
+
 $NpmCommand = if (Get-Command npm.cmd -ErrorAction SilentlyContinue) {
     (Get-Command npm.cmd).Source
 } else {
@@ -39,6 +33,31 @@ Write-Host "Press Ctrl+C to stop both services."
 
 $backend = $null
 $frontend = $null
+function Wait-HttpReady {
+    param(
+        [string]$Url,
+        [string]$Name,
+        [int]$TimeoutSeconds = 45,
+        [System.Diagnostics.Process]$Process
+    )
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if ($null -ne $Process -and $Process.HasExited) {
+            throw "$Name server exited with code $($Process.ExitCode) before it became ready."
+        }
+        try {
+            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2
+            if ($response.StatusCode -eq 200) {
+                Write-Host "$Name is ready: $Url"
+                return
+            }
+        } catch {
+            Start-Sleep -Seconds 1
+        }
+    }
+    throw "$Name did not become ready at $Url within $TimeoutSeconds seconds. Check the server output above before using the frontend; otherwise /api requests such as /api/login may return 502."
+}
+
 function Stop-ProcessTree {
     param([System.Diagnostics.Process]$Process)
     if ($null -eq $Process -or $Process.HasExited) {
@@ -54,7 +73,10 @@ function Stop-ProcessTree {
 
 try {
     $backend = Start-Process -FilePath $VenvPython -ArgumentList @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload") -WorkingDirectory $BackendDir -NoNewWindow -PassThru
+    Wait-HttpReady -Url "http://127.0.0.1:8000/api/health" -Name "Backend" -Process $backend
+
     $frontend = Start-Process -FilePath $NpmCommand -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", "5173") -WorkingDirectory $FrontendDir -NoNewWindow -PassThru
+    Wait-HttpReady -Url "http://127.0.0.1:5173" -Name "Frontend" -Process $frontend
 
     while ($true) {
         Start-Sleep -Seconds 1

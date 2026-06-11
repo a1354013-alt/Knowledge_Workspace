@@ -99,3 +99,147 @@ select {
 .dialog-body {
   min-height: 0;
 }
+
+#root {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+}
+
+*,
+*::before,
+*::after {
+  min-width: 0;
+}
+
+.page-panel {
+  height: 100%;
+  min-width: 0;
+}
+
+.p-card {
+  min-width: 0;
+}
+
+.p-card,
+.p-card .p-card-body,
+.p-card .p-card-content {
+  min-height: 0;
+}
+
+.kw-page-fill {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.kw-card-fill,
+.kw-card-fill > .p-card-body,
+.kw-card-fill > .p-card-body > .p-card-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.kw-card-fill {
+  height: 100%;
+}
+
+.kw-table-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.kw-scroll-panel {
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+.kw-table {
+  min-height: 0;
+  min-width: 0;
+}
+
+.kw-table .p-datatable-wrapper {
+  min-height: 0;
+}
+
+.kw-table .p-datatable-table {
+  table-layout: fixed;
+}
+
+.kw-table .p-datatable-thead > tr > th,
+.kw-table .p-datatable-tbody > tr > td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.kw-cell-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.kw-cell-text-muted {
+  color: #5f7387;
+}
+
+.kw-actions-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 100%;
+}
+
+.kw-actions-inline .p-button {
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+}
+
+.kw-chip-list {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.kw-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 7rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #e9f2ff;
+  color: #1f4f8f;
+  font-size: 11px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kw-icon-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  color: #315d83;
+  background: #eef5fb;
+}

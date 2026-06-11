@@ -85,9 +85,15 @@
             <DataTable
               :value="runs"
               :loading="loadingRuns"
+              class="kw-table"
               data-key="id"
+              paginator
+              :rows="8"
+              scrollable
+              scroll-height="flex"
               size="small"
               responsive-layout="scroll"
+              :table-style="{ minWidth: '640px' }"
               @row-click="onRunSelected"
             >
               <Column
@@ -99,9 +105,15 @@
                 :header="t('common.status')"
               />
               <Column
-                field="created_at"
                 :header="t('common.created')"
-              />
+              >
+                <template #body="slotProps">
+                  <CellText
+                    :text="formatDateTime(slotProps.data.created_at)"
+                    :title="formatDateTime(slotProps.data.created_at)"
+                  />
+                </template>
+              </Column>
               <template #empty>
                 <div class="empty-state">
                   <strong>{{ t('autotest.emptyTitle') }}</strong>
@@ -279,6 +291,7 @@ import {
 } from '../autotest-api'
 import { t } from '../i18n'
 import { confirmDanger } from '../services/confirm'
+import { formatDateTime } from '../utils/date'
 import type {
   AutoTestExportFormat,
   AutoTestCapabilitiesResponse,
@@ -288,6 +301,7 @@ import type {
 import { useWorkspaceStore } from '../workspace-store'
 import AutoTestStatusBadge from './autotest/AutoTestStatusBadge.vue'
 import AutoTestTimeline from './autotest/AutoTestTimeline.vue'
+import CellText from './common/CellText.vue'
 import RelatedItemsPanel from './RelatedItemsPanel.vue'
 
 const toast = useToast()

@@ -182,7 +182,8 @@ Recommended usage:
 - Python `3.11.x` is required; Python `3.12` / `3.13` are not supported until dependency constraints are updated.
 - Node.js `20` LTS with npm `10` or newer is the supported frontend runtime and matches CI.
 - The bootstrap scripts create `.venv`, install backend dev dependencies, run `npm ci` in `frontend/`, and create `backend/.env` if missing.
-- VS Code users can select `Knowledge Workspace: Full Stack Dev` and press F5 to bootstrap, start FastAPI, start Vite, and open `http://localhost:5173`.
+- VS Code users should run `.\scripts\bootstrap-dev.ps1` once, then select `Knowledge Workspace: Full Stack Dev` and press F5 to start FastAPI, start Vite, and open `http://localhost:5173`.
+- F5 runs a lightweight preflight only; it does not rerun `npm ci` on every launch.
 - The repo-root `.env` is documentation/reference only; `backend/.env` is the backend startup file.
 - Existing `.env` files are never overwritten.
 
@@ -192,6 +193,8 @@ Recommended usage:
 .\scripts\bootstrap-dev.ps1
 .\scripts\start-dev.ps1
 ```
+
+Run `.\scripts\bootstrap-dev.ps1` for first setup or intentional dependency repair. Normal local development should use F5 or `.\scripts\start-dev.ps1`.
 
 ### macOS/Linux
 
@@ -242,15 +245,24 @@ Default development URLs:
 Frontend API base behavior:
 
 - Local dev can use `VITE_API_BASE=http://127.0.0.1:8000`; the VS Code F5 frontend task sets this explicitly.
-- If `VITE_API_BASE` is not set, the frontend uses same-origin `/api`. Vite dev server proxies `/api` to `http://localhost:8000`, and production builds will call the same host that serves the frontend.
+- If `VITE_API_BASE` is not set, the frontend uses same-origin `/api`. Vite dev server proxies `/api` to `http://127.0.0.1:8000` by default, or to `VITE_API_PROXY_TARGET` when that environment variable is set. Production builds will call the same host that serves the frontend.
 - For same-origin deploys, leave `VITE_API_BASE` unset and route `/api` to the backend at the reverse proxy or platform layer.
 - For static hosting on a separate domain, set `VITE_API_BASE` at build time to the public backend origin, for example `VITE_API_BASE=https://api.example.com`. Do not rely on a localhost default in production.
 
 VS Code F5:
 
 - Use the compound launch profile `Knowledge Workspace: Full Stack Dev`.
-- F5 runs `bootstrap: dev`, starts FastAPI with `${workspaceFolder}\.venv\Scripts\python.exe`, starts Vite with `npm.cmd`, and opens Edge at `http://localhost:5173`.
+- Run the `bootstrap: dev` task manually the first time or after deleting dependencies.
+- F5 runs `preflight: dev`, starts FastAPI with `${workspaceFolder}\.venv\Scripts\python.exe`, starts Vite with `npm.cmd`, and opens Edge at `http://localhost:5173`.
 - The F5 frontend task sets `VITE_API_BASE=http://127.0.0.1:8000` so local demo startup remains explicit.
+
+Windows EPERM troubleshooting:
+
+- Stop the frontend dev server before running `.\scripts\bootstrap-dev.ps1` or `npm ci`.
+- Close terminals, test watchers, or editors that are actively using `frontend\node_modules`.
+- Restart VS Code if the integrated terminal or extension host keeps a native binding locked.
+- Avoid placing `node_modules` under a OneDrive-synced directory.
+- If the Vite optimize cache or native bindings are already corrupted, stop all Node/Vite processes, delete `frontend\node_modules`, and rerun `.\scripts\bootstrap-dev.ps1`.
 
 ### Environment Files
 

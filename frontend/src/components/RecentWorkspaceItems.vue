@@ -28,25 +28,50 @@
         <DataTable
           v-else
           :value="items"
+          class="kw-table"
+          paginator
+          :rows="8"
+          scrollable
+          scroll-height="flex"
           size="small"
           responsive-layout="scroll"
+          :table-style="{ minWidth: '720px' }"
         >
           <Column
-            field="kind"
             :header="t('common.type')"
-          />
+            style="width: 9rem"
+          >
+            <template #body="slotProps">
+              <CellText :text="slotProps.data.kind" />
+            </template>
+          </Column>
           <Column
-            field="title"
             :header="t('common.title')"
-          />
+            style="width: 18rem"
+          >
+            <template #body="slotProps">
+              <CellText :text="slotProps.data.title" />
+            </template>
+          </Column>
           <Column
-            field="status"
             :header="t('common.status')"
-          />
+            style="width: 9rem"
+          >
+            <template #body="slotProps">
+              <CellText :text="slotProps.data.status" />
+            </template>
+          </Column>
           <Column
-            field="updatedAt"
             :header="t('common.updated')"
-          />
+            style="width: 10rem"
+          >
+            <template #body="slotProps">
+              <CellText
+                :text="formatDateTime(slotProps.data.updatedAt)"
+                :title="formatDateTime(slotProps.data.updatedAt)"
+              />
+            </template>
+          </Column>
         </DataTable>
       </div>
     </template>
@@ -62,6 +87,8 @@ import DataTable from 'primevue/datatable'
 
 import { t } from '../i18n'
 import EmptyStateBlock from './common/EmptyStateBlock.vue'
+import CellText from './common/CellText.vue'
+import { formatDateTime } from '../utils/date'
 import { useWorkspaceStore } from '../workspace-store'
 
 type RecentItem = {
