@@ -62,9 +62,52 @@ describe('ProjectHealthDashboard', () => {
     await wrapper.vm.$nextTick()
 
     expect(mocks.get).toHaveBeenCalledWith('/api/dashboard/health')
-    expect(wrapper.text()).toContain('AutoTest Runs')
+    expect(wrapper.text()).toContain('查看知識狀態')
+    expect(wrapper.text()).toContain('查看執行紀錄')
+    expect(wrapper.text()).toContain('查看活動紀錄')
     expect(wrapper.text()).not.toContain('QA Count')
     expect(wrapper.text()).not.toContain('skipped')
+  })
+
+  it('moves detailed sections into dialogs instead of rendering them inline', async () => {
+    mocks.get.mockResolvedValueOnce({
+      knowledge: { total: 2, by_status: { draft: 1, reviewed: 1, verified: 0, archived: 0 } },
+      logbook: { total: 1, with_solution: 1, promoted_to_knowledge: 1, resolution_rate: 100 },
+      autotest: {
+        total_runs: 3,
+        passed: 2,
+        failed: 1,
+        pass_rate: 67,
+        recent_runs: [{ id: 'run-1', project_name: 'Workspace ZIP', created_at: '2026-06-12T08:30:00Z', status: 'passed' }],
+      },
+      documents: { total: 2, indexed: 1, pending: 1, failed_documents: 0, archived_documents: 0 },
+      recent_activity: {
+        days: 7,
+        documents_added: 1,
+        knowledge_added: 1,
+        logbook_added: 1,
+        autotest_runs: 2,
+        autotest_passed: 1,
+        autotest_failed: 1,
+      },
+    })
+
+    const wrapper = mount(ProjectHealthDashboard, { global: { stubs: PrimeStubs } })
+    await Promise.resolve()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).not.toContain('Workspace ZIP')
+
+    const openStatusButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('查看知識狀態'))
+
+    expect(openStatusButton).toBeTruthy()
+
+    await openStatusButton!.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('Knowledge by Status')
   })
 
   it('shows an error state when the dashboard API returns a malformed payload', async () => {
@@ -78,7 +121,7 @@ describe('ProjectHealthDashboard', () => {
     expect(wrapper.text()).toContain('Retry')
   })
 
-  it('renders archived counts without implying pending indexing work', async () => {
+  it('renders archived counts inside the knowledge status dialog without implying pending indexing work', async () => {
     mocks.get.mockResolvedValueOnce({
       knowledge: { total: 2, by_status: { draft: 1, reviewed: 1, verified: 0, archived: 0 } },
       logbook: { total: 1, with_solution: 1, promoted_to_knowledge: 1, resolution_rate: 100 },
@@ -97,6 +140,17 @@ describe('ProjectHealthDashboard', () => {
 
     const wrapper = mount(ProjectHealthDashboard, { global: { stubs: PrimeStubs } })
     await Promise.resolve()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).not.toContain('Archived')
+
+    const openStatusButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('查看知識狀態'))
+
+    expect(openStatusButton).toBeTruthy()
+
+    await openStatusButton!.trigger('click')
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('Archived')

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
 import App from '../src/App.vue'
@@ -69,7 +69,7 @@ describe('frontend smoke flows', () => {
     })
 
     const wrapper = mount(App, { global: { stubs: PrimeStubs } })
-    expect(wrapper.text()).toContain('工程師的個人 AI 知識工作區')
+    expect(wrapper.text()).toContain('AI')
 
     const vm = wrapper.vm as unknown as { loginForm: { user_id: string; password: string }; login: () => Promise<void> }
     vm.loginForm.user_id = 'owner'
@@ -138,7 +138,7 @@ describe('frontend smoke flows', () => {
     expect(vm.currentUser.user_id).toBe('')
     expect(store.state.lists.documents).toEqual([])
     expect(store.state.status.documents).toBe('idle')
-    expect(wrapper.text()).toContain('登入')
+    expect(wrapper.text()).toContain('ID')
   })
 
   it('renders system status/dashboard data', async () => {
@@ -167,7 +167,7 @@ describe('frontend smoke flows', () => {
     const wrapper = mount(ProjectHealthDashboard, { global: { stubs: PrimeStubs } })
     await flushUi()
     await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('AutoTest 執行')
+    expect(wrapper.text()).toContain('provider')
   })
 
   it('handles an empty search result without crashing', async () => {

@@ -47,33 +47,32 @@
               <LlmStatusCard />
               <RecentWorkspaceItems />
             </div>
-            <section class="health-tabs surface-card">
-              <div class="health-tab-list">
-                <button
-                  v-for="tab in healthTabs"
-                  :key="tab.key"
-                  type="button"
-                  class="health-tab"
-                  :class="{ 'health-tab-active': activeHealthTab === tab.key }"
-                  @click="activeHealthTab = tab.key"
-                >
-                  {{ tab.label }}
-                </button>
+            <section class="health-actions surface-card">
+              <div class="health-actions-copy">
+                <h3>查看詳細資訊</h3>
+                <p>詳細統計改由對話框顯示，避免主畫面高度被底部內容撐開。</p>
               </div>
-              <div class="health-tab-panel">
-                <HealthStatusSections
-                  v-if="activeHealthTab === 'status'"
-                  :data="data"
+              <div class="health-actions-row">
+                <Button
+                  label="查看知識狀態"
+                  icon="pi pi-book"
+                  severity="secondary"
+                  outlined
+                  @click="openHealthDialog('status')"
                 />
-                <HealthRecentRuns
-                  v-else-if="activeHealthTab === 'runs'"
-                  :runs="data.autotest.recent_runs"
+                <Button
+                  label="查看執行紀錄"
+                  icon="pi pi-history"
+                  severity="secondary"
+                  outlined
+                  @click="openHealthDialog('runs')"
                 />
-                <HealthRefreshPanel
-                  v-else
-                  :data="data"
-                  :loading="loading"
-                  @refresh="loadDashboard"
+                <Button
+                  label="查看活動紀錄"
+                  icon="pi pi-calendar"
+                  severity="secondary"
+                  outlined
+                  @click="openHealthDialog('activity')"
                 />
               </div>
             </section>
@@ -82,29 +81,82 @@
       </template>
     </Card>
   </div>
+
+  <Dialog
+    :visible="activeHealthDialog !== null"
+    modal
+    closable
+    close-on-escape
+    dismissable-mask
+    class="health-detail-dialog"
+    :header="activeDialogTitle"
+    :style="{ width: 'min(960px, calc(100vw - 32px))' }"
+    @update:visible="onDialogVisibilityChange"
+  >
+    <div
+      v-if="data"
+      class="health-dialog-panel"
+    >
+      <KnowledgeStatusPanel
+        v-if="activeHealthDialog === 'status'"
+        :data="data"
+      />
+      <AutoTestRunsPanel
+        v-else-if="activeHealthDialog === 'runs'"
+        :runs="data.autotest.recent_runs"
+      />
+      <ActivityLogPanel
+        v-else-if="activeHealthDialog === 'activity'"
+        :data="data"
+        :loading="loading"
+        @refresh="loadDashboard"
+      />
+    </div>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import Button from 'primevue/button'
 import Card from 'primevue/card'
+import Dialog from 'primevue/dialog'
 import { computed, ref } from 'vue'
 
-import HealthRecentRuns from './health/HealthRecentRuns.vue'
-import HealthRefreshPanel from './health/HealthRefreshPanel.vue'
-import HealthStatusSections from './health/HealthStatusSections.vue'
+import ActivityLogPanel from './health/ActivityLogPanel.vue'
+import AutoTestRunsPanel from './health/AutoTestRunsPanel.vue'
 import HealthSummaryCards from './health/HealthSummaryCards.vue'
+import KnowledgeStatusPanel from './health/KnowledgeStatusPanel.vue'
 import LlmStatusCard from './LlmStatusCard.vue'
 import RecentWorkspaceItems from './RecentWorkspaceItems.vue'
 import { useProjectHealth } from './health/useProjectHealth'
 import { t } from '../i18n'
 
 const { data, error, loading, loadDashboard } = useProjectHealth()
-const activeHealthTab = ref<'status' | 'runs' | 'activity'>('status')
-const healthTabs = computed(() => [
-  { key: 'status' as const, label: t('health.knowledgeByStatus') },
-  { key: 'runs' as const, label: t('health.recentRunsTitle') },
-  { key: 'activity' as const, label: t('health.lastSevenDays') },
-])
+
+type HealthDialogKey = 'status' | 'runs' | 'activity'
+
+const activeHealthDialog = ref<HealthDialogKey | null>(null)
+const activeDialogTitle = computed(() => {
+  if (activeHealthDialog.value === 'status') {
+    return t('health.knowledgeByStatus')
+  }
+  if (activeHealthDialog.value === 'runs') {
+    return t('health.recentRunsTitle')
+  }
+  if (activeHealthDialog.value === 'activity') {
+    return t('health.lastSevenDays')
+  }
+  return ''
+})
+
+function openHealthDialog(dialog: HealthDialogKey) {
+  activeHealthDialog.value = dialog
+}
+
+function onDialogVisibilityChange(visible: boolean) {
+  if (!visible) {
+    activeHealthDialog.value = null
+  }
+}
 </script>
 
 <style scoped>
@@ -182,43 +234,51 @@ const healthTabs = computed(() => [
   min-width: 0;
 }
 
-.health-tabs {
+.health-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.health-actions-copy {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-  padding: 6px;
-}
-
-.health-tab-list {
-  display: flex;
   gap: 6px;
-  flex: 0 0 auto;
-  overflow-x: auto;
+  min-width: 0;
 }
 
-.health-tab {
-  border: 0;
-  border-radius: 8px;
-  padding: 9px 12px;
-  background: transparent;
-  color: #33536d;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
+.health-actions-copy h3 {
+  margin: 0;
+  color: #1b2d42;
+  font-size: 16px;
 }
 
-.health-tab-active {
-  background: #fff;
-  color: #1b4d8e;
-  box-shadow: 0 6px 12px rgba(31, 76, 132, 0.12);
+.health-actions-copy p {
+  margin: 0;
+  color: #51606f;
+  line-height: 1.5;
 }
 
-.health-tab-panel {
+.health-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.health-dialog-panel {
   min-height: 0;
-  max-height: 360px;
-  overflow: auto;
-  padding: 10px;
+}
+
+:deep(.health-detail-dialog) {
+  max-height: min(80vh, 720px);
+}
+
+:deep(.health-detail-dialog .p-dialog-content) {
+  overflow-y: auto;
 }
 
 @media (max-width: 768px) {
@@ -228,6 +288,25 @@ const healthTabs = computed(() => [
 
   .insights-grid {
     grid-template-columns: 1fr;
+  }
+
+  .health-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .health-actions-row {
+    justify-content: stretch;
+  }
+
+  .health-actions-row :deep(button) {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  :deep(.health-detail-dialog) {
+    width: calc(100vw - 24px) !important;
   }
 }
 </style>

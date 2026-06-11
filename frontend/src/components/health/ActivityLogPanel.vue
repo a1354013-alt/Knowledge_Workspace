@@ -1,32 +1,34 @@
 <template>
-  <div class="activity-block">
-    <h3>{{ t('health.lastSevenDays') }}</h3>
-    <div class="activity-grid">
-      <div
-        v-for="item in activityItems"
-        :key="item.label"
-        class="activity-item"
-      >
-        <div class="activity-label">
-          {{ item.label }}
-        </div>
+  <div class="activity-panel">
+    <div class="activity-block">
+      <h3>{{ t('health.lastSevenDays') }}</h3>
+      <div class="activity-grid">
         <div
-          class="activity-value"
-          :class="item.className"
+          v-for="item in activityItems"
+          :key="item.label"
+          class="activity-item"
         >
-          {{ item.value }}
+          <div class="activity-label">
+            {{ item.label }}
+          </div>
+          <div
+            class="activity-value"
+            :class="item.className"
+          >
+            {{ item.value }}
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="action-bar">
-    <Button
-      :label="t('common.refresh')"
-      icon="pi pi-refresh"
-      :loading="loading"
-      @click="$emit('refresh')"
-    />
+    <div class="action-bar">
+      <Button
+        :label="t('common.refresh')"
+        icon="pi pi-refresh"
+        :loading="loading"
+        @click="$emit('refresh')"
+      />
+    </div>
   </div>
 </template>
 
@@ -57,6 +59,12 @@ const activityItems = computed(() => [
 </script>
 
 <style scoped>
+.activity-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .activity-block {
   padding: 16px;
   border-radius: 12px;
