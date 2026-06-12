@@ -197,6 +197,14 @@ class KnowledgeEntryResponse(StrictModel):
     updated_at: str
 
 
+class KnowledgeEntryPageResponse(StrictModel):
+    items: list[KnowledgeEntryResponse] = Field(default_factory=list)
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
 class KnowledgeEntryUpdateRequest(StrictModel):
     title: str | None = Field(default=None, max_length=200)
     status: Literal["draft", "reviewed", "verified", "archived"] | None = None
@@ -268,6 +276,14 @@ class LogbookEntryResponse(StrictModel):
     updated_at: str
 
 
+class LogbookEntryPageResponse(StrictModel):
+    items: list[LogbookEntryResponse] = Field(default_factory=list)
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
 class LogbookEntryUpdateRequest(StrictModel):
     title: str | None = Field(default=None, max_length=200)
     status: Literal["draft", "reviewed", "verified", "archived"] | None = None
@@ -302,6 +318,14 @@ class SavedPromptResponse(StrictModel):
     index_error: str = ""
 
 
+class SavedPromptPageResponse(StrictModel):
+    items: list[SavedPromptResponse] = Field(default_factory=list)
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
 class PhotoResponse(StrictModel):
     id: str
     filename: str
@@ -315,6 +339,14 @@ class PhotoResponse(StrictModel):
     ocr_text: str
     ocr_status: Literal["pending", "completed", "failed", "unavailable"] = "pending"
     ocr_error: str = ""
+
+
+class PhotoPageResponse(StrictModel):
+    items: list[PhotoResponse] = Field(default_factory=list)
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
 
 
 class UploadPhotoResponse(PhotoResponse):
@@ -474,6 +506,52 @@ class GitHubAnalyzeResponse(StrictModel):
     report_ready: bool = False
     message: str
     repo_info: GitHubRepoInfoResponse
+
+
+class ImportErrorDetail(StrictModel):
+    row: int
+    field: str
+    reason: str
+
+
+class KnowledgeImportRow(StrictModel):
+    row_number: int = Field(ge=1)
+    values: KnowledgeEntryCreateRequest
+
+
+class LogbookImportRow(StrictModel):
+    row_number: int = Field(ge=1)
+    values: LogbookEntryCreateRequest
+
+
+class PromptImportRow(StrictModel):
+    row_number: int = Field(ge=1)
+    values: SavedPromptCreateRequest
+
+
+class KnowledgeBulkImportRequest(StrictModel):
+    dry_run: bool = False
+    rows: list[KnowledgeImportRow] = Field(min_length=1, max_length=500)
+
+
+class LogbookBulkImportRequest(StrictModel):
+    dry_run: bool = False
+    rows: list[LogbookImportRow] = Field(min_length=1, max_length=500)
+
+
+class PromptBulkImportRequest(StrictModel):
+    dry_run: bool = False
+    rows: list[PromptImportRow] = Field(min_length=1, max_length=500)
+
+
+class BulkImportResult(StrictModel):
+    total_rows: int
+    success_rows: int
+    failed_rows: int
+    skipped_rows: int = 0
+    dry_run: bool = False
+    created_ids: list[str] = Field(default_factory=list)
+    errors: list[ImportErrorDetail] = Field(default_factory=list)
 
 
 class ItemSummary(StrictModel):

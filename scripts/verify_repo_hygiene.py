@@ -24,6 +24,13 @@ FORBIDDEN_DIRS = {
     "node_modules",
 }
 FORBIDDEN_PATH_PATTERNS = (
+    "temp",
+    "temp/**",
+    "temp/merge-conflict-backup",
+    "temp/merge-conflict-backup/**",
+    "*.patch",
+    "*.rej",
+    "*.orig",
     "data/index",
     "ci_uploads",
     "ci_photos",
@@ -38,7 +45,25 @@ FORBIDDEN_PATH_PATTERNS = (
     "*.sqlite-shm",
     "*.sqlite-wal",
 )
-IGNORE_PREFIXES = {".git", ".venv", ".venv311", ".venv311_clean"}
+IGNORE_PREFIXES = {".git", ".venv", ".venv", ".venv_clean"}
+CONFLICT_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")
+TEXT_SUFFIXES = {
+    ".css",
+    ".env",
+    ".html",
+    ".js",
+    ".json",
+    ".md",
+    ".py",
+    ".toml",
+    ".ts",
+    ".tsx",
+    ".txt",
+    ".vue",
+    ".yaml",
+    ".yml",
+}
+TEXT_FILENAMES = {".gitattributes", ".gitignore", ".nvmrc", ".python-version", "Makefile", "VERSION"}
 
 
 def _is_ignored_path(relative: Path) -> bool:
@@ -68,6 +93,26 @@ def _matches_forbidden_pattern(relative_path: str) -> bool:
     return any(fnmatch.fnmatch(normalized, pattern) for pattern in FORBIDDEN_PATH_PATTERNS)
 
 
+def _should_scan_text(path: Path) -> bool:
+    return path.name in TEXT_FILENAMES or path.suffix.lower() in TEXT_SUFFIXES
+
+
+def _find_conflict_markers(path: Path) -> list[str]:
+    if not _should_scan_text(path):
+        return []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return []
+    relative = path.relative_to(ROOT).as_posix()
+    issues: list[str] = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if stripped in CONFLICT_MARKERS or any(stripped.startswith(marker + " ") for marker in CONFLICT_MARKERS):
+            issues.append(f"{relative}:{line_number}: merge conflict marker '{stripped}'")
+    return issues
+
+
 def main() -> int:
     violations: list[str] = []
     for path in ROOT.rglob("*"):
@@ -79,6 +124,9 @@ def main() -> int:
             continue
         if _matches_forbidden_pattern(relative.as_posix()):
             violations.append(relative.as_posix())
+            continue
+        if path.is_file():
+            violations.extend(_find_conflict_markers(path))
 
     if violations:
         print("Forbidden repo artifacts detected:", file=sys.stderr)

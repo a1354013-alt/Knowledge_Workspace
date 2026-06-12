@@ -51,7 +51,7 @@ def test_public_api_contract_smoke(client: TestClient, auth_headers: dict[str, s
 
     photo_list = client.get("/api/photos", headers=auth_headers)
     assert photo_list.status_code == 200, photo_list.text
-    assert any(item["id"] == photo_id for item in photo_list.json())
+    assert any(item["id"] == photo_id for item in photo_list.json()["items"])
 
     photo_download = client.get(f"/api/photos/{photo_id}/download", headers=auth_headers)
     assert photo_download.status_code == 200, photo_download.text
@@ -82,7 +82,7 @@ def test_public_api_contract_smoke(client: TestClient, auth_headers: dict[str, s
 
     knowledge_list = client.get("/api/knowledge/entries", headers=auth_headers)
     assert knowledge_list.status_code == 200, knowledge_list.text
-    assert any(item["id"] == knowledge_id for item in knowledge_list.json())
+    assert any(item["id"] == knowledge_id for item in knowledge_list.json()["items"])
 
     knowledge_update = client.patch(
         f"/api/knowledge/entries/{knowledge_id}",
@@ -111,7 +111,7 @@ def test_public_api_contract_smoke(client: TestClient, auth_headers: dict[str, s
 
     logbook_list = client.get("/api/logbook/entries", headers=auth_headers)
     assert logbook_list.status_code == 200, logbook_list.text
-    assert any(item["id"] == logbook_id for item in logbook_list.json())
+    assert any(item["id"] == logbook_id for item in logbook_list.json()["items"])
 
     promote = client.post(f"/api/logbook/entries/{logbook_id}/promote-to-knowledge", headers=auth_headers)
     assert promote.status_code == 200, promote.text

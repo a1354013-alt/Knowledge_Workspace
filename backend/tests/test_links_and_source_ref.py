@@ -62,7 +62,7 @@ def test_source_ref_replacement_removes_old_derived_from(monkeypatch, tmp_path):
         )
         assert create.status_code == 200, create.text
 
-        entries = client.get("/api/knowledge/entries", headers=headers).json()
+        entries = client.get("/api/knowledge/entries", headers=headers).json()["items"]
         entry_id = next(row["id"] for row in entries if row["title"] == "Derived entry")
 
         links = client.get("/api/item-links", headers=headers, params={"item_id": f"knowledge:{entry_id}"})
@@ -132,7 +132,7 @@ def test_restore_revision_resyncs_source_ref_link(monkeypatch, tmp_path):
         )
         assert create.status_code == 200, create.text
 
-        entry_id = client.get("/api/knowledge/entries", headers=headers).json()[0]["id"]
+        entry_id = client.get("/api/knowledge/entries", headers=headers).json()["items"][0]["id"]
         update = client.patch(
             f"/api/knowledge/entries/{entry_id}",
             headers=headers,
@@ -144,7 +144,11 @@ def test_restore_revision_resyncs_source_ref_link(monkeypatch, tmp_path):
         restore = client.post(f"/api/knowledge/{entry_id}/revisions/{revision_id}/restore", headers=headers)
         assert restore.status_code == 200, restore.text
 
-        restored = next(item for item in client.get("/api/knowledge/entries", headers=headers).json() if item["id"] == entry_id)
+        restored = next(
+            item
+            for item in client.get("/api/knowledge/entries", headers=headers).json()["items"]
+            if item["id"] == entry_id
+        )
         assert restored["source_ref"] == f"document:{doc_a}"
 
         links = client.get("/api/item-links", headers=headers, params={"item_id": f"knowledge:{entry_id}"})
@@ -181,7 +185,7 @@ def test_source_type_change_to_derived_creates_link_without_source_ref_change(mo
             },
         )
         assert create.status_code == 200, create.text
-        entry_id = client.get("/api/knowledge/entries", headers=headers).json()[0]["id"]
+        entry_id = client.get("/api/knowledge/entries", headers=headers).json()["items"][0]["id"]
 
         patch = client.patch(
             f"/api/knowledge/entries/{entry_id}",
@@ -223,7 +227,7 @@ def test_source_type_change_to_manual_removes_link_without_source_ref_change(mon
             },
         )
         assert create.status_code == 200, create.text
-        entry_id = client.get("/api/knowledge/entries", headers=headers).json()[0]["id"]
+        entry_id = client.get("/api/knowledge/entries", headers=headers).json()["items"][0]["id"]
 
         patch = client.patch(
             f"/api/knowledge/entries/{entry_id}",
@@ -264,7 +268,7 @@ def test_source_type_same_derived_does_not_duplicate_existing_link(monkeypatch, 
             },
         )
         assert create.status_code == 200, create.text
-        entry_id = client.get("/api/knowledge/entries", headers=headers).json()[0]["id"]
+        entry_id = client.get("/api/knowledge/entries", headers=headers).json()["items"][0]["id"]
 
         patch = client.patch(
             f"/api/knowledge/entries/{entry_id}",
@@ -306,7 +310,7 @@ def test_restore_revision_resyncs_source_type_and_source_ref_link(monkeypatch, t
             },
         )
         assert create.status_code == 200, create.text
-        entry_id = client.get("/api/knowledge/entries", headers=headers).json()[0]["id"]
+        entry_id = client.get("/api/knowledge/entries", headers=headers).json()["items"][0]["id"]
 
         patch = client.patch(
             f"/api/knowledge/entries/{entry_id}",
@@ -319,7 +323,7 @@ def test_restore_revision_resyncs_source_type_and_source_ref_link(monkeypatch, t
         restore = client.post(f"/api/knowledge/{entry_id}/revisions/{revision_id}/restore", headers=headers)
         assert restore.status_code == 200, restore.text
 
-        restored = client.get("/api/knowledge/entries", headers=headers).json()[0]
+        restored = client.get("/api/knowledge/entries", headers=headers).json()["items"][0]
         assert restored["source_type"] == "document-derived"
         assert restored["source_ref"] == "document:restore-doc"
 
@@ -369,7 +373,9 @@ def test_item_links_requires_owned_item(monkeypatch, tmp_path):
             },
         )
         assert owned_create.status_code == 200, owned_create.text
-        owned_entry = next(item["id"] for item in client.get("/api/knowledge/entries", headers=headers).json())
+        owned_entry = next(
+            item["id"] for item in client.get("/api/knowledge/entries", headers=headers).json()["items"]
+        )
 
         ok = client.get("/api/item-links", headers=headers, params={"item_id": f"knowledge:{owned_entry}"})
         missing = client.get("/api/item-links", headers=headers, params={"item_id": "knowledge:missing"})
@@ -416,7 +422,9 @@ def test_item_links_filters_foreign_related_items_and_link_metadata(monkeypatch,
             },
         )
         assert create.status_code == 200, create.text
-        owned_entry = next(item["id"] for item in client.get("/api/knowledge/entries", headers=headers).json())
+        owned_entry = next(
+            item["id"] for item in client.get("/api/knowledge/entries", headers=headers).json()["items"]
+        )
 
         assert main.db.add_link(f"knowledge:{owned_entry}", "knowledge:foreign-knowledge", link_type="references")
 
@@ -459,7 +467,7 @@ def test_knowledge_create_rejects_foreign_related_item_ids(monkeypatch, tmp_path
             },
         )
         assert response.status_code == 400, response.text
-        assert client.get("/api/knowledge/entries", headers=headers).json() == []
+        assert client.get("/api/knowledge/entries", headers=headers).json()["items"] == []
 
 
 def test_knowledge_update_rejects_foreign_related_item_ids(monkeypatch, tmp_path):
@@ -487,7 +495,7 @@ def test_knowledge_update_rejects_foreign_related_item_ids(monkeypatch, tmp_path
             },
         )
         assert create.status_code == 200, create.text
-        entry = client.get("/api/knowledge/entries", headers=headers).json()[0]
+        entry = client.get("/api/knowledge/entries", headers=headers).json()["items"][0]
 
         patch = client.patch(
             f"/api/knowledge/entries/{entry['id']}",
@@ -528,7 +536,7 @@ def test_logbook_create_and_update_reject_foreign_related_item_ids(monkeypatch, 
             },
         )
         assert create_foreign.status_code == 400, create_foreign.text
-        assert client.get("/api/logbook/entries", headers=headers).json() == []
+        assert client.get("/api/logbook/entries", headers=headers).json()["items"] == []
 
         create_ok = client.post(
             "/api/logbook/entries",
@@ -546,7 +554,7 @@ def test_logbook_create_and_update_reject_foreign_related_item_ids(monkeypatch, 
             },
         )
         assert create_ok.status_code == 200, create_ok.text
-        entry = client.get("/api/logbook/entries", headers=headers).json()[0]
+        entry = client.get("/api/logbook/entries", headers=headers).json()["items"][0]
 
         patch = client.patch(
             f"/api/logbook/entries/{entry['id']}",
@@ -605,7 +613,7 @@ def test_source_ref_to_foreign_item_is_rejected(monkeypatch, tmp_path):
             },
         )
         assert good.status_code == 200, good.text
-        entry = client.get("/api/logbook/entries", headers=headers).json()[0]
+        entry = client.get("/api/logbook/entries", headers=headers).json()["items"][0]
 
         patch = client.patch(
             f"/api/logbook/entries/{entry['id']}",
@@ -644,7 +652,7 @@ def test_deleting_document_cleans_up_item_links(monkeypatch, tmp_path):
             },
         )
         assert create.status_code == 200, create.text
-        entry = client.get("/api/knowledge/entries", headers=headers).json()[0]
+        entry = client.get("/api/knowledge/entries", headers=headers).json()["items"][0]
 
         deleted = client.delete("/api/docs/doc-cleanup", headers=headers)
         assert deleted.status_code == 200, deleted.text
@@ -676,7 +684,7 @@ def test_deleting_logbook_cleans_up_item_links(monkeypatch, tmp_path):
             },
         )
         assert create.status_code == 200, create.text
-        entry = client.get("/api/logbook/entries", headers=headers).json()[0]
+        entry = client.get("/api/logbook/entries", headers=headers).json()["items"][0]
 
         deleted = client.delete(f"/api/logbook/entries/{entry['id']}", headers=headers)
         assert deleted.status_code == 200, deleted.text

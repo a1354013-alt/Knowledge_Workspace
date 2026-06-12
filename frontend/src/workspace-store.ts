@@ -2,6 +2,7 @@ import { computed, reactive } from 'vue'
 import { get } from './api'
 import { apiPaths } from './api/endpoints'
 import { t } from './i18n'
+import { fetchAllPages } from './services/pagination'
 import type {
   AutoTestRunListItemResponse,
   DocumentResponse,
@@ -158,7 +159,7 @@ export function useWorkspaceStore(): WorkspaceStore {
 
   async function refreshPhotos(opts?: { force?: boolean }) {
     const label = t('workspace.photos')
-    await refreshOne('photos', label, async () => ensureArrayResponse<PhotoResponse>(await get(apiPaths.photos.list), label), opts)
+    await refreshOne('photos', label, async () => fetchAllPages<PhotoResponse>(apiPaths.photos.list, label), opts)
   }
 
   async function refreshKnowledgeEntries(opts?: { force?: boolean }) {
@@ -166,7 +167,7 @@ export function useWorkspaceStore(): WorkspaceStore {
     await refreshOne(
       'knowledgeEntries',
       label,
-      async () => ensureArrayResponse<KnowledgeEntryResponse>(await get(apiPaths.knowledge.list), label),
+      async () => fetchAllPages<KnowledgeEntryResponse>(apiPaths.knowledge.list, label),
       opts
     )
   }
@@ -176,7 +177,7 @@ export function useWorkspaceStore(): WorkspaceStore {
     await refreshOne(
       'logbookEntries',
       label,
-      async () => ensureArrayResponse<LogbookEntryResponse>(await get(apiPaths.logbook.list), label),
+      async () => fetchAllPages<LogbookEntryResponse>(apiPaths.logbook.list, label),
       opts
     )
   }
@@ -193,7 +194,7 @@ export function useWorkspaceStore(): WorkspaceStore {
 
   async function refreshPrompts(opts?: { force?: boolean }) {
     const label = t('workspace.prompts')
-    await refreshOne('prompts', label, async () => ensureArrayResponse<SavedPromptResponse>(await get(apiPaths.prompts.list), label), opts)
+    await refreshOne('prompts', label, async () => fetchAllPages<SavedPromptResponse>(apiPaths.prompts.list, label), opts)
   }
 
   async function refreshAll(opts?: { force?: boolean }) {

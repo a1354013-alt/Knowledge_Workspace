@@ -96,6 +96,10 @@ backend/.env
 backend/knowledge_workspace.egg-info/
 
 # Logs / artifacts
+temp/
+*.patch
+*.rej
+*.orig
 *.log
 *.pid
 ci_backend.log

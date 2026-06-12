@@ -8,7 +8,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.api.errors import handle_http_exception
 from app.api.handlers.system import handle_validation_error, handle_value_error
-from app.api.routes import autotest, dashboard, docs, indexing, knowledge, logbook, photos, system
+from app.api.routes import autotest, dashboard, docs, imports, indexing, knowledge, logbook, photos, system
 from app.api.runtime import lifespan, limiter
 from app.context import APP_VERSION, allow_credentials, allowed_origins
 
@@ -38,6 +38,7 @@ def create_app() -> FastAPI:
         indexing.router,
         dashboard.router,
         docs.router,
+        imports.router,
         knowledge.router,
         logbook.router,
         photos.router,

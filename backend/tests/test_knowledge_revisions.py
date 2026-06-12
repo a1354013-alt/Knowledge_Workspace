@@ -16,7 +16,7 @@ def test_knowledge_revision_flow(app_module, client: TestClient, auth_headers: d
     assert resp.status_code == 200
 
     # Get the ID
-    entries = client.get("/api/knowledge/entries", headers=auth_headers).json()
+    entries = client.get("/api/knowledge/entries", headers=auth_headers).json()["items"]
     entry_id = entries[0]["id"]
 
     # 2. Check initial revision
@@ -53,7 +53,7 @@ def test_knowledge_revision_flow(app_module, client: TestClient, auth_headers: d
     assert resp.status_code == 200
 
     # Verify current state is restored
-    entries = client.get("/api/knowledge/entries", headers=auth_headers).json()
+    entries = client.get("/api/knowledge/entries", headers=auth_headers).json()["items"]
     restored_entry = next(e for e in entries if e["id"] == entry_id)
     assert restored_entry["title"] == "Initial Title"
     restored_row = app_module.db.get_knowledge_entry(entry_id)
@@ -88,7 +88,7 @@ def test_restore_revision_queues_repair_when_indexing_fails(
     )
     assert created.status_code == 200
 
-    entry_id = client.get("/api/knowledge/entries", headers=auth_headers).json()[0]["id"]
+    entry_id = client.get("/api/knowledge/entries", headers=auth_headers).json()["items"][0]["id"]
     updated = client.patch(
         f"/api/knowledge/entries/{entry_id}",
         json={"title": "Updated", "change_note": "update before restore"},

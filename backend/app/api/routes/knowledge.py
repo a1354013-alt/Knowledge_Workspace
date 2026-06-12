@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app.api.handlers import knowledge as knowledge_handlers
 from app.models import (
-    KnowledgeEntryResponse,
+    KnowledgeEntryPageResponse,
     KnowledgeRevisionDiffResponse,
     KnowledgeRevisionResponse,
     MessageResponse,
@@ -16,7 +16,7 @@ router.add_api_route(
     "/api/knowledge/entries",
     knowledge_handlers.list_knowledge_entries,
     methods=["GET"],
-    response_model=list[KnowledgeEntryResponse],
+    response_model=KnowledgeEntryPageResponse,
 )
 router.add_api_route(
     "/api/knowledge/entries",

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 
 from app.api.common import (
     KNOWLEDGE_REVISION_FIELDS,
@@ -21,6 +22,7 @@ from app.context import db
 from app.dependencies import get_current_user
 from app.models import (
     KnowledgeEntryCreateRequest,
+    KnowledgeEntryPageResponse,
     KnowledgeEntryResponse,
     KnowledgeEntryUpdateRequest,
     KnowledgeRevisionDiffResponse,
@@ -30,29 +32,42 @@ from app.models import (
 from app.services.indexing_service import sync_knowledge_entry_index
 
 
-async def list_knowledge_entries(current_user: dict = Depends(get_current_user)) -> list[KnowledgeEntryResponse]:
+def serialize_knowledge_entry(row: dict, *, user_id: str) -> KnowledgeEntryResponse:
+    return KnowledgeEntryResponse(
+        id=row["entry_id"],
+        title=row.get("title", ""),
+        status=row.get("status", "draft") or "draft",
+        problem=row.get("problem", ""),
+        root_cause=row.get("root_cause", ""),
+        solution=row.get("solution", ""),
+        tags=row.get("tags", ""),
+        notes=row.get("notes", ""),
+        source_type=row.get("source_type", "manual") or "manual",
+        source_ref=row.get("source_ref", "") or "",
+        related_item_ids=list_visible_related_item_ids_for_user(
+            item_id=item_id_from_parts("knowledge", row["entry_id"]),
+            user_id=user_id,
+        ),
+        created_at=row.get("created_at", ""),
+        updated_at=row.get("updated_at", ""),
+    )
+
+
+async def list_knowledge_entries(
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    current_user: dict = Depends(get_current_user),
+) -> KnowledgeEntryPageResponse:
     user_id = current_user["sub"]
-    return [
-        KnowledgeEntryResponse(
-            id=row["entry_id"],
-            title=row.get("title", ""),
-            status=row.get("status", "draft") or "draft",
-            problem=row.get("problem", ""),
-            root_cause=row.get("root_cause", ""),
-            solution=row.get("solution", ""),
-            tags=row.get("tags", ""),
-            notes=row.get("notes", ""),
-            source_type=row.get("source_type", "manual") or "manual",
-            source_ref=row.get("source_ref", "") or "",
-            related_item_ids=list_visible_related_item_ids_for_user(
-                item_id=item_id_from_parts("knowledge", row["entry_id"]),
-                user_id=user_id,
-            ),
-            created_at=row.get("created_at", ""),
-            updated_at=row.get("updated_at", ""),
-        )
-        for row in db.list_knowledge_entries(limit=50, user_id=user_id, include_archived=False)
-    ]
+    rows = db.list_knowledge_entries(limit=limit, offset=offset, user_id=user_id, include_archived=False)
+    total = db.count_knowledge_entries(user_id=user_id, include_archived=False)
+    return KnowledgeEntryPageResponse(
+        items=[serialize_knowledge_entry(row, user_id=user_id) for row in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=offset + len(rows) < total,
+    )
 
 
 async def create_knowledge_entry(

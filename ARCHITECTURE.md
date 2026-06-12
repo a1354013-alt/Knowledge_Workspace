@@ -65,7 +65,7 @@ Release packaging copies backend, frontend, scripts, and docs into a temporary t
 ## Contract Maintenance
 
 - `docs/openapi.json` is the checked-in backend contract snapshot
-- `python scripts/export_openapi.py` verifies that snapshot against the FastAPI app using the supported Python 3.11 runtime, auto-delegating to the repo `.venv311` when needed
+- `python scripts/export_openapi.py` verifies that snapshot against the FastAPI app using the supported Python 3.11 runtime, auto-delegating to the repo `.venv` when needed
 - `python scripts/check_api_types.py` verifies `frontend/src/api/generated/api-types.ts`
 - frontend JSON APIs should go through `frontend/src/api.ts`; blob/download flows should go through `frontend/src/services/downloads.ts`
 

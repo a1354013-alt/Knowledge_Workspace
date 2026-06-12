@@ -75,7 +75,7 @@ class PhotoRepositoryMixin:
             return False
 
     def list_photos(
-        self, limit: int = 200, user_id: str | None = None, include_archived: bool = False
+        self, limit: int = 200, offset: int = 0, user_id: str | None = None, include_archived: bool = False
     ) -> list[dict[str, Any]]:
         with self._connection() as conn:
             where: list[str] = []
@@ -85,11 +85,11 @@ class PhotoRepositoryMixin:
                 params.append(user_id)
             if not include_archived:
                 where.append("is_active = 1")
-            params.append(int(limit))
+            params.extend([int(limit), int(offset)])
             sql = "SELECT * FROM photos"
             if where:
                 sql += " WHERE " + " AND ".join(where)
-            sql += " ORDER BY created_at DESC LIMIT ?"
+            sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
             rows = conn.execute(sql, tuple(params)).fetchall()
         return [
             {
@@ -102,6 +102,21 @@ class PhotoRepositoryMixin:
             }
             for row in rows
         ]
+
+    def count_photos(self, user_id: str | None = None, include_archived: bool = False) -> int:
+        with self._connection() as conn:
+            where: list[str] = []
+            params: list[Any] = []
+            if user_id:
+                where.append("uploaded_by = ?")
+                params.append(user_id)
+            if not include_archived:
+                where.append("is_active = 1")
+            sql = "SELECT COUNT(*) FROM photos"
+            if where:
+                sql += " WHERE " + " AND ".join(where)
+            row = conn.execute(sql, tuple(params)).fetchone()
+        return int(row[0] or 0)
 
     def get_photo(self, photo_id: str) -> dict[str, Any] | None:
         with self._connection() as conn:

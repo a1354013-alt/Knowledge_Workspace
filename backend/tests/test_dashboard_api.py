@@ -44,7 +44,7 @@ def test_dashboard_promote_counts_canonical_logbook_to_knowledge_link(
 
     entries = client.get("/api/logbook/entries", headers=auth_headers)
     assert entries.status_code == 200, entries.text
-    entry_id = entries.json()[0]["id"]
+    entry_id = entries.json()["items"][0]["id"]
 
     promote = client.post(f"/api/logbook/entries/{entry_id}/promote-to-knowledge", headers=auth_headers)
     assert promote.status_code == 200, promote.text

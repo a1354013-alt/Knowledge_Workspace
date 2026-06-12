@@ -54,7 +54,7 @@ class PromptRepositoryMixin:
             return False
 
     def list_saved_prompts(
-        self, user_id: str, limit: int = 200, *, include_inactive: bool = False
+        self, user_id: str, limit: int = 200, offset: int = 0, *, include_inactive: bool = False
     ) -> list[dict[str, Any]]:
         with self._connection() as conn:
             if include_inactive:
@@ -63,9 +63,9 @@ class PromptRepositoryMixin:
                     SELECT * FROM saved_prompts
                     WHERE created_by = ?
                     ORDER BY updated_at DESC
-                    LIMIT ?
+                    LIMIT ? OFFSET ?
                     """,
-                    (user_id, int(limit)),
+                    (user_id, int(limit), int(offset)),
                 ).fetchall()
             else:
                 rows = conn.execute(
@@ -73,9 +73,9 @@ class PromptRepositoryMixin:
                     SELECT * FROM saved_prompts
                     WHERE created_by = ? AND is_active = 1
                     ORDER BY updated_at DESC
-                    LIMIT ?
+                    LIMIT ? OFFSET ?
                     """,
-                    (user_id, int(limit)),
+                    (user_id, int(limit), int(offset)),
                 ).fetchall()
         return [
             {
@@ -84,6 +84,17 @@ class PromptRepositoryMixin:
             }
             for row in rows
         ]
+
+    def count_saved_prompts(self, user_id: str, *, include_inactive: bool = False) -> int:
+        with self._connection() as conn:
+            if include_inactive:
+                row = conn.execute("SELECT COUNT(*) FROM saved_prompts WHERE created_by = ?", (user_id,)).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM saved_prompts WHERE created_by = ? AND is_active = 1",
+                    (user_id,),
+                ).fetchone()
+        return int(row[0] or 0)
 
     def get_saved_prompt(self, prompt_id: str) -> dict[str, Any] | None:
         with self._connection() as conn:

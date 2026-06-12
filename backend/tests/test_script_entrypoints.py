@@ -51,7 +51,7 @@ def test_wrapper_scripts_delegate_to_existing_modules():
 
 
 def test_export_openapi_check_runs_from_repo_root(tmp_path: Path):
-    python311 = ROOT / ".venv311" / "Scripts" / "python.exe"
+    python311 = ROOT / ".venv" / "Scripts" / "python.exe"
     command = [str(python311 if python311.exists() else Path(sys.executable)), "scripts/export_openapi.py", "--check"]
     env = {
         **os.environ,

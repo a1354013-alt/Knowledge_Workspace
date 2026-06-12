@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-venv_path="$repo_root/.venv311"
+venv_path="$repo_root/.venv"
 frontend_dir="$repo_root/frontend"
 root_env="$repo_root/.env"
 backend_env="$repo_root/backend/.env"

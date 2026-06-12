@@ -49,26 +49,26 @@
             </div>
             <section class="health-actions surface-card">
               <div class="health-actions-copy">
-                <h3>查看詳細資訊</h3>
-                <p>詳細統計改由對話框顯示，避免主畫面高度被底部內容撐開。</p>
+                <h3>{{ t('health.detailActionsTitle') }}</h3>
+                <p>{{ t('health.detailActionsDescription') }}</p>
               </div>
               <div class="health-actions-row">
                 <Button
-                  label="查看知識狀態"
+                  :label="t('health.openStatusDialog')"
                   icon="pi pi-book"
                   severity="secondary"
                   outlined
                   @click="openHealthDialog('status')"
                 />
                 <Button
-                  label="查看執行紀錄"
+                  :label="t('health.openRunsDialog')"
                   icon="pi pi-history"
                   severity="secondary"
                   outlined
                   @click="openHealthDialog('runs')"
                 />
                 <Button
-                  label="查看活動紀錄"
+                  :label="t('health.openActivityDialog')"
                   icon="pi pi-calendar"
                   severity="secondary"
                   outlined

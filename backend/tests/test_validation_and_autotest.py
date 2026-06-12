@@ -103,7 +103,7 @@ def test_autotest_run_success_creates_knowledge_draft(client: TestClient, auth_h
 
     knowledge = client.get("/api/knowledge/entries", headers=auth_headers)
     assert knowledge.status_code == 200
-    entries = knowledge.json()
+    entries = knowledge.json()["items"]
     assert len(entries) == 1
     assert entries[0]["title"].startswith("AutoTest Passed")
 
@@ -124,7 +124,7 @@ def test_autotest_run_failure_creates_logbook_entry(client: TestClient, auth_hea
 
     logbook = client.get("/api/logbook/entries", headers=auth_headers)
     assert logbook.status_code == 200
-    entries = logbook.json()
+    entries = logbook.json()["items"]
     assert len(entries) == 1
     assert entries[0]["run_id"] == payload["id"]
 

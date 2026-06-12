@@ -1,12 +1,13 @@
 import uuid
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 
 from app.api.common import item_id_from_parts, run_deindex_side_effect, run_index_side_effect, side_effect_warning
 from app.api.runtime import db
 from app.database import delete_from_kb_vector_db
 from app.dependencies import get_current_user
-from app.models import MessageResponse, SavedPromptCreateRequest, SavedPromptResponse
+from app.models import MessageResponse, SavedPromptCreateRequest, SavedPromptPageResponse, SavedPromptResponse
 from app.repositories.repository_utils import normalize_index_status
 from app.services.indexing_service import sync_prompt_index
 
@@ -19,21 +20,34 @@ _run_index_side_effect = run_index_side_effect
 _run_deindex_side_effect = run_deindex_side_effect
 
 
-async def list_saved_prompts(current_user: dict = Depends(get_current_user)) -> list[SavedPromptResponse]:
+def serialize_saved_prompt(row: dict) -> SavedPromptResponse:
+    return SavedPromptResponse(
+        id=row.get("prompt_id", ""),
+        title=row.get("title", ""),
+        content=row.get("content", ""),
+        tags=row.get("tags", ""),
+        created_at=row.get("created_at", ""),
+        updated_at=row.get("updated_at", ""),
+        index_status=normalize_index_status(row.get("index_status"), is_active=row.get("is_active", 1)),
+        index_error=row.get("index_error", "") or "",
+    )
+
+
+async def list_saved_prompts(
+    limit: Annotated[int, Query(ge=1, le=200)] = 200,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    current_user: dict = Depends(get_current_user),
+) -> SavedPromptPageResponse:
     user_id = current_user["sub"]
-    return [
-        SavedPromptResponse(
-            id=row.get("prompt_id", ""),
-            title=row.get("title", ""),
-            content=row.get("content", ""),
-            tags=row.get("tags", ""),
-            created_at=row.get("created_at", ""),
-            updated_at=row.get("updated_at", ""),
-            index_status=normalize_index_status(row.get("index_status"), is_active=row.get("is_active", 1)),
-            index_error=row.get("index_error", "") or "",
-        )
-        for row in db.list_saved_prompts(user_id=user_id, limit=200)
-    ]
+    rows = db.list_saved_prompts(user_id=user_id, limit=limit, offset=offset)
+    total = db.count_saved_prompts(user_id=user_id)
+    return SavedPromptPageResponse(
+        items=[serialize_saved_prompt(row) for row in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=offset + len(rows) < total,
+    )
 
 
 async def create_saved_prompt(

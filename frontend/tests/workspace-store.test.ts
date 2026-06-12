@@ -63,17 +63,23 @@ describe('workspace-store', () => {
     const { apiPaths } = await import('../src/api/endpoints')
     const { useWorkspaceStore } = await import('../src/workspace-store')
 
-    mocks.get.mockResolvedValue([])
+    const paginatedUrls: string[] = [apiPaths.photos.list, apiPaths.knowledge.list, apiPaths.logbook.list, apiPaths.prompts.list]
+    mocks.get.mockImplementation((url: string) => {
+      if (paginatedUrls.includes(url)) {
+        return Promise.resolve({ items: [], total: 0, limit: 200, offset: 0, has_more: false })
+      }
+      return Promise.resolve([])
+    })
     const store = useWorkspaceStore()
 
     await store.refreshAll({ force: true })
 
     expect(mocks.get).toHaveBeenCalledWith(apiPaths.docs.list)
-    expect(mocks.get).toHaveBeenCalledWith(apiPaths.photos.list)
-    expect(mocks.get).toHaveBeenCalledWith(apiPaths.knowledge.list)
-    expect(mocks.get).toHaveBeenCalledWith(apiPaths.logbook.list)
+    expect(mocks.get).toHaveBeenCalledWith(apiPaths.photos.list, { params: { limit: 200, offset: 0 } })
+    expect(mocks.get).toHaveBeenCalledWith(apiPaths.knowledge.list, { params: { limit: 200, offset: 0 } })
+    expect(mocks.get).toHaveBeenCalledWith(apiPaths.logbook.list, { params: { limit: 200, offset: 0 } })
     expect(mocks.get).toHaveBeenCalledWith(apiPaths.autotest.listRuns)
-    expect(mocks.get).toHaveBeenCalledWith(apiPaths.prompts.list)
+    expect(mocks.get).toHaveBeenCalledWith(apiPaths.prompts.list, { params: { limit: 200, offset: 0 } })
   })
 
   it('reset clears loaded data, errors, statuses, and cache timestamps', async () => {

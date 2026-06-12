@@ -45,7 +45,7 @@ SKIP_PARTS = {
     "playwright-report",
     "test-results",
     ".venv",
-    ".venv311",
+    ".venv",
 }
 BOM = b"\xef\xbb\xbf"
 

@@ -470,6 +470,54 @@
         "title": "Body_upload_photo_api_photos_upload_post",
         "type": "object"
       },
+      "BulkImportResult": {
+        "additionalProperties": false,
+        "properties": {
+          "created_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Created Ids",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ImportErrorDetail"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "failed_rows": {
+            "title": "Failed Rows",
+            "type": "integer"
+          },
+          "skipped_rows": {
+            "default": 0,
+            "title": "Skipped Rows",
+            "type": "integer"
+          },
+          "success_rows": {
+            "title": "Success Rows",
+            "type": "integer"
+          },
+          "total_rows": {
+            "title": "Total Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_rows",
+          "success_rows",
+          "failed_rows"
+        ],
+        "title": "BulkImportResult",
+        "type": "object"
+      },
       "DashboardAutoTestMetrics": {
         "additionalProperties": false,
         "properties": {
@@ -1043,6 +1091,30 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "ImportErrorDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "row": {
+            "title": "Row",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row",
+          "field",
+          "reason"
+        ],
+        "title": "ImportErrorDetail",
+        "type": "object"
+      },
       "IndexRebuildResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1317,6 +1389,30 @@
         "title": "ItemSummary",
         "type": "object"
       },
+      "KnowledgeBulkImportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeImportRow"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "KnowledgeBulkImportRequest",
+        "type": "object"
+      },
       "KnowledgeEntryCreateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1396,6 +1492,42 @@
           "solution"
         ],
         "title": "KnowledgeEntryCreateRequest",
+        "type": "object"
+      },
+      "KnowledgeEntryPageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeEntryResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "KnowledgeEntryPageResponse",
         "type": "object"
       },
       "KnowledgeEntryResponse": {
@@ -1635,6 +1767,25 @@
         "title": "KnowledgeEntryUpdateRequest",
         "type": "object"
       },
+      "KnowledgeImportRow": {
+        "additionalProperties": false,
+        "properties": {
+          "row_number": {
+            "minimum": 1.0,
+            "title": "Row Number",
+            "type": "integer"
+          },
+          "values": {
+            "$ref": "#/components/schemas/KnowledgeEntryCreateRequest"
+          }
+        },
+        "required": [
+          "row_number",
+          "values"
+        ],
+        "title": "KnowledgeImportRow",
+        "type": "object"
+      },
       "KnowledgeRevisionDiffItem": {
         "additionalProperties": false,
         "properties": {
@@ -1775,6 +1926,30 @@
         "title": "KnowledgeRevisionResponse",
         "type": "object"
       },
+      "LogbookBulkImportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/LogbookImportRow"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "LogbookBulkImportRequest",
+        "type": "object"
+      },
       "LogbookEntryCreateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1849,6 +2024,42 @@
           "solution"
         ],
         "title": "LogbookEntryCreateRequest",
+        "type": "object"
+      },
+      "LogbookEntryPageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LogbookEntryResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "LogbookEntryPageResponse",
         "type": "object"
       },
       "LogbookEntryResponse": {
@@ -2064,6 +2275,25 @@
         "title": "LogbookEntryUpdateRequest",
         "type": "object"
       },
+      "LogbookImportRow": {
+        "additionalProperties": false,
+        "properties": {
+          "row_number": {
+            "minimum": 1.0,
+            "title": "Row Number",
+            "type": "integer"
+          },
+          "values": {
+            "$ref": "#/components/schemas/LogbookEntryCreateRequest"
+          }
+        },
+        "required": [
+          "row_number",
+          "values"
+        ],
+        "title": "LogbookImportRow",
+        "type": "object"
+      },
       "LoginRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2142,6 +2372,42 @@
           "message"
         ],
         "title": "MessageResponse",
+        "type": "object"
+      },
+      "PhotoPageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "PhotoPageResponse",
         "type": "object"
       },
       "PhotoResponse": {
@@ -2298,6 +2564,49 @@
         "title": "PromoteToKnowledgeResponse",
         "type": "object"
       },
+      "PromptBulkImportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PromptImportRow"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "PromptBulkImportRequest",
+        "type": "object"
+      },
+      "PromptImportRow": {
+        "additionalProperties": false,
+        "properties": {
+          "row_number": {
+            "minimum": 1.0,
+            "title": "Row Number",
+            "type": "integer"
+          },
+          "values": {
+            "$ref": "#/components/schemas/SavedPromptCreateRequest"
+          }
+        },
+        "required": [
+          "row_number",
+          "values"
+        ],
+        "title": "PromptImportRow",
+        "type": "object"
+      },
       "QARequest": {
         "additionalProperties": false,
         "properties": {
@@ -2390,6 +2699,42 @@
           "content"
         ],
         "title": "SavedPromptCreateRequest",
+        "type": "object"
+      },
+      "SavedPromptPageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SavedPromptResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "SavedPromptPageResponse",
         "type": "object"
       },
       "SavedPromptResponse": {
@@ -3660,6 +4005,174 @@
         "summary": "Api Healthcheck"
       }
     },
+    "/api/import/knowledge": {
+      "post": {
+        "operationId": "import_knowledge_entries_api_import_knowledge_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeBulkImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Knowledge Entries"
+      }
+    },
+    "/api/import/logbook": {
+      "post": {
+        "operationId": "import_logbook_entries_api_import_logbook_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogbookBulkImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Logbook Entries"
+      }
+    },
+    "/api/import/prompts": {
+      "post": {
+        "operationId": "import_prompts_api_import_prompts_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptBulkImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Prompts"
+      }
+    },
     "/api/index/rebuild": {
       "post": {
         "operationId": "rebuild_all_indexes_api_index_rebuild_post",
@@ -3932,6 +4445,29 @@
         "operationId": "list_knowledge_entries_api_knowledge_entries_get",
         "parameters": [
           {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -3953,11 +4489,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/KnowledgeEntryResponse"
-                  },
-                  "title": "Response List Knowledge Entries Api Knowledge Entries Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/KnowledgeEntryPageResponse"
                 }
               }
             },
@@ -4288,6 +4820,29 @@
         "operationId": "list_logbook_entries_api_logbook_entries_get",
         "parameters": [
           {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -4309,11 +4864,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/LogbookEntryResponse"
-                  },
-                  "title": "Response List Logbook Entries Api Logbook Entries Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/LogbookEntryPageResponse"
                 }
               }
             },
@@ -4695,6 +5246,29 @@
         "operationId": "list_photos_api_photos_get",
         "parameters": [
           {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -4716,11 +5290,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PhotoResponse"
-                  },
-                  "title": "Response List Photos Api Photos Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PhotoPageResponse"
                 }
               }
             },
@@ -5032,6 +5602,29 @@
         "operationId": "list_saved_prompts_api_prompts_get",
         "parameters": [
           {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -5053,11 +5646,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SavedPromptResponse"
-                  },
-                  "title": "Response List Saved Prompts Api Prompts Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/SavedPromptPageResponse"
                 }
               }
             },

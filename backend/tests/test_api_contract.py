@@ -21,6 +21,7 @@ PUBLIC_ENDPOINTS = {
         "/api/logbook/entries/{entry_id}",
         "/api/logbook/entries/{entry_id}/promote-to-knowledge",
     ],
+    "bulk import": ["/api/import/knowledge", "/api/import/logbook", "/api/import/prompts"],
     "search": ["/api/search", "/api/item-links"],
     "dashboard/project health": ["/api/dashboard/health"],
     "autotest": ["/api/autotest/capabilities", "/api/autotest/runs", "/api/autotest/github/analyze"],
@@ -63,7 +64,7 @@ def test_openapi_main_routes_have_response_schemas(client: TestClient):
 
 
 def test_checked_in_openapi_matches_runtime_app_schema(client: TestClient):
-    python311 = ROOT / ".venv311" / "Scripts" / "python.exe"
+    python311 = ROOT / ".venv" / "Scripts" / "python.exe"
     python_executable = str(python311 if python311.exists() else Path(sys.executable))
     result = subprocess.run(
         [python_executable, "scripts/export_openapi.py", "--check"],

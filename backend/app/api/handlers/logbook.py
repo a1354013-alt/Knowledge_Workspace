@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 
 from app.api.common import (
     item_id_from_parts,
@@ -21,6 +22,7 @@ from app.database import delete_from_kb_vector_db
 from app.dependencies import get_current_user
 from app.models import (
     LogbookEntryCreateRequest,
+    LogbookEntryPageResponse,
     LogbookEntryResponse,
     LogbookEntryUpdateRequest,
     MessageResponse,
@@ -29,29 +31,42 @@ from app.models import (
 from app.services.indexing_service import sync_knowledge_entry_index, sync_logbook_entry_index
 
 
-async def list_logbook_entries(current_user: dict = Depends(get_current_user)) -> list[LogbookEntryResponse]:
+def serialize_logbook_entry(row: dict, *, user_id: str) -> LogbookEntryResponse:
+    return LogbookEntryResponse(
+        id=row["entry_id"],
+        title=row.get("title", ""),
+        status=row.get("status", "draft") or "draft",
+        run_id=row.get("run_id", "") or "",
+        problem=row.get("problem", ""),
+        root_cause=row.get("root_cause", ""),
+        solution=row.get("solution", ""),
+        tags=row.get("tags", ""),
+        source_type=row.get("source_type", "manual") or "manual",
+        source_ref=row.get("source_ref", "") or "",
+        related_item_ids=list_visible_related_item_ids_for_user(
+            item_id=item_id_from_parts("logbook", row["entry_id"]),
+            user_id=user_id,
+        ),
+        created_at=row.get("created_at", ""),
+        updated_at=row.get("updated_at", ""),
+    )
+
+
+async def list_logbook_entries(
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    current_user: dict = Depends(get_current_user),
+) -> LogbookEntryPageResponse:
     user_id = current_user["sub"]
-    return [
-        LogbookEntryResponse(
-            id=row["entry_id"],
-            title=row.get("title", ""),
-            status=row.get("status", "draft") or "draft",
-            run_id=row.get("run_id", "") or "",
-            problem=row.get("problem", ""),
-            root_cause=row.get("root_cause", ""),
-            solution=row.get("solution", ""),
-            tags=row.get("tags", ""),
-            source_type=row.get("source_type", "manual") or "manual",
-            source_ref=row.get("source_ref", "") or "",
-            related_item_ids=list_visible_related_item_ids_for_user(
-                item_id=item_id_from_parts("logbook", row["entry_id"]),
-                user_id=user_id,
-            ),
-            created_at=row.get("created_at", ""),
-            updated_at=row.get("updated_at", ""),
-        )
-        for row in db.list_logbook_entries(limit=100, user_id=user_id, include_archived=False)
-    ]
+    rows = db.list_logbook_entries(limit=limit, offset=offset, user_id=user_id, include_archived=False)
+    total = db.count_logbook_entries(user_id=user_id, include_archived=False)
+    return LogbookEntryPageResponse(
+        items=[serialize_logbook_entry(row, user_id=user_id) for row in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=offset + len(rows) < total,
+    )
 
 
 async def create_logbook_entry(

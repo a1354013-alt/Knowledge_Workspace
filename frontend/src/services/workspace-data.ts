@@ -1,8 +1,9 @@
 import ExcelJS from 'exceljs'
 
-import { del, get, patch, post } from '../api'
+import { del, patch, post } from '../api'
 import { apiPaths } from '../api/endpoints'
 import { t } from '../i18n'
+import { fetchAllPages } from './pagination'
 import { downloadBlob } from '../utils/blob'
 import type {
   KnowledgeEntryCreateRequest,
@@ -51,6 +52,26 @@ type ImportSchema = {
   required: string[]
   sample: Record<string, string>
   filename: string
+}
+
+type BulkImportRow<T> = {
+  row_number: number
+  values: T
+}
+
+type BulkImportRequest<T> = {
+  dry_run: boolean
+  rows: BulkImportRow<T>[]
+}
+
+type BulkImportResult = {
+  total_rows: number
+  success_rows: number
+  failed_rows: number
+  skipped_rows: number
+  dry_run: boolean
+  created_ids: string[]
+  errors: ImportErrorDetail[]
 }
 
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024
@@ -287,8 +308,8 @@ export async function analyzeImportFile(kind: WorkspaceDataKind, file: File): Pr
   }
 }
 
-async function createKnowledgeFromRow(row: Record<string, string>) {
-  const payload: KnowledgeEntryCreateRequest = {
+function knowledgePayloadFromRow(row: Record<string, string>): KnowledgeEntryCreateRequest {
+  return {
     title: row.title,
     problem: row.problem,
     root_cause: row.root_cause ?? '',
@@ -300,11 +321,10 @@ async function createKnowledgeFromRow(row: Record<string, string>) {
     source_ref: row.source_ref ?? '',
     related_item_ids: [],
   }
-  await post<MessageResponse, KnowledgeEntryCreateRequest>(apiPaths.knowledge.list, payload)
 }
 
-async function createLogbookFromRow(row: Record<string, string>) {
-  const payload: LogbookEntryCreateRequest = {
+function logbookPayloadFromRow(row: Record<string, string>): LogbookEntryCreateRequest {
+  return {
     title: row.title,
     problem: row.problem,
     root_cause: row.root_cause ?? '',
@@ -315,56 +335,73 @@ async function createLogbookFromRow(row: Record<string, string>) {
     source_ref: row.source_ref ?? '',
     related_item_ids: [],
   }
-  await post<MessageResponse, LogbookEntryCreateRequest>(apiPaths.logbook.list, payload)
 }
 
-async function createPromptFromRow(row: Record<string, string>) {
-  const payload: SavedPromptCreateRequest = {
+function promptPayloadFromRow(row: Record<string, string>): SavedPromptCreateRequest {
+  return {
     title: row.title,
     content: row.content,
     tags: row.tags ?? '',
   }
-  await post<SavedPromptResponse, SavedPromptCreateRequest>(apiPaths.prompts.list, payload)
+}
+
+function mapBulkResult(result: BulkImportResult, analysis: ImportAnalysis): ImportResult {
+  return {
+    totalRows: analysis.totalRows,
+    successRows: result.success_rows,
+    failedRows: result.failed_rows + (analysis.totalRows - analysis.validRows.length - analysis.skippedRows),
+    skippedRows: analysis.skippedRows,
+    errors: [...analysis.errors, ...(result.errors || [])],
+  }
+}
+
+async function submitBulkImport<T>(url: string, rows: BulkImportRow<T>[], analysis: ImportAnalysis): Promise<ImportResult> {
+  const dryRun = await post<BulkImportResult, BulkImportRequest<T>>(url, { dry_run: true, rows })
+  if (dryRun.failed_rows > 0 || dryRun.errors?.length) {
+    return mapBulkResult(dryRun, analysis)
+  }
+  const result = await post<BulkImportResult, BulkImportRequest<T>>(url, { dry_run: false, rows })
+  return mapBulkResult(result, analysis)
 }
 
 export async function submitImport(analysis: ImportAnalysis): Promise<ImportResult> {
-  const errors: ImportErrorDetail[] = []
-  let successRows = 0
-
-  for (const row of analysis.validRows) {
-    try {
-      if (analysis.kind === 'knowledge') {
-        await createKnowledgeFromRow(row.values)
-      } else if (analysis.kind === 'logbook') {
-        await createLogbookFromRow(row.values)
-      } else {
-        await createPromptFromRow(row.values)
-      }
-      successRows += 1
-    } catch (error: unknown) {
-      const apiError = error as { message?: string }
-      errors.push({
-        row: row.rowNumber,
-        field: '-',
-        reason: apiError?.message || t('common.requestFailed'),
-      })
+  try {
+    if (analysis.kind === 'knowledge') {
+      return await submitBulkImport(
+        apiPaths.import.knowledge,
+        analysis.validRows.map((row) => ({ row_number: row.rowNumber, values: knowledgePayloadFromRow(row.values) })),
+        analysis
+      )
     }
-  }
-
-  const invalidRows = analysis.totalRows - analysis.validRows.length - analysis.skippedRows
-  return {
-    totalRows: analysis.totalRows,
-    successRows,
-    failedRows: invalidRows + errors.length,
-    skippedRows: analysis.skippedRows,
-    errors: [...analysis.errors, ...errors],
+    if (analysis.kind === 'logbook') {
+      return await submitBulkImport(
+        apiPaths.import.logbook,
+        analysis.validRows.map((row) => ({ row_number: row.rowNumber, values: logbookPayloadFromRow(row.values) })),
+        analysis
+      )
+    }
+    return await submitBulkImport(
+      apiPaths.import.prompts,
+      analysis.validRows.map((row) => ({ row_number: row.rowNumber, values: promptPayloadFromRow(row.values) })),
+      analysis
+    )
+  } catch (error: unknown) {
+    const apiError = error as { message?: string }
+    const invalidRows = analysis.totalRows - analysis.validRows.length - analysis.skippedRows
+    return {
+      totalRows: analysis.totalRows,
+      successRows: 0,
+      failedRows: invalidRows + analysis.validRows.length,
+      skippedRows: analysis.skippedRows,
+      errors: [...analysis.errors, { row: 0, field: '-', reason: apiError?.message || t('common.requestFailed') }],
+    }
   }
 }
 
 type ExportRow = Record<string, string>
 
 async function fetchKnowledgeRows(): Promise<ExportRow[]> {
-  const items = await get<KnowledgeEntryResponse[]>(apiPaths.knowledge.list)
+  const items = await fetchAllPages<KnowledgeEntryResponse>(apiPaths.knowledge.list, t('workspace.knowledgeEntries'))
   return items.map((item) => ({
     title: item.title || '',
     problem: item.problem || '',
@@ -378,7 +415,7 @@ async function fetchKnowledgeRows(): Promise<ExportRow[]> {
 }
 
 async function fetchLogbookRows(): Promise<ExportRow[]> {
-  const items = await get<LogbookEntryResponse[]>(apiPaths.logbook.list)
+  const items = await fetchAllPages<LogbookEntryResponse>(apiPaths.logbook.list, t('workspace.logbookEntries'))
   return items.map((item) => ({
     title: item.title || '',
     problem: item.problem || '',
@@ -391,7 +428,7 @@ async function fetchLogbookRows(): Promise<ExportRow[]> {
 }
 
 async function fetchPromptRows(): Promise<ExportRow[]> {
-  const items = await get<SavedPromptResponse[]>(apiPaths.prompts.list)
+  const items = await fetchAllPages<SavedPromptResponse>(apiPaths.prompts.list, t('workspace.prompts'))
   return items.map((item) => ({
     title: item.title || '',
     content: item.content || '',
@@ -569,9 +606,9 @@ async function createMissingPrompts(existingTitles: Set<string>): Promise<DemoRe
 
 export async function createDemoData() {
   const [knowledge, logbook, prompts] = await Promise.all([
-    get<KnowledgeEntryResponse[]>(apiPaths.knowledge.list),
-    get<LogbookEntryResponse[]>(apiPaths.logbook.list),
-    get<SavedPromptResponse[]>(apiPaths.prompts.list),
+    fetchAllPages<KnowledgeEntryResponse>(apiPaths.knowledge.list, t('workspace.knowledgeEntries')),
+    fetchAllPages<LogbookEntryResponse>(apiPaths.logbook.list, t('workspace.logbookEntries')),
+    fetchAllPages<SavedPromptResponse>(apiPaths.prompts.list, t('workspace.prompts')),
   ])
 
   const [knowledgeResult, logbookResult, promptResult] = await Promise.all([
@@ -588,9 +625,9 @@ export async function createDemoData() {
 
 export async function clearDemoData() {
   const [knowledge, logbook, prompts] = await Promise.all([
-    get<KnowledgeEntryResponse[]>(apiPaths.knowledge.list),
-    get<LogbookEntryResponse[]>(apiPaths.logbook.list),
-    get<SavedPromptResponse[]>(apiPaths.prompts.list),
+    fetchAllPages<KnowledgeEntryResponse>(apiPaths.knowledge.list, t('workspace.knowledgeEntries')),
+    fetchAllPages<LogbookEntryResponse>(apiPaths.logbook.list, t('workspace.logbookEntries')),
+    fetchAllPages<SavedPromptResponse>(apiPaths.prompts.list, t('workspace.prompts')),
   ])
 
   let cleared = 0

@@ -441,6 +441,11 @@ export const messages = {
       autotestRuns: 'AutoTest 執行',
       autotestPassed: 'AutoTest 通過',
       autotestFailed: 'AutoTest 失敗',
+      detailActionsTitle: '????????',
+      detailActionsDescription: '?????????????? AutoTest ?????????????????????',
+      openStatusDialog: '????',
+      openRunsDialog: '????',
+      openActivityDialog: '????',
     },
     errorBoundary: {
       title: '發生錯誤',
@@ -918,6 +923,11 @@ export const messages = {
       autotestRuns: 'AutoTest Runs',
       autotestPassed: 'AutoTest Passed',
       autotestFailed: 'AutoTest Failed',
+      detailActionsTitle: 'Inspect health details',
+      detailActionsDescription: 'Open dialogs for knowledge status, recent AutoTest runs, and activity without crowding the dashboard.',
+      openStatusDialog: 'Knowledge status',
+      openRunsDialog: 'Recent runs',
+      openActivityDialog: 'Recent activity',
     },
     errorBoundary: {
       title: 'Something went wrong',

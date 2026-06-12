@@ -62,9 +62,9 @@ describe('ProjectHealthDashboard', () => {
     await wrapper.vm.$nextTick()
 
     expect(mocks.get).toHaveBeenCalledWith('/api/dashboard/health')
-    expect(wrapper.text()).toContain('查看知識狀態')
-    expect(wrapper.text()).toContain('查看執行紀錄')
-    expect(wrapper.text()).toContain('查看活動紀錄')
+    expect(wrapper.text()).toContain('Knowledge status')
+    expect(wrapper.text()).toContain('Recent runs')
+    expect(wrapper.text()).toContain('Recent activity')
     expect(wrapper.text()).not.toContain('QA Count')
     expect(wrapper.text()).not.toContain('skipped')
   })
@@ -100,7 +100,7 @@ describe('ProjectHealthDashboard', () => {
 
     const openStatusButton = wrapper
       .findAll('button')
-      .find((button) => button.text().includes('查看知識狀態'))
+      .find((button) => button.text().includes('Knowledge status'))
 
     expect(openStatusButton).toBeTruthy()
 
@@ -146,7 +146,7 @@ describe('ProjectHealthDashboard', () => {
 
     const openStatusButton = wrapper
       .findAll('button')
-      .find((button) => button.text().includes('查看知識狀態'))
+      .find((button) => button.text().includes('Knowledge status'))
 
     expect(openStatusButton).toBeTruthy()
 

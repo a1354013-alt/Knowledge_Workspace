@@ -4,14 +4,14 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 
 from app.api.handlers import photos as photo_handlers
-from app.models import ItemLinksResponse, MessageResponse, PhotoResponse, UploadPhotoResponse
+from app.models import ItemLinksResponse, MessageResponse, PhotoPageResponse, UploadPhotoResponse
 
 router = APIRouter()
 
 router.add_api_route(
     "/api/photos/upload", photo_handlers.upload_photo, methods=["POST"], response_model=UploadPhotoResponse
 )
-router.add_api_route("/api/photos", photo_handlers.list_photos, methods=["GET"], response_model=list[PhotoResponse])
+router.add_api_route("/api/photos", photo_handlers.list_photos, methods=["GET"], response_model=PhotoPageResponse)
 router.add_api_route(
     "/api/photos/{photo_id}/download", photo_handlers.download_photo, methods=["GET"], response_class=Response
 )

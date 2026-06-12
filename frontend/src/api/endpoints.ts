@@ -40,6 +40,11 @@ export const apiPaths = {
     list: '/api/prompts',
     detail: (promptId: string) => `/api/prompts/${promptId}`,
   },
+  import: {
+    knowledge: '/api/import/knowledge',
+    logbook: '/api/import/logbook',
+    prompts: '/api/import/prompts',
+  },
   search: {
     resolve: '/api/search',
     itemLinks: '/api/item-links',

@@ -89,6 +89,16 @@ export interface Body_upload_photo_api_photos_upload_post {
   tags?: string;
 }
 
+export interface BulkImportResult {
+  created_ids?: string[];
+  dry_run?: boolean;
+  errors?: ImportErrorDetail[];
+  failed_rows: number;
+  skipped_rows?: number;
+  success_rows: number;
+  total_rows: number;
+}
+
 export interface DashboardAutoTestMetrics {
   failed: number;
   pass_rate: number;
@@ -210,6 +220,12 @@ export interface HealthResponse {
   version: string;
 }
 
+export interface ImportErrorDetail {
+  field: string;
+  reason: string;
+  row: number;
+}
+
 export interface IndexRebuildResponse {
   failed: number;
   items?: IndexStatusItemResponse[];
@@ -268,6 +284,11 @@ export interface ItemSummary {
   updated_at?: string;
 }
 
+export interface KnowledgeBulkImportRequest {
+  dry_run?: boolean;
+  rows: KnowledgeImportRow[];
+}
+
 export interface KnowledgeEntryCreateRequest {
   notes?: string;
   problem: string;
@@ -279,6 +300,14 @@ export interface KnowledgeEntryCreateRequest {
   status?: "draft" | "reviewed" | "verified" | "archived";
   tags?: string;
   title?: string;
+}
+
+export interface KnowledgeEntryPageResponse {
+  has_more: boolean;
+  items?: KnowledgeEntryResponse[];
+  limit: number;
+  offset: number;
+  total: number;
 }
 
 export interface KnowledgeEntryResponse {
@@ -311,6 +340,11 @@ export interface KnowledgeEntryUpdateRequest {
   title?: string | null;
 }
 
+export interface KnowledgeImportRow {
+  row_number: number;
+  values: KnowledgeEntryCreateRequest;
+}
+
 export interface KnowledgeRevisionDiffItem {
   field: string;
   new_value: string;
@@ -340,6 +374,11 @@ export interface KnowledgeRevisionResponse {
   version_number: number;
 }
 
+export interface LogbookBulkImportRequest {
+  dry_run?: boolean;
+  rows: LogbookImportRow[];
+}
+
 export interface LogbookEntryCreateRequest {
   problem: string;
   related_item_ids?: string[];
@@ -350,6 +389,14 @@ export interface LogbookEntryCreateRequest {
   status?: "draft" | "reviewed" | "verified" | "archived";
   tags?: string;
   title: string;
+}
+
+export interface LogbookEntryPageResponse {
+  has_more: boolean;
+  items?: LogbookEntryResponse[];
+  limit: number;
+  offset: number;
+  total: number;
 }
 
 export interface LogbookEntryResponse {
@@ -380,6 +427,11 @@ export interface LogbookEntryUpdateRequest {
   title?: string | null;
 }
 
+export interface LogbookImportRow {
+  row_number: number;
+  values: LogbookEntryCreateRequest;
+}
+
 export interface LoginRequest {
   password: string;
   user_id: string;
@@ -398,6 +450,14 @@ export interface MeResponse {
 
 export interface MessageResponse {
   message: string;
+}
+
+export interface PhotoPageResponse {
+  has_more: boolean;
+  items?: PhotoResponse[];
+  limit: number;
+  offset: number;
+  total: number;
 }
 
 export interface PhotoResponse {
@@ -426,6 +486,16 @@ export interface PromoteToKnowledgeResponse {
   message: string;
 }
 
+export interface PromptBulkImportRequest {
+  dry_run?: boolean;
+  rows: PromptImportRow[];
+}
+
+export interface PromptImportRow {
+  row_number: number;
+  values: SavedPromptCreateRequest;
+}
+
 export interface QARequest {
   question: string;
 }
@@ -447,6 +517,14 @@ export interface SavedPromptCreateRequest {
   content: string;
   tags?: string;
   title: string;
+}
+
+export interface SavedPromptPageResponse {
+  has_more: boolean;
+  items?: SavedPromptResponse[];
+  limit: number;
+  offset: number;
+  total: number;
 }
 
 export interface SavedPromptResponse {

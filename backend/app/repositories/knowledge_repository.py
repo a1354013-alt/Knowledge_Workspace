@@ -74,6 +74,7 @@ class KnowledgeRepositoryMixin:
     def list_knowledge_entries(
         self,
         limit: int = 50,
+        offset: int = 0,
         user_id: str | None = None,
         include_archived: bool = False,
     ) -> list[dict[str, Any]]:
@@ -85,11 +86,11 @@ class KnowledgeRepositoryMixin:
                 params.append(user_id)
             if not include_archived:
                 where.append("is_active = 1")
-            params.append(int(limit))
+            params.extend([int(limit), int(offset)])
             sql = "SELECT * FROM knowledge_entries"
             if where:
                 sql += " WHERE " + " AND ".join(where)
-            sql += " ORDER BY updated_at DESC LIMIT ?"
+            sql += " ORDER BY updated_at DESC LIMIT ? OFFSET ?"
             rows = conn.execute(sql, tuple(params)).fetchall()
         return [
             {
@@ -102,6 +103,25 @@ class KnowledgeRepositoryMixin:
             }
             for row in rows
         ]
+
+    def count_knowledge_entries(
+        self,
+        user_id: str | None = None,
+        include_archived: bool = False,
+    ) -> int:
+        with self._connection() as conn:
+            where: list[str] = []
+            params: list[Any] = []
+            if user_id is not None:
+                where.append("created_by = ?")
+                params.append(user_id)
+            if not include_archived:
+                where.append("is_active = 1")
+            sql = "SELECT COUNT(*) FROM knowledge_entries"
+            if where:
+                sql += " WHERE " + " AND ".join(where)
+            row = conn.execute(sql, tuple(params)).fetchone()
+        return int(row[0] or 0)
 
     def get_knowledge_entry(self, entry_id: str) -> dict[str, Any] | None:
         with self._connection() as conn:

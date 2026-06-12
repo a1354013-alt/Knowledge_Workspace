@@ -16,7 +16,7 @@ EXCLUDED_DIR_NAMES = {
     ".ruff_cache",
     ".tox",
     ".venv",
-    ".venv311",
+    ".venv",
     "__pycache__",
     "env",
     "node_modules",

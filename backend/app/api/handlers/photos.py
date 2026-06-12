@@ -1,8 +1,9 @@
 import sqlite3
 import uuid
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 
 from app.api.common import (
@@ -20,7 +21,14 @@ from app.api.runtime import PHOTO_DIR, db
 from app.core.config import get_settings
 from app.database import delete_from_kb_vector_db
 from app.dependencies import get_current_user
-from app.models import ItemLinksResponse, MessageResponse, PhotoResponse, PhotoUpdateRequest, UploadPhotoResponse
+from app.models import (
+    ItemLinksResponse,
+    MessageResponse,
+    PhotoPageResponse,
+    PhotoResponse,
+    PhotoUpdateRequest,
+    UploadPhotoResponse,
+)
 from app.ocr_service import extract_text_from_image
 from app.services.indexing_service import sync_photo_index
 from app.utils import generate_safe_filename, stream_write_file
@@ -175,25 +183,38 @@ async def upload_photo(
     )
 
 
-async def list_photos(current_user: dict = Depends(get_current_user)) -> list[PhotoResponse]:
+def serialize_photo(row: dict) -> PhotoResponse:
+    return PhotoResponse(
+        id=row["photo_id"],
+        filename=row.get("filename", ""),
+        tags=row.get("tags", ""),
+        description=row.get("description", ""),
+        ocr_text=row.get("ocr_text", ""),
+        ocr_status=row.get("ocr_status", "pending") or "pending",
+        ocr_error=row.get("ocr_error", ""),
+        status=row.get("status", "reviewed") or "reviewed",
+        uploaded_by=row.get("uploaded_by"),
+        file_size=int(row.get("file_size", 0)),
+        created_at=row.get("created_at", ""),
+        updated_at=row.get("updated_at", ""),
+    )
+
+
+async def list_photos(
+    limit: Annotated[int, Query(ge=1, le=200)] = 200,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    current_user: dict = Depends(get_current_user),
+) -> PhotoPageResponse:
     user_id = current_user["sub"]
-    return [
-        PhotoResponse(
-            id=row["photo_id"],
-            filename=row.get("filename", ""),
-            tags=row.get("tags", ""),
-            description=row.get("description", ""),
-            ocr_text=row.get("ocr_text", ""),
-            ocr_status=row.get("ocr_status", "pending") or "pending",
-            ocr_error=row.get("ocr_error", ""),
-            status=row.get("status", "reviewed") or "reviewed",
-            uploaded_by=row.get("uploaded_by"),
-            file_size=int(row.get("file_size", 0)),
-            created_at=row.get("created_at", ""),
-            updated_at=row.get("updated_at", ""),
-        )
-        for row in db.list_photos(limit=200, user_id=user_id, include_archived=False)
-    ]
+    rows = db.list_photos(limit=limit, offset=offset, user_id=user_id, include_archived=False)
+    total = db.count_photos(user_id=user_id, include_archived=False)
+    return PhotoPageResponse(
+        items=[serialize_photo(row) for row in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=offset + len(rows) < total,
+    )
 
 
 async def download_photo(photo_id: str, inline: int = 1, current_user: dict = Depends(get_current_user)):

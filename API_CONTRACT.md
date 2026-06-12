@@ -9,7 +9,7 @@ python scripts/export_openapi.py
 python scripts/check_api_types.py
 ```
 
-The export command writes `docs/openapi.json`. It auto-delegates to the repo `.venv311` when the current repo-root `python` is newer than the supported Python 3.11 runtime.
+The export command writes `docs/openapi.json`. It auto-delegates to the repo `.venv` when the current repo-root `python` is newer than the supported Python 3.11 runtime.
 
 ## Frontend Types
 

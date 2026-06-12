@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.handlers import logbook as logbook_handlers
-from app.models import LogbookEntryResponse, MessageResponse, PromoteToKnowledgeResponse
+from app.models import LogbookEntryPageResponse, MessageResponse, PromoteToKnowledgeResponse
 
 router = APIRouter()
 
@@ -11,7 +11,7 @@ router.add_api_route(
     "/api/logbook/entries",
     logbook_handlers.list_logbook_entries,
     methods=["GET"],
-    response_model=list[LogbookEntryResponse],
+    response_model=LogbookEntryPageResponse,
 )
 router.add_api_route(
     "/api/logbook/entries", logbook_handlers.create_logbook_entry, methods=["POST"], response_model=MessageResponse

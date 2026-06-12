@@ -1,10 +1,10 @@
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
-$VenvPython = Join-Path $RepoRoot ".venv311\Scripts\python.exe"
+$VenvPython = Join-Path $RepoRoot ".venv\Scripts\python.exe"
 
 if (-not (Test-Path $VenvPython)) {
-    throw "Missing .venv311. Run .\scripts\bootstrap-dev.ps1 first."
+    throw "Missing .venv. Run .\scripts\bootstrap-dev.ps1 first."
 }
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     throw "npm was not found. Install Node.js 20 LTS or newer, then run .\scripts\bootstrap-dev.ps1."

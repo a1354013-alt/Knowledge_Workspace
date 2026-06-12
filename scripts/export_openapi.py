@@ -18,8 +18,8 @@ def _detect_root() -> Path:
 ROOT = _detect_root()
 BACKEND = ROOT / "backend"
 PY311_CANDIDATES = (
-    ROOT / ".venv311" / "Scripts" / "python.exe",
-    ROOT / ".venv311_clean" / "Scripts" / "python.exe",
+    ROOT / ".venv" / "Scripts" / "python.exe",
+    ROOT / ".venv_clean" / "Scripts" / "python.exe",
 )
 
 
