@@ -14,9 +14,9 @@ def test_runtime_dependency_manifests_include_httpx():
     requirements_text = (BACKEND_DIR / "requirements.txt").read_text(encoding="utf-8")
     requirements_dev_text = (BACKEND_DIR / "requirements-dev.txt").read_text(encoding="utf-8")
 
-    assert '    "httpx==0.24.1",' in pyproject_text
-    assert '    "httpx==0.24.1",' in backend_pyproject_text
-    assert "httpx==0.24.1" in requirements_text
+    assert '    "httpx>=0.28.1,<0.29.0",' in pyproject_text
+    assert '    "httpx>=0.28.1,<0.29.0",' in backend_pyproject_text
+    assert "httpx>=0.28.1,<0.29.0" in requirements_text
     assert "-r requirements.txt" in requirements_dev_text
 
 
@@ -49,4 +49,3 @@ def test_runtime_provider_and_app_imports_succeed(monkeypatch, tmp_path):
 
 def test_httpx_is_importable_in_runtime_environment():
     assert util.find_spec("httpx") is not None
-

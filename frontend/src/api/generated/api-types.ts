@@ -612,6 +612,8 @@ export interface UploadPhotoResponse {
 }
 
 export interface ValidationError {
+  ctx?: Record<string, unknown>;
+  input?: unknown;
   loc: string | number[];
   msg: string;
   type: string;
