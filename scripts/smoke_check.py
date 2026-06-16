@@ -76,6 +76,37 @@ def call_multipart(
         return exc.code, exc.read().decode("utf-8")
 
 
+def extract_items(payload: object, *, endpoint: str) -> list[dict[str, object]]:
+    """Normalize list or paginated API payloads into a list of objects.
+
+    Supported shapes:
+    - [{"id": "..."}]
+    - {"items": [{"id": "..."}], "total": 1, ...}
+    """
+    raw_items: list[object]
+
+    if isinstance(payload, list):
+        raw_items = payload
+    elif isinstance(payload, dict):
+        items_value = payload.get("items")
+        if not isinstance(items_value, list):
+            raise RuntimeError(
+                f"{endpoint} returned a paginated payload without list items: "
+                f"{payload!r}"
+            )
+        raw_items = items_value
+    else:
+        raise RuntimeError(f"{endpoint} returned unexpected payload shape: {payload!r}")
+
+    items: list[dict[str, object]] = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            raise RuntimeError(f"{endpoint} returned non-object item: {item!r}")
+        items.append(item)
+
+    return items
+
+
 def build_autotest_zip_bytes() -> bytes:
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -206,9 +237,19 @@ def main(argv: list[str] | None = None) -> int:
     if code != 200:
         print("LIST_LOGBOOK", code, body)
         return 1
-    entries = json.loads(body)
+
+    try:
+        entries = extract_items(json.loads(body), endpoint="/api/logbook/entries")
+    except RuntimeError as exc:
+        print(f"FAIL {exc}")
+        return 1
+
     entry_id = next(
-        (item["id"] for item in entries if smoke_marker in (item.get("title") or "")),
+        (
+            str(item.get("id") or "")
+            for item in entries
+            if smoke_marker in str(item.get("title") or "")
+        ),
         "",
     )
     if not entry_id:
@@ -230,7 +271,9 @@ def main(argv: list[str] | None = None) -> int:
         print("FAIL missing knowledge_entry_id")
         return 1
 
-    # Run AutoTest (delivery/CI uses simulated execution by default unless Docker live execution is explicitly enabled)
+    # Run AutoTest.
+    # Delivery/CI uses simulated execution by default unless Docker live execution
+    # is explicitly enabled.
     if (
         run_autotest_smoke_check(base_url=args.base_url, token=token, smoke_id=smoke_id)
         != 0
@@ -245,11 +288,18 @@ def main(argv: list[str] | None = None) -> int:
     print("QA", code, body[:2000])
     if code != 200:
         return 1
+
     qa = json.loads(body)
-    sources = qa.get("sources") or []
-    if not any(smoke_marker in (src.get("title", "") or "") for src in sources):
+    try:
+        sources = extract_items(qa.get("sources") or [], endpoint="/api/qa sources")
+    except RuntimeError as exc:
+        print(f"FAIL {exc}")
+        return 1
+
+    if not any(smoke_marker in str(src.get("title", "") or "") for src in sources):
         print("FAIL QA did not return promoted knowledge as a source")
         return 1
+
     return 0
 
 
