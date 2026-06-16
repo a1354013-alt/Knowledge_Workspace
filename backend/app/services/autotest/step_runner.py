@@ -14,14 +14,25 @@ logger = logging.getLogger("knowledge_workspace")
 autotest_repository = AutoTestRepository(db)
 
 
-def mark_unfinished_command_steps(*, run_id: str, current_failed_step: str = "") -> None:
+def mark_unfinished_command_steps(
+    *,
+    run_id: str,
+    current_failed_step: str = "",
+    failure_summary: str = "",
+) -> None:
     for step in autotest_repository.list_steps(run_id):
         status_value = str(step.get("status", "") or "").lower()
         if status_value in {"passed", "failed", "skipped", "unavailable"}:
             continue
+        step_name = str(step.get("name", ""))
         next_status = (
-            "failed" if current_failed_step and str(step.get("name", "")) == current_failed_step else "skipped"
+            "failed"
+            if status_value == "running" or (current_failed_step and step_name == current_failed_step)
+            else "skipped"
         )
+        stderr_summary = str(step.get("stderr_summary", "") or "")
+        if next_status == "failed" and failure_summary and not stderr_summary:
+            stderr_summary = failure_summary
         autotest_repository.update_step(
             str(step.get("step_id", "")),
             status=next_status,
@@ -30,7 +41,7 @@ def mark_unfinished_command_steps(*, run_id: str, current_failed_step: str = "")
             success=0 if next_status == "failed" else 1,
             exit_code=1 if next_status == "failed" else 0,
             stdout_summary=str(step.get("stdout_summary", "") or ""),
-            stderr_summary=str(step.get("stderr_summary", "") or ""),
+            stderr_summary=stderr_summary,
             error_type="failed_before_completion" if next_status == "failed" else "skipped_after_failure",
         )
 

@@ -282,7 +282,15 @@ def test_autotest_stack_detection_failure_sets_failed(
     assert response.status_code == 202, response.text
     payload = wait_for_autotest_run(client, auth_headers, response.json()["id"])
     assert payload["status"] == "failed"
-    assert payload["failed_reason"]
+    assert "stack detect failed" in payload["failed_reason"]
+    assert "stack detection failed" in payload["summary"].lower()
+    detected_stack = next(item for item in payload["timeline"] if item["key"] == "detected_stack")
+    assert detected_stack["status"] == "failed"
+    assert "stack detect failed" in detected_stack["message"]
+    assert all(item["status"] != "running" for item in payload["timeline"])
+    assert all(step["status"] != "running" for step in payload["steps"])
+    assert all(step["status"] in {"skipped", "failed"} for step in payload["steps"])
+    assert all(step["name"] != "install" or step["status"] == "skipped" for step in payload["steps"])
 
 
 def test_autotest_test_command_failure_sets_failed(client: TestClient, auth_headers: dict[str, str]):

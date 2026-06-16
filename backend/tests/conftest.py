@@ -28,6 +28,9 @@ os.environ.setdefault("UPLOAD_DIR", str(BOOTSTRAP_DIR / "uploads"))
 os.environ.setdefault("PHOTO_DIR", str(BOOTSTRAP_DIR / "photos"))
 os.environ.setdefault("AUTOTEST_DIR", str(BOOTSTRAP_DIR / "autotest"))
 os.environ.setdefault("AUTOTEST_MODE", "simulated")
+os.environ.setdefault("KW_AUTOTEST_REAL_MODE", "0")
+os.environ.setdefault("KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST", "0")
+os.environ.setdefault("AUTOTEST_SANDBOX_BACKEND", "disabled")
 os.environ.setdefault("CHROMA_DB_PATH", str(BOOTSTRAP_DIR / "chroma"))
 os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:5173")
 
@@ -40,6 +43,9 @@ def _reload_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setenv("PHOTO_DIR", str(tmp_path / "photos"))
     monkeypatch.setenv("AUTOTEST_DIR", str(tmp_path / "autotest"))
     monkeypatch.setenv("AUTOTEST_MODE", "simulated")
+    monkeypatch.setenv("KW_AUTOTEST_REAL_MODE", "0")
+    monkeypatch.setenv("KNOWLEDGE_WORKSPACE_ENABLE_REAL_AUTOTEST", "0")
+    monkeypatch.setenv("AUTOTEST_SANDBOX_BACKEND", "disabled")
     monkeypatch.setenv("CHROMA_DB_PATH", str(tmp_path / "chroma"))
     monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:5173")
 
@@ -65,6 +71,7 @@ def _reload_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 @pytest.fixture
 def app_module(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     module = _reload_app(monkeypatch, tmp_path)
+    module.autotest_service.shutdown_autotest_workers(join_timeout_seconds=1.0)
     yield module
     module.autotest_service.shutdown_autotest_workers(join_timeout_seconds=1.0)
     deadline = time.monotonic() + 1.0
@@ -86,4 +93,3 @@ def auth_headers(client: TestClient) -> dict[str, str]:
     response = client.post("/api/login", json={"user_id": "owner", "password": "OwnerPass123!"})
     assert response.status_code == 200, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
-

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from app.services.autotest.archive import sanitize_path_for_report
 from app.services.autotest.detector import find_project_root_on_disk
@@ -15,8 +16,13 @@ class DetectedProject:
     project_name: str
 
 
-def detect_project(*, extracted_dir: Path, fallback_project_name: str) -> DetectedProject:
-    project_type_detected, working_dir = find_project_root_on_disk(extracted_dir)
+def detect_project(
+    *,
+    extracted_dir: Path,
+    fallback_project_name: str,
+    root_finder: Callable[[Path], tuple[str, Path]] = find_project_root_on_disk,
+) -> DetectedProject:
+    project_type_detected, working_dir = root_finder(extracted_dir)
     return DetectedProject(
         project_type_detected=project_type_detected,
         working_dir=working_dir,

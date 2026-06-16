@@ -7,6 +7,7 @@ from app.context import db
 from app.repositories.autotest_repository import AutoTestRepository
 from app.services.autotest.archive import safe_extract_zip
 from app.services.autotest.archive_extractor import prepare_extracted_archive
+from app.services.autotest.detector import find_project_root_on_disk
 from app.services.autotest.execution_plan import PlannedStep, build_execution_plan
 from app.services.autotest.job_reporter import (
     current_failed_phase,
@@ -97,6 +98,7 @@ def _detect_project(
     detected_project = detect_project(
         extracted_dir=extracted_dir,
         fallback_project_name=project_name,
+        root_finder=find_project_root_on_disk,
     )
     _persist_run_update(
         run_id,
@@ -186,21 +188,30 @@ def _persist_unexpected_failure(
     failed_reason: str,
     failed_step_name: str,
 ) -> None:
+    failed_phase = current_failed_phase(timeline, failed_reason)
     timeline = finalize_autotest_timeline_failure(
         timeline=timeline,
-        failed_phase=current_failed_phase(timeline, failed_reason),
+        failed_phase=failed_phase,
         failed_reason=failed_reason,
     )
     _save_timeline(run_id, timeline)
+    if failed_phase == "detected_stack":
+        summary = f"AutoTest stack detection failed: {failed_reason}"
+    else:
+        summary = f"AutoTest run failed: {failed_reason}"
     _persist_run_update(
         run_id,
         status="failed",
-        summary=f"AutoTest run failed: {failed_reason}",
+        summary=summary,
         prompt_output="",
         suggestion="",
         failed_reason=failed_reason,
     )
-    mark_unfinished_command_steps(run_id=run_id, current_failed_step=failed_step_name)
+    mark_unfinished_command_steps(
+        run_id=run_id,
+        current_failed_step=failed_step_name,
+        failure_summary=failed_reason,
+    )
 
 
 async def execute_autotest_run_job(
